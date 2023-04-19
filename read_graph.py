@@ -23,23 +23,23 @@ with open(name, 'r') as in_file:
 
 # print(length, terminals)
 bef = len(graph.nodes())
-def preprocess(graph):
+def preprocess(graph, terminals):
     found = True
     while found:
         found = False
         nodes = list(graph.nodes())
         for node in nodes:
+            if node in terminals:
+                continue
             if len(graph.edges(node)) <= 2:
                 if len(graph.edges(node)) <= 1:
                     graph.remove_node(node)
-                else:
-                    neigh = list(graph.neighbors(node))
-                    graph.remove_node(node)
-                    graph.add_edge(neigh[0], neigh[1])
-                found = True
+                # else:
+                #     neigh = list(graph.neighbors(node))
+                #     graph.remove_node(node)
+                #     graph.add_edge(neigh[0], neigh[1])
+                # found = True
 
-
-preprocess(graph)
 
 def find_2_sep(graph):
     prog_str = """
@@ -55,9 +55,7 @@ def find_2_sep(graph):
     prog_str += ":- " + ','.join(f"not ok_nr({node})" for node in graph.nodes()) + ".\n"
     for edge in graph.edges():
         prog_str += f"e({edge[0]},{edge[1]}).\n"
-    print(prog_str)
-find_2_sep(graph)
-exit(0)
+
 def plot(graph):
     import matplotlib.pyplot as plt
     from networkx.drawing.nx_pydot import graphviz_layout
@@ -68,6 +66,10 @@ def plot(graph):
     plt.axis("off")
     plt.show()
 
+# plot(graph)
+
+plot(graph)
+preprocess(graph, terminals)
 plot(graph)
 
 def compute_fvs(graph):
@@ -81,7 +83,7 @@ def compute_fvs(graph):
     res = [ int(v) for v in output.decode().split()[1:] ]
     return res
 
-print(bef, len(graph.nodes()), len(compute_fvs(graph)))
+# print(bef, len(graph.nodes()), len(compute_fvs(graph)))
 # from aspmc.graph.treedecomposition import from_graph
 
 # td = from_graph(graph)
@@ -134,7 +136,7 @@ def unary_enc(graph, terminals, length):
                     prog_str += f", not reach({ep[1]}, L+1)"
             prog_str += ".\n"
     return prog_str
-# print(unary_enc(graph,terminals,length))
+print(unary_enc(graph,terminals,length))
 # program = Program(program_str=unary_enc(graph, terminals, length))
 # program.tpUnfold()
 # program.choose_clark_completion()

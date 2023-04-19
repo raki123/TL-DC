@@ -288,10 +288,10 @@ reach(210,L + 1) :- reach(226, L), L <= 13, L>= 13, not reach(152, L+1), not rea
 reach(225,L + 1) :- reach(226, L), L <= 13, L>= 13, not reach(152, L+1), not reach(210, L+1), not reach(227, L+1), not reach(242, L+1).
 reach(227,L + 1) :- reach(226, L), L <= 13, L>= 13, not reach(152, L+1), not reach(210, L+1), not reach(225, L+1), not reach(242, L+1).
 reach(242,L + 1) :- reach(226, L), L <= 13, L>= 13, not reach(152, L+1), not reach(210, L+1), not reach(225, L+1), not reach(227, L+1).
-reach(152,L + 1) :- reach(208, L), L <= 13, L>= 13, not reach(192, L+1), not reach(207, L+1), not reach(224, L+1).
-reach(192,L + 1) :- reach(208, L), L <= 13, L>= 13, not reach(152, L+1), not reach(207, L+1), not reach(224, L+1).
-reach(207,L + 1) :- reach(208, L), L <= 13, L>= 13, not reach(152, L+1), not reach(192, L+1), not reach(224, L+1).
-reach(224,L + 1) :- reach(208, L), L <= 13, L>= 13, not reach(152, L+1), not reach(192, L+1), not reach(207, L+1).
+reach(152,L + 1) :- reach(208, L), L <= 14, L>= 13, not reach(192, L+1), not reach(207, L+1), not reach(224, L+1).
+reach(192,L + 1) :- reach(208, L), L <= 14, L>= 13, not reach(152, L+1), not reach(207, L+1), not reach(224, L+1).
+reach(207,L + 1) :- reach(208, L), L <= 14, L>= 13, not reach(152, L+1), not reach(192, L+1), not reach(224, L+1).
+reach(224,L + 1) :- reach(208, L), L <= 14, L>= 13, not reach(152, L+1), not reach(192, L+1), not reach(207, L+1).
 reach(153,L + 1) :- reach(168, L), L <= 16, L>= 14, not reach(167, L+1), not reach(169, L+1), not reach(185, L+1).
 reach(167,L + 1) :- reach(168, L), L <= 16, L>= 14, not reach(153, L+1), not reach(169, L+1), not reach(185, L+1).
 reach(169,L + 1) :- reach(168, L), L <= 16, L>= 14, not reach(153, L+1), not reach(167, L+1), not reach(185, L+1).
@@ -418,9 +418,9 @@ reach(207,L + 1) :- reach(223, L), L <= 15, L>= 15, not reach(222, L+1), not rea
 reach(222,L + 1) :- reach(223, L), L <= 15, L>= 15, not reach(207, L+1), not reach(224, L+1), not reach(239, L+1).
 reach(224,L + 1) :- reach(223, L), L <= 15, L>= 15, not reach(207, L+1), not reach(222, L+1), not reach(239, L+1).
 reach(239,L + 1) :- reach(223, L), L <= 15, L>= 15, not reach(207, L+1), not reach(222, L+1), not reach(224, L+1).
-reach(208,L + 1) :- reach(224, L), L <= 14, L>= 14, not reach(223, L+1), not reach(240, L+1).
-reach(223,L + 1) :- reach(224, L), L <= 14, L>= 14, not reach(208, L+1), not reach(240, L+1).
-reach(240,L + 1) :- reach(224, L), L <= 14, L>= 14, not reach(208, L+1), not reach(223, L+1).
+reach(208,L + 1) :- reach(224, L), L <= 15, L>= 14, not reach(223, L+1), not reach(240, L+1).
+reach(223,L + 1) :- reach(224, L), L <= 15, L>= 14, not reach(208, L+1), not reach(240, L+1).
+reach(240,L + 1) :- reach(224, L), L <= 15, L>= 14, not reach(208, L+1), not reach(223, L+1).
 reach(211,L + 1) :- reach(227, L), L <= 14, L>= 14, not reach(226, L+1), not reach(228, L+1), not reach(243, L+1).
 reach(226,L + 1) :- reach(227, L), L <= 14, L>= 14, not reach(211, L+1), not reach(228, L+1), not reach(243, L+1).
 reach(228,L + 1) :- reach(227, L), L <= 14, L>= 14, not reach(211, L+1), not reach(226, L+1), not reach(243, L+1).
@@ -473,12 +473,12 @@ reach(223,L + 1) :- reach(239, L), L <= 16, L>= 16, not reach(238, L+1), not rea
 reach(238,L + 1) :- reach(239, L), L <= 16, L>= 16, not reach(223, L+1), not reach(240, L+1), not reach(255, L+1).
 reach(240,L + 1) :- reach(239, L), L <= 16, L>= 16, not reach(223, L+1), not reach(238, L+1), not reach(255, L+1).
 reach(255,L + 1) :- reach(239, L), L <= 16, L>= 16, not reach(223, L+1), not reach(238, L+1), not reach(240, L+1).
-reach(224,L + 1) :- reach(240, L), L <= 15, L>= 15, not reach(239, L+1), not reach(256, L+1).
-reach(239,L + 1) :- reach(240, L), L <= 15, L>= 15, not reach(224, L+1), not reach(256, L+1).
-reach(256,L + 1) :- reach(240, L), L <= 15, L>= 15, not reach(224, L+1), not reach(239, L+1).
-reach(226,L + 1) :- reach(242, L), L <= 14, L>= 14, not reach(241, L+1), not reach(243, L+1).
-reach(241,L + 1) :- reach(242, L), L <= 14, L>= 14, not reach(226, L+1), not reach(243, L+1).
-reach(243,L + 1) :- reach(242, L), L <= 14, L>= 14, not reach(226, L+1), not reach(241, L+1).
+reach(224,L + 1) :- reach(240, L), L <= 16, L>= 15, not reach(239, L+1), not reach(255, L+1).
+reach(239,L + 1) :- reach(240, L), L <= 16, L>= 15, not reach(224, L+1), not reach(255, L+1).
+reach(255,L + 1) :- reach(240, L), L <= 16, L>= 15, not reach(224, L+1), not reach(239, L+1).
+reach(226,L + 1) :- reach(242, L), L <= 14, L>= 14, not reach(243, L+1), not reach(225, L+1).
+reach(243,L + 1) :- reach(242, L), L <= 14, L>= 14, not reach(226, L+1), not reach(225, L+1).
+reach(225,L + 1) :- reach(242, L), L <= 14, L>= 14, not reach(226, L+1), not reach(243, L+1).
 reach(227,L + 1) :- reach(243, L), L <= 15, L>= 15, not reach(242, L+1), not reach(244, L+1).
 reach(242,L + 1) :- reach(243, L), L <= 15, L>= 15, not reach(227, L+1), not reach(244, L+1).
 reach(244,L + 1) :- reach(243, L), L <= 15, L>= 15, not reach(227, L+1), not reach(242, L+1).
@@ -503,18 +503,16 @@ reach(250,L + 1) :- reach(249, L), L <= 21, L>= 19, not reach(233, L+1), not rea
 reach(235,L + 1) :- reach(251, L), L <= 21, L>= 20, not reach(250, L+1), not reach(252, L+1).
 reach(250,L + 1) :- reach(251, L), L <= 21, L>= 20, not reach(235, L+1), not reach(252, L+1).
 reach(252,L + 1) :- reach(251, L), L <= 21, L>= 20, not reach(235, L+1), not reach(250, L+1).
-reach(236,L + 1) :- reach(252, L), L <= 20, L>= 20, not reach(251, L+1), not reach(253, L+1).
-reach(251,L + 1) :- reach(252, L), L <= 20, L>= 20, not reach(236, L+1), not reach(253, L+1).
-reach(253,L + 1) :- reach(252, L), L <= 20, L>= 20, not reach(236, L+1), not reach(251, L+1).
-reach(237,L + 1) :- reach(253, L), L <= 19, L>= 19, not reach(252, L+1), not reach(254, L+1).
-reach(252,L + 1) :- reach(253, L), L <= 19, L>= 19, not reach(237, L+1), not reach(254, L+1).
-reach(254,L + 1) :- reach(253, L), L <= 19, L>= 19, not reach(237, L+1), not reach(252, L+1).
-reach(238,L + 1) :- reach(254, L), L <= 18, L>= 18, not reach(253, L+1), not reach(255, L+1).
-reach(253,L + 1) :- reach(254, L), L <= 18, L>= 18, not reach(238, L+1), not reach(255, L+1).
-reach(255,L + 1) :- reach(254, L), L <= 18, L>= 18, not reach(238, L+1), not reach(253, L+1).
-reach(239,L + 1) :- reach(255, L), L <= 17, L>= 17, not reach(254, L+1), not reach(256, L+1).
-reach(254,L + 1) :- reach(255, L), L <= 17, L>= 17, not reach(239, L+1), not reach(256, L+1).
-reach(256,L + 1) :- reach(255, L), L <= 17, L>= 17, not reach(239, L+1), not reach(254, L+1).
-reach(240,L + 1) :- reach(256, L), L <= 16, L>= 16, not reach(255, L+1).
-reach(255,L + 1) :- reach(256, L), L <= 16, L>= 16, not reach(240, L+1).
+reach(236,L + 1) :- reach(252, L), L <= 20, L>= 19, not reach(251, L+1), not reach(253, L+1).
+reach(251,L + 1) :- reach(252, L), L <= 20, L>= 19, not reach(236, L+1), not reach(253, L+1).
+reach(253,L + 1) :- reach(252, L), L <= 20, L>= 19, not reach(236, L+1), not reach(251, L+1).
+reach(237,L + 1) :- reach(253, L), L <= 19, L>= 18, not reach(252, L+1), not reach(254, L+1).
+reach(252,L + 1) :- reach(253, L), L <= 19, L>= 18, not reach(237, L+1), not reach(254, L+1).
+reach(254,L + 1) :- reach(253, L), L <= 19, L>= 18, not reach(237, L+1), not reach(252, L+1).
+reach(238,L + 1) :- reach(254, L), L <= 18, L>= 17, not reach(253, L+1), not reach(255, L+1).
+reach(253,L + 1) :- reach(254, L), L <= 18, L>= 17, not reach(238, L+1), not reach(255, L+1).
+reach(255,L + 1) :- reach(254, L), L <= 18, L>= 17, not reach(238, L+1), not reach(253, L+1).
+reach(239,L + 1) :- reach(255, L), L <= 17, L>= 16, not reach(254, L+1), not reach(240, L+1).
+reach(254,L + 1) :- reach(255, L), L <= 17, L>= 16, not reach(239, L+1), not reach(240, L+1).
+reach(240,L + 1) :- reach(255, L), L <= 17, L>= 16, not reach(239, L+1), not reach(254, L+1).
 

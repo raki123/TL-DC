@@ -118,9 +118,9 @@ reach(35,L + 1) :- reach(32, L), L <= 3, L>= 1, not reach(28, L+1), not reach(29
 reach(29,L + 1) :- reach(51, L), L <= 3, L>= 1, not reach(50, L+1), not reach(52, L+1), not reach(65, L+1).
 reach(50,L + 1) :- reach(51, L), L <= 3, L>= 1, not reach(29, L+1), not reach(52, L+1), not reach(65, L+1).
 reach(65,L + 1) :- reach(51, L), L <= 3, L>= 1, not reach(29, L+1), not reach(50, L+1), not reach(52, L+1).
-reach(30,L + 1) :- reach(33, L), L <= 6, L>= 6, not reach(36, L+1), not reach(37, L+1).
-reach(36,L + 1) :- reach(33, L), L <= 6, L>= 6, not reach(30, L+1), not reach(37, L+1).
-reach(37,L + 1) :- reach(33, L), L <= 6, L>= 6, not reach(30, L+1), not reach(36, L+1).
+reach(30,L + 1) :- reach(33, L), L <= 6, L>= 6, not reach(37, L+1), not reach(39, L+1).
+reach(37,L + 1) :- reach(33, L), L <= 6, L>= 6, not reach(30, L+1), not reach(39, L+1).
+reach(39,L + 1) :- reach(33, L), L <= 6, L>= 6, not reach(30, L+1), not reach(37, L+1).
 reach(30,L + 1) :- reach(34, L), L <= 6, L>= 4, not reach(37, L+1), not reach(38, L+1).
 reach(37,L + 1) :- reach(34, L), L <= 6, L>= 4, not reach(30, L+1), not reach(38, L+1).
 reach(38,L + 1) :- reach(34, L), L <= 6, L>= 4, not reach(30, L+1), not reach(37, L+1).
@@ -144,9 +144,9 @@ reach(54,L + 1) :- reach(38, L), L <= 5, L>= 3, not reach(34, L+1), not reach(35
 reach(35,L + 1) :- reach(53, L), L <= 3, L>= 1, not reach(52, L+1), not reach(54, L+1), not reach(67, L+1).
 reach(54,L + 1) :- reach(53, L), L <= 3, L>= 1, not reach(35, L+1), not reach(52, L+1), not reach(67, L+1).
 reach(67,L + 1) :- reach(53, L), L <= 3, L>= 1, not reach(35, L+1), not reach(52, L+1), not reach(54, L+1).
-reach(36,L + 1) :- reach(39, L), L <= 6, L>= 6, not reach(37, L+1), not reach(41, L+1).
-reach(37,L + 1) :- reach(39, L), L <= 6, L>= 6, not reach(36, L+1), not reach(41, L+1).
-reach(41,L + 1) :- reach(39, L), L <= 6, L>= 6, not reach(36, L+1), not reach(37, L+1).
+reach(37,L + 1) :- reach(39, L), L <= 6, L>= 6, not reach(41, L+1), not reach(33, L+1).
+reach(41,L + 1) :- reach(39, L), L <= 6, L>= 6, not reach(37, L+1), not reach(33, L+1).
+reach(33,L + 1) :- reach(39, L), L <= 6, L>= 6, not reach(37, L+1), not reach(41, L+1).
 reach(37,L + 1) :- reach(40, L), L <= 6, L>= 4, not reach(38, L+1), not reach(41, L+1), not reach(55, L+1).
 reach(38,L + 1) :- reach(40, L), L <= 6, L>= 4, not reach(37, L+1), not reach(41, L+1), not reach(55, L+1).
 reach(41,L + 1) :- reach(40, L), L <= 6, L>= 4, not reach(37, L+1), not reach(38, L+1), not reach(55, L+1).
@@ -437,10 +437,10 @@ reach(117,L + 1) :- reach(131, L), L <= 12, L>= 11, not reach(130, L+1), not rea
 reach(130,L + 1) :- reach(131, L), L <= 12, L>= 11, not reach(117, L+1), not reach(132, L+1), not reach(145, L+1).
 reach(132,L + 1) :- reach(131, L), L <= 12, L>= 11, not reach(117, L+1), not reach(130, L+1), not reach(145, L+1).
 reach(145,L + 1) :- reach(131, L), L <= 12, L>= 11, not reach(117, L+1), not reach(130, L+1), not reach(132, L+1).
-reach(118,L + 1) :- reach(132, L), L <= 11, L>= 10, not reach(131, L+1), not reach(133, L+1), not reach(146, L+1).
-reach(131,L + 1) :- reach(132, L), L <= 11, L>= 10, not reach(118, L+1), not reach(133, L+1), not reach(146, L+1).
-reach(133,L + 1) :- reach(132, L), L <= 11, L>= 10, not reach(118, L+1), not reach(131, L+1), not reach(146, L+1).
-reach(146,L + 1) :- reach(132, L), L <= 11, L>= 10, not reach(118, L+1), not reach(131, L+1), not reach(133, L+1).
+reach(118,L + 1) :- reach(132, L), L <= 11, L>= 10, not reach(131, L+1), not reach(133, L+1), not reach(147, L+1).
+reach(131,L + 1) :- reach(132, L), L <= 11, L>= 10, not reach(118, L+1), not reach(133, L+1), not reach(147, L+1).
+reach(133,L + 1) :- reach(132, L), L <= 11, L>= 10, not reach(118, L+1), not reach(131, L+1), not reach(147, L+1).
+reach(147,L + 1) :- reach(132, L), L <= 11, L>= 10, not reach(118, L+1), not reach(131, L+1), not reach(133, L+1).
 reach(119,L + 1) :- reach(133, L), L <= 10, L>= 9, not reach(132, L+1), not reach(134, L+1), not reach(147, L+1).
 reach(132,L + 1) :- reach(133, L), L <= 10, L>= 9, not reach(119, L+1), not reach(134, L+1), not reach(147, L+1).
 reach(134,L + 1) :- reach(133, L), L <= 10, L>= 9, not reach(119, L+1), not reach(132, L+1), not reach(147, L+1).
@@ -486,10 +486,10 @@ reach(158,L + 1) :- reach(144, L), L <= 14, L>= 13, not reach(130, L+1), not rea
 reach(131,L + 1) :- reach(145, L), L <= 13, L>= 12, not reach(144, L+1), not reach(159, L+1).
 reach(144,L + 1) :- reach(145, L), L <= 13, L>= 12, not reach(131, L+1), not reach(159, L+1).
 reach(159,L + 1) :- reach(145, L), L <= 13, L>= 12, not reach(131, L+1), not reach(144, L+1).
-reach(133,L + 1) :- reach(147, L), L <= 11, L>= 10, not reach(146, L+1), not reach(148, L+1), not reach(161, L+1).
-reach(146,L + 1) :- reach(147, L), L <= 11, L>= 10, not reach(133, L+1), not reach(148, L+1), not reach(161, L+1).
-reach(148,L + 1) :- reach(147, L), L <= 11, L>= 10, not reach(133, L+1), not reach(146, L+1), not reach(161, L+1).
-reach(161,L + 1) :- reach(147, L), L <= 11, L>= 10, not reach(133, L+1), not reach(146, L+1), not reach(148, L+1).
+reach(133,L + 1) :- reach(147, L), L <= 11, L>= 10, not reach(148, L+1), not reach(161, L+1), not reach(132, L+1).
+reach(148,L + 1) :- reach(147, L), L <= 11, L>= 10, not reach(133, L+1), not reach(161, L+1), not reach(132, L+1).
+reach(161,L + 1) :- reach(147, L), L <= 11, L>= 10, not reach(133, L+1), not reach(148, L+1), not reach(132, L+1).
+reach(132,L + 1) :- reach(147, L), L <= 11, L>= 10, not reach(133, L+1), not reach(148, L+1), not reach(161, L+1).
 reach(134,L + 1) :- reach(148, L), L <= 10, L>= 9, not reach(147, L+1), not reach(149, L+1), not reach(162, L+1).
 reach(147,L + 1) :- reach(148, L), L <= 10, L>= 9, not reach(134, L+1), not reach(149, L+1), not reach(162, L+1).
 reach(149,L + 1) :- reach(148, L), L <= 10, L>= 9, not reach(134, L+1), not reach(147, L+1), not reach(162, L+1).
