@@ -28,5 +28,6 @@ class Graph {
     std::vector<Vertex> neighbors(Vertex v);
 
     Vertex preprocess_isolated();
+    Vertex preprocess_forwarder();
 
 };
