@@ -16,7 +16,7 @@ set(CMAKE_SHARED_LIBRARY_LINK_CXX_FLAGS)
 set(BUILD_SHARED_LIBS OFF)
 endif(STATIC)
 
-set(CMAKE_CXX_FLAGS "-std=c++17 -Wall -Wextra -Wshadow -Wfatal-errors -Wno-sign-compare -Wno-literal-suffix -g")
+set(CMAKE_CXX_FLAGS "-std=c++17 -O3 -Wall -Wextra -Wshadow -Wfatal-errors -Wno-sign-compare -Wno-literal-suffix -g")
 
 SET(CMAKE_C_FLAGS "-std=c99 -Wall")
 

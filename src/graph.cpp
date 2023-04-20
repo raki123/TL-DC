@@ -1,6 +1,7 @@
 #include "graph.h"
 #include <assert.h>
 #include <queue>
+#include <algorithm>
 
 
 Graph::Graph(std::istream &input) {
@@ -48,6 +49,7 @@ void Graph::preprocess() {
     Vertex isolated_removed = 0;
     Vertex forwarder_removed = 0;
     Vertex unreachable_removed = 0;
+    Vertex unusable_edge_removed = 0;
     while(found) {
         found = false;
         Vertex cur_isolated_removed = preprocess_isolated();
@@ -60,11 +62,17 @@ void Graph::preprocess() {
             Vertex cur_unreachable_removed = preprocess_unreachable();
             found |= cur_unreachable_removed > 0;
             unreachable_removed += cur_unreachable_removed;
+            if(!found) {
+                Vertex cur_unusable_edge_removed = preprocess_unusable_edge();
+                found |= cur_unusable_edge_removed > 0;
+                unusable_edge_removed += cur_unusable_edge_removed;
+            }
         }
     }
     std::cerr << "Removed isolated: " << isolated_removed << std::endl;
     std::cerr << "Removed forwarder: " << forwarder_removed << std::endl;
     std::cerr << "Removed unreachable: " << unreachable_removed << std::endl;
+    std::cerr << "Removed unusable edge: " << unusable_edge_removed << std::endl;
 }
 
 void Graph::add_edge(Edge edge, Weight weight) {
@@ -89,6 +97,43 @@ std::vector<Vertex> Graph::neighbors(Vertex v) {
         ret.push_back(w);
     }
     return ret;
+}
+
+void Graph::remove_edge(Edge edge) {
+    assert(edge.first >= 0 && edge.first < adjacency_.size());
+    assert(edge.second >= 0 && edge.second < adjacency_.size());
+    adjacency_[edge.first].erase(edge.second);
+    adjacency_[edge.second].erase(edge.first);
+}
+
+void Graph::dijkstra(Vertex start, std::vector<Edge_length>& distance, const std::set<Vertex>& forbidden) {
+    std::priority_queue<std::pair<Edge_length, Vertex>> queue;
+    queue.push(std::make_pair(0, start));
+    distance[start] = 0;
+    while(!queue.empty()) {
+        auto [cur_cost, cur_vertex] = queue.top();
+        queue.pop();
+        if(cur_cost > distance[cur_vertex]) {
+            continue;
+        }
+        for(auto &[w, weights] : adjacency_[cur_vertex]) {
+            if(cur_cost + 1 >= distance[w]) {
+                continue;
+            }
+            if(forbidden.count(w) > 0) {
+                continue;
+            }
+            Edge_length min_cost = std::numeric_limits<Edge_length>::max();
+            assert(weights.size() > 0);
+            for(auto &weight : weights) {
+                min_cost = std::min(weight.first, min_cost);
+            }
+            if(cur_cost + min_cost < distance[w]) {
+                distance[w] = min_cost + cur_cost;
+                queue.push(std::make_pair(cur_cost + min_cost, w));
+            }
+        }
+    }
 }
 
 Vertex Graph::preprocess_isolated() {
@@ -163,54 +208,10 @@ Vertex Graph::preprocess_forwarder() {
 Vertex Graph::preprocess_unreachable() {
     assert(terminals_.size() > 0);
     std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
-    std::priority_queue<std::pair<Edge_length, Vertex>> queue;
-    queue.push(std::make_pair(0, terminals_[0]));
-    distance_from_start[terminals_[0]] = 0;
-    while(!queue.empty()) {
-        auto [cur_cost, cur_vertex] = queue.top();
-        queue.pop();
-        if(cur_cost > distance_from_start[cur_vertex]) {
-            continue;
-        }
-        for(auto &[w, weights] : adjacency_[cur_vertex]) {
-            if(cur_cost + 1 >= distance_from_start[w]) {
-                continue;
-            }
-            Edge_length min_cost = std::numeric_limits<Edge_length>::max();
-            assert(weights.size() > 0);
-            for(auto &weight : weights) {
-                min_cost = std::min(weight.first, min_cost);
-            }
-            if(cur_cost + min_cost < distance_from_start[w]) {
-                distance_from_start[w] = min_cost + cur_cost;
-                queue.push(std::make_pair(cur_cost + min_cost, w));
-            }
-        }
-    }
+    dijkstra(terminals_[0], distance_from_start, {});
 
     std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
-    queue.push(std::make_pair(0, terminals_[1]));
-    distance_to_goal[terminals_[1]] = 0;
-    while(!queue.empty()) {
-        auto [cur_cost, cur_vertex] = queue.top();
-        queue.pop();
-        if(cur_cost > distance_to_goal[cur_vertex]) {
-            continue;
-        }
-        for(auto &[w, weights] : adjacency_[cur_vertex]) {
-            if(cur_cost + 1 >= distance_to_goal[w]) {
-                continue;
-            }
-            Edge_length min_cost = std::numeric_limits<Edge_length>::max();
-            for(auto &weight : weights) {
-                min_cost = std::min(weight.first, min_cost);
-            }
-            if(cur_cost + min_cost < distance_to_goal[w]) {
-                distance_to_goal[w] = min_cost + cur_cost;
-                queue.push(std::make_pair(cur_cost + min_cost, w));
-            }
-        }
-    }
+    dijkstra(terminals_[1], distance_to_goal, {});
 
     Vertex found = 0;
     for(Vertex v = 0; v < adjacency_.size(); v++) {
@@ -220,6 +221,43 @@ Vertex Graph::preprocess_unreachable() {
         if(distance_from_start[v] + distance_to_goal[v] > max_length_) {
             found++;
             remove_vertex(v);
+        }
+    }
+    return found;
+}
+
+Vertex Graph::preprocess_unusable_edge() {
+    assert(terminals_.size() > 0);
+    std::vector<std::vector<Edge_length>> distances_from_start(adjacency_.size(), std::vector<Edge_length>(adjacency_.size(), std::numeric_limits<Edge_length>::max()));
+    std::vector<std::vector<Edge_length>> distances_to_goal(adjacency_.size(), std::vector<Edge_length>(adjacency_.size(), std::numeric_limits<Edge_length>::max()));
+    Vertex found = 0;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(adjacency_[v].size() == 0) {
+            continue;
+        }
+        dijkstra(terminals_[0], distances_from_start[v], {v});
+        dijkstra(terminals_[1], distances_to_goal[v], {v});
+    }
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        std::vector<Vertex> remove_completely;
+        for(auto &[w, weights] : adjacency_[v]) {
+            Edge_length min_without_edge = std::min(distances_from_start[v][w] + distances_to_goal[w][v], distances_from_start[w][v] + distances_to_goal[v][w]);
+            std::vector<Weight> new_weights;
+            for(auto &weight : weights) {
+                if(weight.first + min_without_edge <= max_length_) {
+                    new_weights.push_back(weight);
+                } else {
+                    found++;
+                }
+            }
+            if(new_weights.size() == 0) {
+                remove_completely.push_back(w);
+            } else {
+                weights = new_weights;
+            }
+        }
+        for(auto w : remove_completely) {
+            remove_edge(Edge(v,w));
         }
     }
     return found;
