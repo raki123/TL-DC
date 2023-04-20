@@ -109,11 +109,13 @@ void Graph::encode_unary(std::ostream& output) {
             }
         }
         for(auto &[w, length] : edges) {
-            output << "reach(" << w << ",L + " << length << ") :- reach(" << v << ", L), L <= " << max_length_ - distance_to_goal[w] - length;
+            output << "reach(" << w << ",L + L') :- reach(" << v << ", L), edge(X, Y, L'), L <= " << max_length_ - distance_to_goal[w] - length;
+            output << ", L>= " << distance_from_start[v] << ".\n";
+            output << "edge(" << v << "," << w << "," << length << ") :- reach(" << v << ", L), L <= " << max_length_ - distance_to_goal[w] - length;
             output << ", L>= " << distance_from_start[v];
             for(auto &[wp, lengthp] : edges) {
                 if(w != wp || length != lengthp) {
-                    output << ", not reach(" << wp << ", L+" << lengthp << ")";
+                    output << ", not edge(" << v << "," << wp << "," << lengthp << ")";
                 }
             }
             output << ".\n";
