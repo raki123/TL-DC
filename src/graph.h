@@ -29,5 +29,6 @@ class Graph {
 
     Vertex preprocess_isolated();
     Vertex preprocess_forwarder();
+    Vertex preprocess_unreachable();
 
 };
