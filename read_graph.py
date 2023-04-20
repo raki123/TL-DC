@@ -68,9 +68,9 @@ def plot(graph):
 
 # plot(graph)
 
-plot(graph)
-preprocess(graph, terminals)
-plot(graph)
+# plot(graph)
+# preprocess(graph, terminals)
+# plot(graph)
 
 def compute_fvs(graph):
     import subprocess

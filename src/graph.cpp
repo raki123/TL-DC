@@ -75,6 +75,52 @@ void Graph::preprocess() {
     std::cerr << "Removed unusable edge: " << unusable_edge_removed << std::endl;
 }
 
+void Graph::encode_unary(std::ostream& output) {
+    output << "reach(X, 0) :- start(X).\n";
+    output << ":- goal(X)";
+    for(int i = 0; i <= max_length_; i++) {
+        output << ", not reach(X, " << i << ")";
+    }
+    output << ".\n";
+    output << "start(" << terminals_[0] << ").\n";
+    output << "goal(" << terminals_[1] << ").\n";
+    output << ":- reach(X, L), reach(X, L'), L != L'.\n";
+    std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[0], distance_from_start, {});
+
+    std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[1], distance_to_goal, {});
+
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(v == terminals_[1] || adjacency_[v].empty()) {
+            continue;
+        }
+        // assert(distance_from_start[v] + distance_to_goal[v] <= max_length_);
+        std::vector<std::pair<Vertex,Edge_length>> edges;
+        for(auto &[w, weights] : adjacency_[v]) {
+            if(w == terminals_[0]) {
+                continue;
+            }
+            for(auto &weight : weights) {
+                edges.push_back(std::make_pair(w, weight.first));
+                if(weight.second != 1) {
+                    std::cerr << "Found edge with weight " << weight.second << std::endl;
+                }
+            }
+        }
+        for(auto &[w, length] : edges) {
+            output << "reach(" << w << ",L + " << length << ") :- reach(" << v << ", L), L <= " << max_length_ - distance_to_goal[w] - length;
+            output << ", L>= " << distance_from_start[v];
+            for(auto &[wp, lengthp] : edges) {
+                if(w != wp || length != lengthp) {
+                    output << ", not reach(" << wp << ", L+" << lengthp << ")";
+                }
+            }
+            output << ".\n";
+        }
+    }
+}
+
 void Graph::add_edge(Edge edge, Weight weight) {
     assert(edge.first >= 0 && edge.first < adjacency_.size());
     assert(edge.second >= 0 && edge.second < adjacency_.size());
