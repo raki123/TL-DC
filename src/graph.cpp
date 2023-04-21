@@ -1,5 +1,4 @@
 #include "graph.h"
-#include <assert.h>
 #include <queue>
 #include <algorithm>
 
@@ -48,6 +47,7 @@ void Graph::preprocess() {
     bool found = true;
     Vertex isolated_removed = 0;
     Vertex forwarder_removed = 0;
+    Vertex twin_edges_removed = 0;
     Vertex unreachable_removed = 0;
     Vertex unusable_edge_removed = 0;
     while(found) {
@@ -58,6 +58,9 @@ void Graph::preprocess() {
         Vertex cur_forwarder_removed = preprocess_forwarder();
         found |= cur_forwarder_removed > 0;
         forwarder_removed += cur_forwarder_removed;
+        Vertex cur_twin_edges_removed = preprocess_twins();
+        found |= cur_twin_edges_removed > 0;
+        twin_edges_removed += cur_twin_edges_removed;
         if(terminals_.size() > 0) {
             Vertex cur_unreachable_removed = preprocess_unreachable();
             found |= cur_unreachable_removed > 0;
@@ -71,6 +74,7 @@ void Graph::preprocess() {
     }
     std::cerr << "Removed isolated: " << isolated_removed << std::endl;
     std::cerr << "Removed forwarder: " << forwarder_removed << std::endl;
+    std::cerr << "Removed twin edges: " << twin_edges_removed << std::endl;
     std::cerr << "Removed unreachable: " << unreachable_removed << std::endl;
     std::cerr << "Removed unusable edge: " << unusable_edge_removed << std::endl;
 }
@@ -104,9 +108,9 @@ void Graph::encode_unary(std::ostream& output) {
             for(auto &weight : weights) {
                 assert(std::find(edges.begin(), edges.end(), std::make_pair(w, weight.first)) == edges.end());
                 edges.push_back(std::make_pair(w, weight.first));
-                if(weight.second != 1) {
-                    std::cerr << "Found edge with weight " << weight.second << std::endl;
-                }
+                // if(weight.second != 1) {
+                //     std::cerr << "Found edge with weight " << weight.second << std::endl;
+                // }
             }
         }
         for(auto &[w, length] : edges) {
@@ -186,20 +190,34 @@ void Graph::dijkstra(Vertex start, std::vector<Edge_length>& distance, const std
     }
 }
 
+Vertex Graph::preprocess_start_goal_edges() {
+    assert(terminals_.size() > 0);
+    Vertex found = 0;
+    if(adjacency_[terminals_[0]].count(terminals_[1]) > 0) {
+        for(auto &[length, weight] : adjacency_[terminals_[0]][terminals_[1]]) {
+            if(length <= max_length_) {
+                extra_paths_ += weight;
+            }
+        }
+        found = adjacency_[terminals_[0]][terminals_[1]].size();
+        adjacency_[terminals_[0]].erase(terminals_[1]);
+        adjacency_[terminals_[1]].erase(terminals_[0]);
+    }
+    return found;
+}
+
 Vertex Graph::preprocess_isolated() {
     Vertex found = 0;
     for(size_t v = 0; v < adjacency_.size(); v++) {
         std::vector<Vertex> neighbors_ = neighbors(v);
         if(neighbors_.size() == 1) {
             Vertex neighbor = neighbors_[0];
-            if(terminals_.size() > 0 
-                && (terminals_[0] == v || terminals_[1] == v)
-                && (terminals_[0] == neighbor || terminals_[1] == neighbor)) {
-                    // if the graph consists only of v -- neighbor, we cannot preprocess this node away
-                continue;
-            }
             found++;
             if(terminals_.size() > 0 && (terminals_[0] == v || terminals_[1] == v)) {
+                if(terminals_.size() > 0 && (terminals_[0] == neighbor || terminals_[1] == neighbor)) {
+                    // if the graph consists only of v -- neighbor, we have a solution
+                    return preprocess_start_goal_edges() + found;
+                }
                 // we will remove a terminal -> use a different terminal instead
                 if(terminals_[0] == v) {
                     terminals_[0] = neighbor;
@@ -272,6 +290,77 @@ Vertex Graph::preprocess_unreachable() {
         if(distance_from_start[v] + distance_to_goal[v] > max_length_) {
             found++;
             remove_vertex(v);
+        }
+    }
+    return found;
+}
+
+Vertex Graph::preprocess_twins() {
+    Vertex found = 0;
+    assert(terminals_.size() > 0);
+    for(int i = 0; i < 2; i++) {
+        Vertex v = terminals_[i];
+        preprocess_start_goal_edges();
+        auto neighs = neighbors(v);
+        assert(std::find(neighs.begin(), neighs.end(), terminals_[1 - i]) == neighs.end());
+        std::unordered_map<Vertex, std::vector<Vertex>> eq;
+        for(size_t j = 0; j < neighs.size(); j++) {
+            eq[neighs[j]] = {neighs[j]};
+        }
+        for(size_t j = 0; j < neighs.size(); j++) {
+            for(size_t k = j+1; k < neighs.size(); k++) {
+                Vertex w1 = neighs[j];
+                Vertex w2 = neighs[k];
+                // compare the neighborhoods of w1 and w2 to see if they are equal (up to w1/w2)
+                bool problem = false;
+                for(auto &[w, weights] : adjacency_[w1]) {
+                    if(w == w2) {
+                        continue;
+                    }
+                    auto in_other = adjacency_[w2].find(w);
+                    if(in_other == adjacency_[w2].end()) {
+                        problem = true;
+                        break;
+                    }
+                    if(weights.size() != in_other->second.size()) {
+                        problem = true;
+                        break;
+                    }
+                    std::sort(weights.begin(), weights.end());
+                    std::sort(in_other->second.begin(), in_other->second.end());
+                    if(weights != in_other->second) {
+                        problem = true;
+                        break;
+                    }
+                }
+                if(!problem) {
+                    eq[neighs[j]].push_back(neighs[k]);
+                    std::swap(neighs[k],neighs.back());
+                    neighs.pop_back();
+                    k--;
+                }
+            }
+        }
+        for(auto &[representative, others] : eq) {
+            if(others.size() == 1) {
+                continue;
+            }
+            // multiply the weight of the edges between terminal and representative by the number of twins
+            Edge_weight factor = others.size();
+            for(auto &[length, weight] : adjacency_[v][representative]) {
+                weight *= factor;
+            }
+            for(auto &[length, weight] : adjacency_[representative][v]) {
+                weight *= factor;
+            }
+            // remove the edges between the terminal and the other twins
+            for(auto other : others) {
+                if(other != representative) {
+                    found += adjacency_[v][other].size();
+                    adjacency_[v].erase(other);
+                    adjacency_[other].erase(v);
+                }
+            }
         }
     }
     return found;

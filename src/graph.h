@@ -1,5 +1,7 @@
 #pragma once
 
+#include <assert.h>
+
 #include <iostream>
 #include <vector>
 #include <unordered_map>
@@ -20,10 +22,14 @@ class Graph {
 
     // encodings
     void encode_unary(std::ostream& out); 
+
+    Edge_weight extra_paths() { return extra_paths_; }
     private:
     std::vector<std::unordered_map<Vertex, std::vector<Weight>>> adjacency_; 
     Edge_length max_length_;
     std::vector<Vertex> terminals_;
+
+    Edge_weight extra_paths_ = 0;
 
     void add_edge(Edge edge, Weight weight);
     void remove_edge(Edge edge);
@@ -34,9 +40,11 @@ class Graph {
     void dijkstra(Vertex start, std::vector<Edge_length>& distance, const std::set<Vertex>& forbidden);
 
     // preprocessing subroutines
+    Vertex preprocess_start_goal_edges();
     Vertex preprocess_isolated();
     Vertex preprocess_forwarder();
     Vertex preprocess_unreachable();
+    Vertex preprocess_twins();
     Vertex preprocess_unusable_edge();
 
 };
