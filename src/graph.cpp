@@ -95,13 +95,14 @@ void Graph::encode_unary(std::ostream& output) {
         if(v == terminals_[1] || adjacency_[v].empty()) {
             continue;
         }
-        // assert(distance_from_start[v] + distance_to_goal[v] <= max_length_);
+        assert(distance_from_start[v] + distance_to_goal[v] <= max_length_);
         std::vector<std::pair<Vertex,Edge_length>> edges;
         for(auto &[w, weights] : adjacency_[v]) {
             if(w == terminals_[0]) {
                 continue;
             }
             for(auto &weight : weights) {
+                assert(std::find(edges.begin(), edges.end(), std::make_pair(w, weight.first)) == edges.end());
                 edges.push_back(std::make_pair(w, weight.first));
                 if(weight.second != 1) {
                     std::cerr << "Found edge with weight " << weight.second << std::endl;
@@ -109,7 +110,8 @@ void Graph::encode_unary(std::ostream& output) {
             }
         }
         for(auto &[w, length] : edges) {
-            output << "reach(" << w << ",L + L') :- reach(" << v << ", L), edge(X, Y, L'), L <= " << max_length_ - distance_to_goal[w] - length;
+            assert(distance_to_goal[w] <= max_length_);
+            output << "reach(" << w << ",L + L') :- reach(" << v << ", L), edge(" << v << "," << w << ",L'), L <= " << max_length_ - distance_to_goal[w] - length;
             output << ", L>= " << distance_from_start[v] << ".\n";
             output << "edge(" << v << "," << w << "," << length << ") :- reach(" << v << ", L), L <= " << max_length_ - distance_to_goal[w] - length;
             output << ", L>= " << distance_from_start[v];
@@ -216,6 +218,7 @@ Vertex Graph::preprocess_isolated() {
                         }
                     }
                     old_weights = std::vector<Weight>(new_weights.begin(), new_weights.end());
+                    adjacency_[w][neighbor] = std::vector<Weight>(new_weights.begin(), new_weights.end());
                 }
             }
             remove_vertex(v);
