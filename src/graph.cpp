@@ -1,7 +1,7 @@
 #include "graph.h"
 #include <queue>
 #include <algorithm>
-
+#include <map>
 
 Graph::Graph(std::istream &input) {
     char dec;
@@ -18,7 +18,9 @@ Graph::Graph(std::istream &input) {
             std::string str;
             input >> str >> nr_vertices >> nr_edges;
             assert(str == "edge");
-            adjacency_ = std::vector<std::unordered_map<Vertex, std::vector<Weight>>>(nr_vertices, std::unordered_map<Vertex, std::vector<Weight>>());
+            adjacency_ = std::vector<std::vector<std::map<Edge_length,Edge_weight>>>(nr_vertices, 
+                                    std::vector<std::map<Edge_length,Edge_weight>>(nr_vertices, 
+                                                            std::map<Edge_length,Edge_weight>()));
             break;
         }
         case 'e':
@@ -47,6 +49,7 @@ void Graph::preprocess() {
     bool found = true;
     Vertex isolated_removed = 0;
     Vertex forwarder_removed = 0;
+    Vertex position_determined_removed = 0;
     Vertex twin_edges_removed = 0;
     Vertex unreachable_removed = 0;
     Vertex unusable_edge_removed = 0;
@@ -70,10 +73,17 @@ void Graph::preprocess() {
                 found |= cur_unusable_edge_removed > 0;
                 unusable_edge_removed += cur_unusable_edge_removed;
             }
+            
+        }
+        if(!found) {
+            Vertex cur_position_determined_removed = preprocess_position_determined();
+            found |= cur_position_determined_removed > 0;
+            position_determined_removed += cur_position_determined_removed;
         }
     }
     std::cerr << "Removed isolated: " << isolated_removed << std::endl;
     std::cerr << "Removed forwarder: " << forwarder_removed << std::endl;
+    std::cerr << "Removed position determined: " << position_determined_removed << std::endl;
     std::cerr << "Removed twin edges: " << twin_edges_removed << std::endl;
     std::cerr << "Removed unreachable: " << unreachable_removed << std::endl;
     std::cerr << "Removed unusable edge: " << unusable_edge_removed << std::endl;
@@ -101,11 +111,11 @@ void Graph::encode_unary(std::ostream& output) {
         }
         assert(distance_from_start[v] + distance_to_goal[v] <= max_length_);
         std::vector<std::pair<Vertex,Edge_length>> edges;
-        for(auto &[w, weights] : adjacency_[v]) {
+        for(auto &w : neighbors(v)) {
             if(w == terminals_[0]) {
                 continue;
             }
-            for(auto &weight : weights) {
+            for(auto &weight : adjacency_[v][w]) {
                 assert(std::find(edges.begin(), edges.end(), std::make_pair(w, weight.first)) == edges.end());
                 edges.push_back(std::make_pair(w, weight.first));
                 // if(weight.second != 1) {
@@ -130,25 +140,37 @@ void Graph::encode_unary(std::ostream& output) {
 }
 
 void Graph::add_edge(Edge edge, Weight weight) {
+    assert(edge.first != edge.second);
     assert(edge.first >= 0 && edge.first < adjacency_.size());
     assert(edge.second >= 0 && edge.second < adjacency_.size());
-    adjacency_[edge.first][edge.second].push_back(weight);
-    adjacency_[edge.second][edge.first].push_back(weight);
+    assert(!adjacency_[edge.first].empty());
+    assert(!adjacency_[edge.second].empty());
+    if(weight.first > max_length_) {
+        return;
+    }
+    adjacency_[edge.first][edge.second][weight.first] += weight.second;
+    adjacency_[edge.second][edge.first][weight.first] += weight.second;
 }
 
 void Graph::remove_vertex(Vertex v) {
     assert(v >= 0 && v < adjacency_.size());
+    assert(!adjacency_[v].empty());
     for(auto neighbor : neighbors(v)) {
-        adjacency_[neighbor].erase(v);
-        adjacency_[v].clear();
+        adjacency_[neighbor][v].clear();
     }
+    adjacency_[v].clear();
 }
 
 std::vector<Vertex> Graph::neighbors(Vertex v) {
     assert(v >= 0 && v < adjacency_.size());
     std::vector<Vertex> ret;
-    for(auto & [w, weight] : adjacency_[v]) {
-        ret.push_back(w);
+    if(adjacency_[v].empty()) {
+        return ret;
+    }
+    for(Vertex w = 0; w < adjacency_.size(); w++) {
+        if(adjacency_[v][w].size() > 0) {
+            ret.push_back(w);
+        }
     }
     return ret;
 }
@@ -156,8 +178,10 @@ std::vector<Vertex> Graph::neighbors(Vertex v) {
 void Graph::remove_edge(Edge edge) {
     assert(edge.first >= 0 && edge.first < adjacency_.size());
     assert(edge.second >= 0 && edge.second < adjacency_.size());
-    adjacency_[edge.first].erase(edge.second);
-    adjacency_[edge.second].erase(edge.first);
+    assert(!adjacency_[edge.first].empty());
+    assert(!adjacency_[edge.second].empty());
+    adjacency_[edge.first][edge.second].clear();
+    adjacency_[edge.second][edge.first].clear();
 }
 
 void Graph::dijkstra(Vertex start, std::vector<Edge_length>& distance, const std::set<Vertex>& forbidden) {
@@ -170,7 +194,7 @@ void Graph::dijkstra(Vertex start, std::vector<Edge_length>& distance, const std
         if(cur_cost > distance[cur_vertex]) {
             continue;
         }
-        for(auto &[w, weights] : adjacency_[cur_vertex]) {
+        for(auto &w : neighbors(cur_vertex)) {
             if(cur_cost + 1 >= distance[w]) {
                 continue;
             }
@@ -178,6 +202,7 @@ void Graph::dijkstra(Vertex start, std::vector<Edge_length>& distance, const std
                 continue;
             }
             Edge_length min_cost = std::numeric_limits<Edge_length>::max();
+            auto weights = adjacency_[cur_vertex][w];
             assert(weights.size() > 0);
             for(auto &weight : weights) {
                 min_cost = std::min(weight.first, min_cost);
@@ -193,15 +218,14 @@ void Graph::dijkstra(Vertex start, std::vector<Edge_length>& distance, const std
 Vertex Graph::preprocess_start_goal_edges() {
     assert(terminals_.size() > 0);
     Vertex found = 0;
-    if(adjacency_[terminals_[0]].count(terminals_[1]) > 0) {
+    if(adjacency_[terminals_[0]].size() > 0) {
         for(auto &[length, weight] : adjacency_[terminals_[0]][terminals_[1]]) {
             if(length <= max_length_) {
                 extra_paths_ += weight;
             }
         }
         found = adjacency_[terminals_[0]][terminals_[1]].size();
-        adjacency_[terminals_[0]].erase(terminals_[1]);
-        adjacency_[terminals_[1]].erase(terminals_[0]);
+        remove_edge(Edge(terminals_[0], terminals_[1]));
     }
     return found;
 }
@@ -209,9 +233,9 @@ Vertex Graph::preprocess_start_goal_edges() {
 Vertex Graph::preprocess_isolated() {
     Vertex found = 0;
     for(size_t v = 0; v < adjacency_.size(); v++) {
-        std::vector<Vertex> neighbors_ = neighbors(v);
-        if(neighbors_.size() == 1) {
-            Vertex neighbor = neighbors_[0];
+        std::vector<Vertex> cur_neighbors = neighbors(v);
+        if(cur_neighbors.size() == 1) {
+            Vertex neighbor = cur_neighbors[0];
             found++;
             if(terminals_.size() > 0 && (terminals_[0] == v || terminals_[1] == v)) {
                 if(terminals_.size() > 0 && (terminals_[0] == neighbor || terminals_[1] == neighbor)) {
@@ -225,18 +249,18 @@ Vertex Graph::preprocess_isolated() {
                     terminals_[1] = neighbor; 
                 }
                 // in this case we use the edge(s) of the removed vertex and need to adapt the edges of the neighbor accordingly.
-                for(auto &[w, old_weights] : adjacency_[neighbor]) {
+                for(auto w : neighbors(neighbor)) {
                     if(w == v) {
                         continue;
                     }
-                    std::unordered_map<Edge_length, Edge_weight> new_weights;
-                    for(auto old_weight : old_weights) {
+                    std::map<Edge_length, Edge_weight> new_weights;
+                    for(auto old_weight : adjacency_[neighbor][w]) {
                         for(auto weight : adjacency_[v][neighbor]) {
                             new_weights[old_weight.first + weight.first] += old_weight.second * weight.second;
                         }
                     }
-                    old_weights = std::vector<Weight>(new_weights.begin(), new_weights.end());
-                    adjacency_[w][neighbor] = std::vector<Weight>(new_weights.begin(), new_weights.end());
+                    adjacency_[neighbor][w] = new_weights;
+                    adjacency_[w][neighbor] = new_weights;
                 }
             }
             remove_vertex(v);
@@ -252,12 +276,12 @@ Vertex Graph::preprocess_forwarder() {
             // we cannot remove terminals this way
             continue;
         }
-        std::vector<Vertex> neighbors_ = neighbors(v);
-        if(neighbors_.size() == 2) {
+        std::vector<Vertex> cur_neighbors = neighbors(v);
+        if(cur_neighbors.size() == 2) {
             found++;
             // if the neighbors are w1 and w2, then we can use any combination of weighted edges (w1,v),(v,w2) as a single edge (w1,w2)
-            Vertex w1 = neighbors_[0], w2 = neighbors_[1];
-            std::unordered_map<Edge_length, Edge_weight> new_weights;
+            Vertex w1 = cur_neighbors[0], w2 = cur_neighbors[1];
+            std::map<Edge_length, Edge_weight> new_weights;
             for(auto old_weight : adjacency_[w1][w2]) {
                 new_weights[old_weight.first] += old_weight.second;
             }
@@ -266,8 +290,8 @@ Vertex Graph::preprocess_forwarder() {
                     new_weights[w1_weight.first + w2_weight.first] += w1_weight.second * w2_weight.second;
                 }
             }
-            adjacency_[w1][w2] = std::vector<Weight>(new_weights.begin(), new_weights.end());
-            adjacency_[w2][w1] = std::vector<Weight>(new_weights.begin(), new_weights.end());
+            adjacency_[w1][w2] = new_weights;
+            adjacency_[w2][w1] = new_weights;
             remove_vertex(v);
         }
     }
@@ -303,7 +327,7 @@ Vertex Graph::preprocess_twins() {
         preprocess_start_goal_edges();
         auto neighs = neighbors(v);
         assert(std::find(neighs.begin(), neighs.end(), terminals_[1 - i]) == neighs.end());
-        std::unordered_map<Vertex, std::vector<Vertex>> eq;
+        std::map<Vertex, std::vector<Vertex>> eq;
         for(size_t j = 0; j < neighs.size(); j++) {
             eq[neighs[j]] = {neighs[j]};
         }
@@ -313,22 +337,24 @@ Vertex Graph::preprocess_twins() {
                 Vertex w2 = neighs[k];
                 // compare the neighborhoods of w1 and w2 to see if they are equal (up to w1/w2)
                 bool problem = false;
-                for(auto &[w, weights] : adjacency_[w1]) {
-                    if(w == w2) {
-                        continue;
-                    }
-                    auto in_other = adjacency_[w2].find(w);
-                    if(in_other == adjacency_[w2].end()) {
+                auto w1_neighs = neighbors(w1);
+                auto w2_neighs = neighbors(w2);
+                if(w1_neighs.size() != w2_neighs.size()) {
+                    continue;
+                }
+                w1_neighs.erase(std::find(w1_neighs.begin(), w1_neighs.end(), w2));
+                w2_neighs.erase(std::find(w2_neighs.begin(), w2_neighs.end(), w1));
+                if(w1_neighs != w2_neighs) {
+                    continue;
+                }
+                // we have the same neighbors. 
+                // make sure that also the weights are the same
+                for(auto w : w1_neighs) {
+                    if(adjacency_[w2][w].size() != adjacency_[w1][w].size()) {
                         problem = true;
                         break;
                     }
-                    if(weights.size() != in_other->second.size()) {
-                        problem = true;
-                        break;
-                    }
-                    std::sort(weights.begin(), weights.end());
-                    std::sort(in_other->second.begin(), in_other->second.end());
-                    if(weights != in_other->second) {
+                    if(adjacency_[w2][w] != adjacency_[w1][w]) {
                         problem = true;
                         break;
                     }
@@ -357,8 +383,7 @@ Vertex Graph::preprocess_twins() {
             for(auto other : others) {
                 if(other != representative) {
                     found += adjacency_[v][other].size();
-                    adjacency_[v].erase(other);
-                    adjacency_[other].erase(v);
+                    remove_edge(Edge(v, other));
                 }
             }
         }
@@ -380,12 +405,12 @@ Vertex Graph::preprocess_unusable_edge() {
     }
     for(Vertex v = 0; v < adjacency_.size(); v++) {
         std::vector<Vertex> remove_completely;
-        for(auto &[w, weights] : adjacency_[v]) {
+        for(auto &w : neighbors(v)) {
             Edge_length min_without_edge = std::min(distances_from_start[v][w] + distances_to_goal[w][v], distances_from_start[w][v] + distances_to_goal[v][w]);
-            std::vector<Weight> new_weights;
-            for(auto &weight : weights) {
+            std::map<Edge_length, Edge_weight> new_weights;
+            for(auto &weight : adjacency_[v][w]) {
                 if(weight.first + min_without_edge <= max_length_) {
-                    new_weights.push_back(weight);
+                    new_weights.insert(weight);
                 } else {
                     found++;
                 }
@@ -393,11 +418,51 @@ Vertex Graph::preprocess_unusable_edge() {
             if(new_weights.size() == 0) {
                 remove_completely.push_back(w);
             } else {
-                weights = new_weights;
+                adjacency_[v][w] = new_weights;
             }
         }
         for(auto w : remove_completely) {
             remove_edge(Edge(v,w));
+        }
+    }
+    return found;
+}
+
+Vertex Graph::preprocess_position_determined() {
+    assert(terminals_.size() > 0);
+    std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[0], distance_from_start, {});
+
+    std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[1], distance_to_goal, {});
+
+    Vertex found = 0;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(adjacency_[v].empty() || neighbors(v).empty()) {
+            continue;
+        }
+        if(terminals_[0] == v || terminals_[1] == v) {
+            continue;
+        }
+        if(distance_from_start[v] + distance_to_goal[v] == max_length_) {
+            found++;
+            std::vector<std::tuple<Edge, Edge_length, Edge_weight>> to_add;
+            for(auto &w : neighbors(v)) {
+                for(auto &wp : neighbors(v)) {
+                    if(w >= wp) {
+                        continue;
+                    }
+                    for(auto &weight : adjacency_[v][w]) {
+                        for(auto &weightp : adjacency_[v][wp]) {
+                            to_add.push_back(std::make_tuple(Edge(w,wp), weight.first + weightp.first, weight.second * weightp.second));
+                        }
+                    }
+                }
+            }
+            remove_vertex(v);
+            for(auto &[edge, length, weight] : to_add) {
+                add_edge(edge, Weight(length, weight));
+            }
         }
     }
     return found;

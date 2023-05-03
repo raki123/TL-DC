@@ -4,8 +4,9 @@
 
 #include <iostream>
 #include <vector>
-#include <unordered_map>
+#include <map>
 #include <set>
+#include <unordered_set>
 
 typedef uint16_t Vertex;
 typedef std::pair<Vertex,Vertex> Edge;
@@ -25,7 +26,8 @@ class Graph {
 
     Edge_weight extra_paths() { return extra_paths_; }
     private:
-    std::vector<std::unordered_map<Vertex, std::vector<Weight>>> adjacency_; 
+    std::vector<std::vector<std::map<Edge_length, Edge_weight>>> adjacency_; 
+    std::vector<std::unordered_set<Vertex>> neighbors_;
     Edge_length max_length_;
     std::vector<Vertex> terminals_;
 
@@ -46,5 +48,6 @@ class Graph {
     Vertex preprocess_unreachable();
     Vertex preprocess_twins();
     Vertex preprocess_unusable_edge();
+    Vertex preprocess_position_determined();
 
 };
