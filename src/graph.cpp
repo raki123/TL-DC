@@ -342,8 +342,14 @@ Vertex Graph::preprocess_twins() {
                 if(w1_neighs.size() != w2_neighs.size()) {
                     continue;
                 }
-                w1_neighs.erase(std::find(w1_neighs.begin(), w1_neighs.end(), w2));
-                w2_neighs.erase(std::find(w2_neighs.begin(), w2_neighs.end(), w1));
+                auto it = std::find(w1_neighs.begin(), w1_neighs.end(), w2);
+                if(it != w1_neighs.end()) {
+                    w1_neighs.erase(it);
+                }
+                it = std::find(w2_neighs.begin(), w2_neighs.end(), w1);
+                if(it != w2_neighs.end()) {
+                    w2_neighs.erase(it);
+                }
                 if(w1_neighs != w2_neighs) {
                     continue;
                 }
