@@ -23,11 +23,12 @@ class Graph {
 
     // encodings
     void encode_unary(std::ostream& out); 
+    void encode_lenghtless(std::ostream& output);
 
     Edge_weight extra_paths() { return extra_paths_; }
     private:
     std::vector<std::vector<std::map<Edge_length, Edge_weight>>> adjacency_; 
-    std::vector<std::unordered_set<Vertex>> neighbors_;
+    std::vector<std::set<Vertex>> neighbors_;
     Edge_length max_length_;
     std::vector<Vertex> terminals_;
 
@@ -38,7 +39,7 @@ class Graph {
     void remove_vertex(Vertex v);
 
     // helper functions
-    std::vector<Vertex> neighbors(Vertex v);
+    std::set<Vertex> neighbors(Vertex v);
     void dijkstra(Vertex start, std::vector<Edge_length>& distance, const std::set<Vertex>& forbidden);
 
     // preprocessing subroutines
