@@ -24,6 +24,7 @@ class Graph {
     // encodings
     void encode_unary(std::ostream& out); 
     void encode_lenghtless(std::ostream& output);
+    void encode_binary(std::ostream& output);
 
     Edge_weight extra_paths() { return extra_paths_; }
     private:
@@ -42,6 +43,10 @@ class Graph {
     std::set<Vertex> neighbors(Vertex v);
     void dijkstra(Vertex start, std::vector<Edge_length>& distance, const std::set<Vertex>& forbidden);
 
+    // encoding helpers
+    void binary_add(int32_t trigger, Edge_length to_add, std::vector<int32_t>& bef_bits, std::vector<int32_t> after_bits, std::vector<std::vector<int32_t>>& clauses, int32_t& var_ctr);
+    void add_leq(Edge_length maximum, std::vector<int32_t>& bits, std::vector<std::vector<int32_t>>& clauses);
+    void add_geq(int32_t trigger, Edge_length minimum, std::vector<int32_t>& bits, std::vector<std::vector<int32_t>>& clauses);
     // preprocessing subroutines
     Vertex preprocess_start_goal_edges();
     Vertex preprocess_isolated();
