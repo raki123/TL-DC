@@ -6,23 +6,39 @@ Search::Search(Graph& input) :  max_length_(input.max_length_),
                                 neighbors_(input.neighbors_),
                                 adjacency_(input.adjacency_),
                                 invalid_(std::numeric_limits<Edge_length>::max() - max_length_ - 1),
-                                distance_to_goal_(adjacency_.size(), invalid_)  {
+                                distance_to_goal_(adjacency_.size(), invalid_),
+                                visited_(adjacency_.size(), false),
+                                cache_(adjacency_.size(), std::map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>>())  {
     assert(terminals_.size() == 2);
-    dijkstra(terminals_[1], distance_to_goal_);
+    dijkstra(terminals_[1], distance_to_goal_, max_length_);
 }
 
 std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
+    edges++;
     if(start == terminals_[1]) {
         // we have one path of length zero.
         return {1};
     }
-    Edge_length visited = distance_to_goal_[start];
-    distance_to_goal_[start] = invalid_;
+    auto cached_result = cache_[start].find(distance_to_goal_);
+    if(cached_result != cache_[start].end()) {
+        if(cached_result->second.first >= budget) {
+            pos_hits++;
+            std::vector<Edge_weight> ret(cached_result->second.second.begin(), cached_result->second.second.begin() + budget + 1);
+            return ret;
+        }
+    }
+    neg_hits++;
+    visited_[start] = true;
+    // Edge_length visited = distance_to_goal_[start];
+    // distance_to_goal_[start] = invalid_;
+    distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
+    dijkstra(terminals_[1], distance_to_goal_, budget);
     std::vector<Edge_weight> ret(budget + 1, 0);
     for(auto v : neighbors(start)) {
         if(budget >= distance_to_goal_[v] + adjacency_[start][v].begin()->first) {
             std::vector<Edge_weight> tmp;
             if(budget == distance_to_goal_[v] + adjacency_[start][v].begin()->first) {
+                dags++;
                 tmp = dag_search(v, budget - adjacency_[start][v].begin()->first);
             } else {
                 tmp = search(v, budget - adjacency_[start][v].begin()->first);
@@ -37,7 +53,11 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
             }
         }
     }
-    distance_to_goal_[start] = visited;
+    // distance_to_goal_[start] = visited;
+    visited_[start] = false;
+    distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
+    dijkstra(terminals_[1], distance_to_goal_, budget);
+    cache_[start][distance_to_goal_] = std::make_pair(budget, ret);
     return ret;
 }
 
@@ -69,6 +89,7 @@ std::vector<Edge_weight> Search::dag_search(Vertex start, Edge_length budget) {
         }
     }
     if(actual_distance[start] > budget) {
+        fails++;
         return {};
     }
     assert(actual_distance[start] == budget);
@@ -104,7 +125,7 @@ std::vector<Edge_weight> Search::dag_search(Vertex start, Edge_length budget) {
     return result;
 }
 
-void Search::dijkstra(Vertex start, std::vector<Edge_length>& distance) {
+void Search::dijkstra(Vertex start, std::vector<Edge_length>& distance, Edge_length budget) {
     DijkstraQueue queue;
     queue.push(std::make_pair(0, start));
     distance[start] = 0;
@@ -115,7 +136,7 @@ void Search::dijkstra(Vertex start, std::vector<Edge_length>& distance) {
             continue;
         }
         for(auto &w : neighbors(cur_vertex)) {
-            if(cur_cost + 1 >= distance[w]) {
+            if(cur_cost + 1 >= distance[w] || visited_[w]) {
                 continue;
             }
             Edge_length min_cost = std::numeric_limits<Edge_length>::max();
@@ -124,10 +145,16 @@ void Search::dijkstra(Vertex start, std::vector<Edge_length>& distance) {
             for(auto &weight : weights) {
                 min_cost = std::min(weight.first, min_cost);
             }
-            if(cur_cost + min_cost < distance[w]) {
+            if(cur_cost + min_cost < distance[w] && cur_cost + min_cost <= budget) {
                 distance[w] = min_cost + cur_cost;
                 queue.push(std::make_pair(cur_cost + min_cost, w));
             }
         }
     }
+}
+
+void Search::print_stats() {
+    std::cerr << "Cache hits: " << pos_hits << " out of " << pos_hits + neg_hits << " tries." << std::endl;
+    std::cerr << "Fails: " << fails << " out of " << dags << " DAG searches." << std::endl;
+    std::cerr << "Edges: " << edges << std::endl;
 }

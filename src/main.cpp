@@ -5,7 +5,7 @@
 
 int main() {
     Graph graph(std::cin);
-    graph.preprocess();
+    // graph.preprocess();
     std::cerr << "Extra paths: " << graph.extra_paths() << std::endl;
     graph.normalize();
     Search search(graph);
@@ -16,5 +16,6 @@ int main() {
         final_result += res[l];
     }
     std::cout << final_result << std::endl;
+    search.print_stats();
     return 0;
 }

@@ -21,6 +21,7 @@ Graph::Graph(std::istream &input) {
                                     std::vector<std::map<Edge_length,Edge_weight>>(nr_vertices, 
                                                             std::map<Edge_length,Edge_weight>()));
             neighbors_ = std::vector<std::set<Vertex>>(nr_vertices, std::set<Vertex>());
+            max_length_ = nr_vertices;
             break;
         }
         case 'e':
