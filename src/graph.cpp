@@ -1,6 +1,7 @@
 #include "graph.h"
 #include <algorithm>
 #include <map>
+#include <limits>
 
 Graph::Graph(std::istream &input) {
     char dec;

@@ -17,12 +17,16 @@ set(BUILD_SHARED_LIBS OFF)
 endif(STATIC)
 
 set(CMAKE_CXX_FLAGS "-std=c++17 -O3 -Wall -Wextra -Wshadow -Wfatal-errors -Wno-sign-compare -Wno-literal-suffix -g")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mpclmul -march=native -funroll-loops -Wstrict-overflow -Wstrict-aliasing -pedantic")
+
 
 SET(CMAKE_C_FLAGS "-std=c99 -Wall")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -mpclmul -march=native -funroll-loops -Wstrict-overflow -Wstrict-aliasing -Wextra -pedantic -Wshadow")
 
 SET(SOURCES 
     src/graph.cpp
     src/search.cpp
+	src/clhash/clhash.c
 )
 add_executable (read src/main.cpp ${SOURCES})
 if(STATIC)

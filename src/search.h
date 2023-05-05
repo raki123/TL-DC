@@ -1,8 +1,21 @@
 #pragma once
 #include "graph.h"
+#include "clhash/clhash.h"
 #include <unordered_map>
 
 typedef std::vector<Edge_length> CacheKey;
+
+extern clhasher hasher__;
+
+namespace std {
+    template<>
+    class hash<CacheKey> {
+    public:
+        size_t operator()(const CacheKey &key) const {
+            return hasher__(key);
+        }  
+    };
+}
 
 class Search {
     public:
@@ -22,14 +35,14 @@ class Search {
 
     std::vector<bool> visited_;
 
-    std::vector<std::map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>>> cache_; 
+    std::vector<std::unordered_map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>>> cache_; 
 
     std::vector<Edge_weight> search(Vertex start, Edge_length budget);
     std::vector<Edge_weight> dag_search(Vertex start, Edge_length budget);
 
     // helper functions
     std::set<Vertex> neighbors(Vertex v) { assert(v >= 0 && v < neighbors_.size()); return neighbors_[v]; };
-    void dijkstra(Vertex start, std::vector<Edge_length>& distance, Edge_length budget, Vertex no_block);
+    void dijkstra(Vertex start, std::vector<Edge_length>& distance, Edge_length budget);
 
     // stats
     size_t pos_hits = 0;
