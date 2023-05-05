@@ -419,12 +419,7 @@ void Graph::dijkstra(Vertex start, std::vector<Edge_length>& distance, const std
             if(forbidden.count(w) > 0) {
                 continue;
             }
-            Edge_length min_cost = std::numeric_limits<Edge_length>::max();
-            auto weights = adjacency_[cur_vertex][w];
-            assert(weights.size() > 0);
-            for(auto &weight : weights) {
-                min_cost = std::min(weight.first, min_cost);
-            }
+            Edge_length min_cost = adjacency_[cur_vertex][w].begin()->first;
             if(cur_cost + min_cost < distance[w]) {
                 distance[w] = min_cost + cur_cost;
                 queue.push(std::make_pair(cur_cost + min_cost, w));

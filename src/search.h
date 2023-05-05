@@ -29,7 +29,7 @@ class Search {
 
     // helper functions
     std::set<Vertex> neighbors(Vertex v) { assert(v >= 0 && v < neighbors_.size()); return neighbors_[v]; };
-    void dijkstra(Vertex start, std::vector<Edge_length>& distance, Edge_length budget);
+    void dijkstra(Vertex start, std::vector<Edge_length>& distance, Edge_length budget, Vertex no_block);
 
     // stats
     size_t pos_hits = 0;

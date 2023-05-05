@@ -10,7 +10,7 @@ Search::Search(Graph& input) :  max_length_(input.max_length_),
                                 visited_(adjacency_.size(), false),
                                 cache_(adjacency_.size(), std::map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>>())  {
     assert(terminals_.size() == 2);
-    dijkstra(terminals_[1], distance_to_goal_, max_length_);
+    dijkstra(terminals_[1], distance_to_goal_, max_length_, terminals_[0]);
 }
 
 std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
@@ -32,7 +32,7 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
     // Edge_length visited = distance_to_goal_[start];
     // distance_to_goal_[start] = invalid_;
     distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
-    dijkstra(terminals_[1], distance_to_goal_, budget);
+    dijkstra(terminals_[1], distance_to_goal_, budget, start);
     std::vector<Edge_weight> ret(budget + 1, 0);
     for(auto v : neighbors(start)) {
         if(budget >= distance_to_goal_[v] + adjacency_[start][v].begin()->first) {
@@ -56,7 +56,7 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
     // distance_to_goal_[start] = visited;
     visited_[start] = false;
     distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
-    dijkstra(terminals_[1], distance_to_goal_, budget);
+    dijkstra(terminals_[1], distance_to_goal_, budget, start);
     cache_[start][distance_to_goal_] = std::make_pair(budget, ret);
     return ret;
 }
@@ -76,12 +76,7 @@ std::vector<Edge_weight> Search::dag_search(Vertex start, Edge_length budget) {
             if(cur_cost + 1 >= actual_distance[w] || distance_to_goal_[w] == invalid_) {
                 continue;
             }
-            Edge_length min_cost = std::numeric_limits<Edge_length>::max();
-            auto weights = adjacency_[cur_vertex][w];
-            assert(weights.size() > 0);
-            for(auto &weight : weights) {
-                min_cost = std::min(weight.first, min_cost);
-            }
+            Edge_length min_cost = adjacency_[cur_vertex][w].begin()->first;
             if(cur_cost + min_cost < actual_distance[w] && cur_cost + min_cost <= budget) {
                 actual_distance[w] = min_cost + cur_cost;
                 queue.push(std::make_pair(cur_cost + min_cost, w));
@@ -139,12 +134,7 @@ void Search::dijkstra(Vertex start, std::vector<Edge_length>& distance, Edge_len
             if(cur_cost + 1 >= distance[w] || visited_[w]) {
                 continue;
             }
-            Edge_length min_cost = std::numeric_limits<Edge_length>::max();
-            auto weights = adjacency_[cur_vertex][w];
-            assert(weights.size() > 0);
-            for(auto &weight : weights) {
-                min_cost = std::min(weight.first, min_cost);
-            }
+            Edge_length min_cost = adjacency_[cur_vertex][w].begin()->first;
             if(cur_cost + min_cost < distance[w] && cur_cost + min_cost <= budget) {
                 distance[w] = min_cost + cur_cost;
                 queue.push(std::make_pair(cur_cost + min_cost, w));
