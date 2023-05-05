@@ -17,6 +17,7 @@ typedef std::pair<Edge_length, Edge_weight> Weight;
 class Graph {
 
     public:
+    friend class Search;
     Graph(std::istream &input);
 
     void preprocess();
@@ -27,6 +28,8 @@ class Graph {
     void encode_binary(std::ostream& output);
 
     Edge_weight extra_paths() { return extra_paths_; }
+
+    void normalize();
     private:
     std::vector<std::vector<std::map<Edge_length, Edge_weight>>> adjacency_; 
     std::vector<std::set<Vertex>> neighbors_;

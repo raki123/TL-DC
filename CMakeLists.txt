@@ -22,6 +22,7 @@ SET(CMAKE_C_FLAGS "-std=c99 -Wall")
 
 SET(SOURCES 
     src/graph.cpp
+    src/search.cpp
 )
 add_executable (read src/main.cpp ${SOURCES})
 if(STATIC)

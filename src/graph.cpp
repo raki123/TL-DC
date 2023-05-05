@@ -327,6 +327,38 @@ void Graph::encode_binary(std::ostream& output) {
     }
 }
 
+void Graph::normalize() {
+    Vertex unnamed = std::numeric_limits<Vertex>::max();
+    std::vector<Vertex> new_name(adjacency_.size(), unnamed);
+    Vertex cur_name = 0;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(adjacency_[v].empty()) {
+            continue;
+        }
+        if(new_name[v] == unnamed) {
+            new_name[v] = cur_name++;
+        }
+    }
+    auto new_adjacency = std::vector<std::vector<std::map<Edge_length,Edge_weight>>>(cur_name, 
+                            std::vector<std::map<Edge_length,Edge_weight>>(cur_name, 
+                                                    std::map<Edge_length,Edge_weight>()));
+    auto new_neighbors = std::vector<std::set<Vertex>>(cur_name, std::set<Vertex>());
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(adjacency_[v].empty()) {
+            continue;
+        }
+        for(auto neigh : neighbors(v)) {
+            assert(new_name[neigh] != unnamed);
+            new_neighbors[new_name[v]].insert(new_name[neigh]);
+            new_adjacency[new_name[v]][new_name[neigh]] = adjacency_[v][neigh];
+        }
+    }
+    adjacency_ = new_adjacency;
+    neighbors_ = new_neighbors;
+    terminals_[0] = new_name[terminals_[0]];
+    terminals_[1] = new_name[terminals_[1]];
+}
+
 void Graph::add_edge(Edge edge, Weight weight) {
     assert(edge.first != edge.second);
     assert(edge.first >= 0 && edge.first < adjacency_.size());
