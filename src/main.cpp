@@ -3,15 +3,18 @@
 
 #include <iostream>
 
-int main(int argc, const char **argv) {
+int main() {
     Graph graph(std::cin);
     graph.preprocess();
     std::cerr << "Extra paths: " << graph.extra_paths() << std::endl;
     graph.normalize();
     Search search(graph);
     auto res = search.search();
+    Edge_weight final_result = graph.extra_paths();
     for(Edge_length l = 0; l < res.size(); l++) {
-        std::cout << res[l] << " paths of length " << l << std::endl;
+        std::cerr << res[l] << " paths of length " << l << std::endl;
+        final_result += res[l];
     }
+    std::cout << final_result << std::endl;
     return 0;
 }

@@ -1,5 +1,4 @@
 #include "graph.h"
-#include <queue>
 #include <algorithm>
 #include <map>
 
@@ -332,7 +331,7 @@ void Graph::normalize() {
     std::vector<Vertex> new_name(adjacency_.size(), unnamed);
     Vertex cur_name = 0;
     for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(adjacency_[v].empty()) {
+        if(adjacency_[v].empty() && v != terminals_[0] && v != terminals_[1]) {
             continue;
         }
         if(new_name[v] == unnamed) {
@@ -403,7 +402,7 @@ void Graph::remove_edge(Edge edge) {
 }
 
 void Graph::dijkstra(Vertex start, std::vector<Edge_length>& distance, const std::set<Vertex>& forbidden) {
-    std::priority_queue<std::pair<Edge_length, Vertex>> queue;
+    DijkstraQueue queue;
     queue.push(std::make_pair(0, start));
     distance[start] = 0;
     while(!queue.empty()) {
