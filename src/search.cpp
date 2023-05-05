@@ -122,7 +122,7 @@ void Search::dijkstra(Vertex start, std::vector<Edge_length>& distance, Edge_len
 }
 
 void Search::print_stats() {
-    std::cerr << "Cache hits: " << pos_hits << " out of " << pos_hits + neg_hits << " tries." << std::endl;
-    std::cerr << "Fails: " << fails << " out of " << dags << " DAG searches." << std::endl;
-    std::cerr << "Edges: " << edges << std::endl;
+    std::cerr << "#Cache hits: " << pos_hits << " out of " << pos_hits + neg_hits << " tries." << std::endl;
+    std::cerr << "#DAG searches: " << dags << std::endl;
+    std::cerr << "#Edges: " << edges << std::endl;
 }

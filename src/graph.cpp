@@ -8,21 +8,23 @@ Graph::Graph(std::istream &input) {
     input >> dec;
     Vertex nr_vertices;
     Vertex nr_edges;
+    std::string line;
     while(!input.eof()) {
         switch (dec)
         {
         case 'c':
+            std::getline(input, line);  
             break;
         case 'p':
         {
             std::string str;
             input >> str >> nr_vertices >> nr_edges;
             assert(str == "edge");
-            adjacency_ = std::vector<std::vector<std::map<Edge_length,Edge_weight>>>(nr_vertices, 
-                                    std::vector<std::map<Edge_length,Edge_weight>>(nr_vertices, 
+            adjacency_ = std::vector<std::vector<std::map<Edge_length,Edge_weight>>>(nr_vertices + 2, 
+                                    std::vector<std::map<Edge_length,Edge_weight>>(nr_vertices + 2, 
                                                             std::map<Edge_length,Edge_weight>()));
-            neighbors_ = std::vector<std::set<Vertex>>(nr_vertices, std::set<Vertex>());
-            max_length_ = nr_vertices;
+            neighbors_ = std::vector<std::set<Vertex>>(nr_vertices + 2, std::set<Vertex>());
+            max_length_ = nr_vertices + 2;
             break;
         }
         case 'e':
@@ -32,6 +34,7 @@ Graph::Graph(std::istream &input) {
             break;
         case 'l':
             input >> max_length_;
+            extra_paths_ = std::vector<Edge_weight>(max_length_ + 1, 0);
             break;
         case 't':
             terminals_.resize(2);
@@ -44,6 +47,19 @@ Graph::Graph(std::istream &input) {
             break;
         }
         input >> dec;
+    }
+    assert(max_length_ + 1 == extra_paths_.size());
+    assert(adjacency_.size() > 0);
+    if(terminals_.empty()) {
+        terminals_ = {nr_vertices, Vertex(nr_vertices + 1)};
+        max_length_ += 2;
+        extra_paths_.push_back(0);
+        extra_paths_.push_back(0);
+        for(Vertex v = 0; v < nr_vertices; v++) {
+            add_edge(Edge(v,terminals_[0]), Weight(1,1));
+            add_edge(Edge(v,terminals_[1]), Weight(1,1));
+        }
+        all_pair_ = true;
     }
 }
 
@@ -550,7 +566,7 @@ Vertex Graph::preprocess_start_goal_edges() {
     if(adjacency_[terminals_[0]].size() > 0) {
         for(auto &[length, weight] : adjacency_[terminals_[0]][terminals_[1]]) {
             if(length <= max_length_) {
-                extra_paths_ += weight;
+                extra_paths_[length] += weight;
             }
         }
         found = adjacency_[terminals_[0]][terminals_[1]].size();

@@ -29,16 +29,20 @@ class Graph {
     void encode_lenghtless(std::ostream& output);
     void encode_binary(std::ostream& output);
 
-    Edge_weight extra_paths() { return extra_paths_; }
+    std::vector<Edge_weight> extra_paths() { return extra_paths_; }
 
     void normalize();
+
+    bool is_all_pair() { return all_pair_; }
     private:
     std::vector<std::vector<std::map<Edge_length, Edge_weight>>> adjacency_; 
     std::vector<std::set<Vertex>> neighbors_;
     Edge_length max_length_;
     std::vector<Vertex> terminals_;
 
-    Edge_weight extra_paths_ = 0;
+    std::vector<Edge_weight> extra_paths_;
+
+    bool all_pair_ = false;
 
     void add_edge(Edge edge, Weight weight);
     void remove_edge(Edge edge);

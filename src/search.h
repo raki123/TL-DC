@@ -49,7 +49,6 @@ class Search {
     size_t neg_hits = 0;
 
     size_t edges = 0;
-    size_t fails = 0;
     size_t dags = 0;
 
 
