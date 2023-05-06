@@ -107,6 +107,18 @@ void Graph::preprocess() {
     std::cerr << "Removed unusable edge: " << unusable_edge_removed << std::endl;
 }
 
+void Graph::print_stats() {
+    Vertex nr_edges = 0;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        nr_edges += neighbors(v).size();
+    }
+    nr_edges /= 2;
+    std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[1], distance_to_goal, {});
+    std::cerr << "#vertices " << adjacency_.size() << " #edges " << nr_edges;
+    std::cerr << " max. length " << max_length_ << " min. length " << max_length_ - distance_to_goal[terminals_[0]] << std::endl;
+}
+
 void Graph::encode_unary(std::ostream& output) {
     output << "reach(X, 0) :- start(X).\n";
     output << ":- goal(X)";

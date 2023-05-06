@@ -5,14 +5,18 @@
 
 int main() {
     Graph graph(std::cin);
+    graph.print_stats();
     graph.preprocess();
     graph.normalize();
+    graph.print_stats();
     Search search(graph);
     auto res = search.search();
     Edge_weight final_result = 0;
     Edge_length min_idx = graph.is_all_pair() ? 3 : 0;
     for(Edge_length l = min_idx; l < res.size(); l++) {
-        std::cerr << res[l] << " paths of length " << l << std::endl;
+        if(res[l] != 0) {
+            std::cerr << res[l] << " paths of length " << l << std::endl;
+        }
         final_result += res[l];
     }
     res = graph.extra_paths();

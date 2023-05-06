@@ -24,6 +24,8 @@ class Graph {
 
     void preprocess();
 
+    void print_stats();
+
     // encodings
     void encode_unary(std::ostream& out); 
     void encode_lenghtless(std::ostream& output);
