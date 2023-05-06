@@ -32,6 +32,7 @@ class Search {
 
     Edge_length invalid_;
     std::vector<Edge_length> distance_to_goal_;
+    std::vector<std::vector<Edge_length>> distance_;
 
     std::vector<bool> visited_;
 
@@ -43,6 +44,7 @@ class Search {
     // helper functions
     std::set<Vertex> neighbors(Vertex v) { assert(v >= 0 && v < neighbors_.size()); return neighbors_[v]; };
     void dijkstra(Vertex start, std::vector<Edge_length>& distance, Edge_length budget);
+    void pruning_dijkstra(Vertex start, Vertex prune, std::vector<Edge_length>& distance, Edge_length budget);
 
     // stats
     size_t pos_hits = 0;

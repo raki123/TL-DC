@@ -10,10 +10,14 @@ Search::Search(Graph& input) :  max_length_(input.max_length_),
                                 adjacency_(input.adjacency_),
                                 invalid_(std::numeric_limits<Edge_length>::max() - max_length_ - 1),
                                 distance_to_goal_(adjacency_.size(), invalid_),
+                                distance_(adjacency_.size(), std::vector<Edge_length>(adjacency_.size(), invalid_)),
                                 visited_(adjacency_.size(), false),
                                 cache_(adjacency_.size(), std::unordered_map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>>())  {
     assert(terminals_.size() == 2);
     dijkstra(terminals_[1], distance_to_goal_, max_length_);
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        dijkstra(v, distance_[v], max_length_);
+    }
 }
 
 std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
@@ -27,7 +31,7 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
     }
     visited_[start] = true;
     distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
-    dijkstra(terminals_[1], distance_to_goal_, budget);
+    pruning_dijkstra(terminals_[1], start, distance_to_goal_, budget);
     auto cached_result = cache_[start].find(distance_to_goal_);
     if(cached_result != cache_[start].end()) {
         if(cached_result->second.first >= budget) {
@@ -48,7 +52,7 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
             } else {
                 tmp = search(v, budget - adjacency_[start][v].begin()->first);
                 distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
-                dijkstra(terminals_[1], distance_to_goal_, budget);
+                pruning_dijkstra(terminals_[1], start, distance_to_goal_, budget);
             }
             for(size_t i = 0; i < tmp.size(); i++) {
                 for(auto &[length, weight] : adjacency_[start][v]) {
@@ -114,6 +118,28 @@ void Search::dijkstra(Vertex start, std::vector<Edge_length>& distance, Edge_len
             }
             Edge_length min_cost = adjacency_[cur_vertex][w].begin()->first;
             if(cur_cost + min_cost < distance[w] && cur_cost + min_cost <= budget) {
+                distance[w] = min_cost + cur_cost;
+                queue.push(std::make_pair(cur_cost + min_cost, w));
+            }
+        }
+    }
+}
+void Search::pruning_dijkstra(Vertex start, Vertex prune, std::vector<Edge_length>& distance, Edge_length budget) {
+    DijkstraQueue queue;
+    queue.push(std::make_pair(0, start));
+    distance[start] = 0;
+    while(!queue.empty()) {
+        auto [cur_cost, cur_vertex] = queue.top();
+        queue.pop();
+        if(cur_cost > distance[cur_vertex]) {
+            continue;
+        }
+        for(auto &w : neighbors(cur_vertex)) {
+            if(cur_cost + 1 >= distance[w] || visited_[w]) {
+                continue;
+            }
+            Edge_length min_cost = adjacency_[cur_vertex][w].begin()->first;
+            if(cur_cost + min_cost < distance[w] && cur_cost + min_cost + distance_[prune][w] <= budget) {
                 distance[w] = min_cost + cur_cost;
                 queue.push(std::make_pair(cur_cost + min_cost, w));
             }
