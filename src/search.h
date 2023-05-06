@@ -21,7 +21,7 @@ class Search {
     public:
     Search(Graph& input);
 
-    std::vector<Edge_weight> search() { return search(terminals_[0], max_length_); };
+    std::vector<Edge_weight> search() { return neighbors(terminals_[0]).empty()?std::vector<Edge_weight>():search(terminals_[0], max_length_); };
 
     void print_stats();
     private:
@@ -51,6 +51,7 @@ class Search {
     size_t neg_hits = 0;
 
     size_t edges = 0;
+    size_t propagations = 0;
     size_t dags = 0;
 
 

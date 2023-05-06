@@ -32,6 +32,31 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
     visited_[start] = true;
     distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
     pruning_dijkstra(terminals_[1], start, distance_to_goal_, budget);
+    // only cache if there is more than one edge we can take
+    std::vector<Vertex> poss;
+    for(auto v : neighbors(start)) {
+        if(budget >= distance_to_goal_[v] + adjacency_[start][v].begin()->first) {
+            poss.push_back(v);
+        }
+    }
+    assert(poss.size() >= 1);
+    if(poss.size() == 1) {
+        propagations++;
+        Vertex v = poss[0];
+        assert(budget > distance_to_goal_[v] + adjacency_[start][v].begin()->first);
+        auto tmp = search(v, budget - adjacency_[start][v].begin()->first);
+        std::vector<Edge_weight> ret(budget + 1, 0);
+        for(size_t i = 0; i < tmp.size(); i++) {
+            for(auto &[length, weight] : adjacency_[start][v]) {
+                if(length + i > budget) {
+                    break;
+                }
+                ret[length + i] += weight*tmp[i];
+            }
+        }
+        visited_[start] = false;
+        return ret;
+    }
     auto cached_result = cache_[start].find(distance_to_goal_);
     if(cached_result != cache_[start].end()) {
         if(cached_result->second.first >= budget) {
@@ -43,7 +68,7 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
     }
     neg_hits++;
     std::vector<Edge_weight> ret(budget + 1, 0);
-    for(auto v : neighbors(start)) {
+    for(auto v : poss) {
         if(budget >= distance_to_goal_[v] + adjacency_[start][v].begin()->first) {
             std::vector<Edge_weight> tmp;
             if(budget == distance_to_goal_[v] + adjacency_[start][v].begin()->first) {
@@ -148,7 +173,7 @@ void Search::pruning_dijkstra(Vertex start, Vertex prune, std::vector<Edge_lengt
 }
 
 void Search::print_stats() {
-    std::cerr << "#Cache hits: " << pos_hits << " out of " << pos_hits + neg_hits << " tries." << std::endl;
+    std::cerr << "Cache hit rate: " << 100*pos_hits/(double)(pos_hits + neg_hits) << "% (" << pos_hits << "/" << pos_hits + neg_hits << ")" << std::endl;
     std::cerr << "#DAG searches: " << dags << std::endl;
-    std::cerr << "#Edges: " << edges << std::endl;
+    std::cerr << "#Edges: " << edges << " #Propagations: " << propagations << std::endl;
 }
