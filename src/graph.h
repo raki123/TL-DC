@@ -37,9 +37,9 @@ class Graph {
 
     bool is_all_pair() { return all_pair_; }
     private:
-    std::vector<std::vector<std::map<Edge_length, Edge_weight>>> adjacency_; 
-    std::vector<std::set<Vertex>> neighbors_;
     Edge_length max_length_;
+    std::vector<std::set<Vertex>> neighbors_;
+    std::vector<std::vector<std::map<Edge_length, Edge_weight>>> adjacency_; 
     std::vector<Vertex> terminals_;
 
     std::vector<Edge_weight> extra_paths_;
@@ -49,9 +49,12 @@ class Graph {
     void add_edge(Edge edge, Weight weight);
     void remove_edge(Edge edge);
     void remove_vertex(Vertex v);
-
-    // helper functions
     std::set<Vertex> neighbors(Vertex v);
+
+    Graph(Vertex n);
+    Graph subgraph(std::vector<Vertex> restrict_to);
+
+    // utility functions
     void dijkstra(Vertex start, std::vector<Edge_length>& distance, const std::set<Vertex>& forbidden);
     std::vector<Vertex> find_separator(size_t size);
 

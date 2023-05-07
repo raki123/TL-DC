@@ -101,6 +101,7 @@ void Graph::preprocess() {
             position_determined_removed += cur_position_determined_removed;
         }
     }
+    std::cerr << preprocess_tiny_separator() << std::endl;
     std::cerr << "Removed isolated: " << isolated_removed << std::endl;
     std::cerr << "Removed forwarder: " << forwarder_removed << std::endl;
     std::cerr << "Removed position determined: " << position_determined_removed << std::endl;
@@ -414,12 +415,6 @@ void Graph::remove_vertex(Vertex v) {
     }
     adjacency_[v].clear();
     neighbors_[v].clear();
-    
-}
-
-std::set<Vertex> Graph::neighbors(Vertex v) {
-    assert(v >= 0 && v < adjacency_.size());
-    return neighbors_[v];
 }
 
 void Graph::remove_edge(Edge edge) {
@@ -431,6 +426,36 @@ void Graph::remove_edge(Edge edge) {
     adjacency_[edge.second][edge.first].clear();
     neighbors_[edge.first].erase(edge.second);
     neighbors_[edge.second].erase(edge.first);
+}
+
+std::set<Vertex> Graph::neighbors(Vertex v) {
+    assert(v >= 0 && v < adjacency_.size());
+    return neighbors_[v];
+}
+
+Graph::Graph(Vertex n) :    max_length_(-1),
+                            neighbors_(n, std::set<Vertex>()),
+                            adjacency_(n, std::vector<std::map<Edge_length, Edge_weight>>(n, std::map<Edge_length, Edge_weight>())) {
+
+}
+
+Graph Graph::subgraph(std::vector<Vertex> restrict_to) {
+    Graph ret(restrict_to.size());
+    ret.max_length_ = max_length_;
+    std::vector<Vertex> new_name(adjacency_.size(), std::numeric_limits<Vertex>::max());
+    Vertex cur_name = 0;
+    for(Vertex v : restrict_to) {
+        new_name[v] = cur_name++;
+    }
+    for(Vertex v : restrict_to) {
+        for(Vertex neigh : neighbors(v)) {
+            if(new_name[neigh] != std::numeric_limits<Vertex>::max()) {
+                ret.neighbors_[new_name[v]].insert(new_name[neigh]);
+                ret.adjacency_[new_name[v]][new_name[neigh]] = adjacency_[v][neigh];
+            }
+        }
+    }
+    return ret;
 }
 
 void Graph::dijkstra(Vertex start, std::vector<Edge_length>& distance, const std::set<Vertex>& forbidden) {
@@ -922,5 +947,7 @@ Vertex Graph::preprocess_tiny_separator() {
         }
         left.push_back(v);
     }
+    Graph left_graph = subgraph(left);
+    left_graph.terminals_ = separator;
     return left.size();
 }
