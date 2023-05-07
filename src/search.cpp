@@ -33,17 +33,17 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
     distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
     pruning_dijkstra(terminals_[1], start, distance_to_goal_, budget);
     // only cache if there is more than one edge we can take
-    std::vector<Vertex> poss;
+    std::vector<std::pair<Vertex, bool>> poss;
     for(auto v : neighbors(start)) {
         if(budget >= distance_to_goal_[v] + adjacency_[start][v].begin()->first) {
-            poss.push_back(v);
+            poss.push_back(std::make_pair(v, budget == distance_to_goal_[v] + adjacency_[start][v].begin()->first));
         }
     }
     assert(poss.size() >= 1);
     if(poss.size() == 1) {
         propagations++;
-        Vertex v = poss[0];
-        assert(budget > distance_to_goal_[v] + adjacency_[start][v].begin()->first);
+        Vertex v = poss[0].first;
+        assert(!poss[0].second);
         auto tmp = search(v, budget - adjacency_[start][v].begin()->first);
         std::vector<Edge_weight> ret(budget + 1, 0);
         for(size_t i = 0; i < tmp.size(); i++) {
@@ -68,27 +68,27 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
     }
     neg_hits++;
     std::vector<Edge_weight> ret(budget + 1, 0);
-    for(auto v : poss) {
-        if(budget >= distance_to_goal_[v] + adjacency_[start][v].begin()->first) {
-            std::vector<Edge_weight> tmp;
-            if(budget == distance_to_goal_[v] + adjacency_[start][v].begin()->first) {
-                dags++;
-                tmp = dag_search(v, budget - adjacency_[start][v].begin()->first);
-            } else {
-                tmp = search(v, budget - adjacency_[start][v].begin()->first);
-                distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
-                pruning_dijkstra(terminals_[1], start, distance_to_goal_, budget);
-            }
-            for(size_t i = 0; i < tmp.size(); i++) {
-                for(auto &[length, weight] : adjacency_[start][v]) {
-                    if(length + i > budget) {
-                        break;
-                    }
-                    ret[length + i] += weight*tmp[i];
+    for(auto [v, dag] : poss) {
+        std::vector<Edge_weight> tmp;
+        if(dag) {
+            dags++;
+            distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
+            pruning_dijkstra(terminals_[1], start, distance_to_goal_, budget);
+            tmp = dag_search(v, budget - adjacency_[start][v].begin()->first);
+        } else {
+            tmp = search(v, budget - adjacency_[start][v].begin()->first);
+        }
+        for(size_t i = 0; i < tmp.size(); i++) {
+            for(auto &[length, weight] : adjacency_[start][v]) {
+                if(length + i > budget) {
+                    break;
                 }
+                ret[length + i] += weight*tmp[i];
             }
         }
     }
+    distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
+    pruning_dijkstra(terminals_[1], start, distance_to_goal_, budget);
     cache_[start][distance_to_goal_] = std::make_pair(budget, ret);
     visited_[start] = false;
     return ret;
@@ -159,15 +159,27 @@ void Search::pruning_dijkstra(Vertex start, Vertex prune, std::vector<Edge_lengt
         if(cur_cost > distance[cur_vertex]) {
             continue;
         }
+        std::vector<std::pair<Edge_weight, Vertex>> to_add;
+        int found_terminal = 0;
         for(auto &w : neighbors(cur_vertex)) {
+            if(w == prune || w == start) {
+                found_terminal++;
+            }
             if(cur_cost + 1 >= distance[w] || visited_[w]) {
                 continue;
             }
             Edge_length min_cost = adjacency_[cur_vertex][w].begin()->first;
             if(cur_cost + min_cost < distance[w] && cur_cost + min_cost + distance_[prune][w] <= budget) {
                 distance[w] = min_cost + cur_cost;
-                queue.push(std::make_pair(cur_cost + min_cost, w));
+                to_add.push_back(std::make_pair(cur_cost + min_cost, w));
             }
+        }
+        if(to_add.size() + found_terminal > 1) {
+            for(auto pp : to_add) {
+                queue.push(pp);
+            }
+        } else {
+            distance[cur_vertex] = invalid_;
         }
     }
 }

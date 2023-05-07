@@ -61,7 +61,7 @@ def plot(graph):
     from networkx.drawing.nx_pydot import graphviz_layout
     labels = { node : str(node) for node in graph.nodes() }
     pos = graphviz_layout(graph, prog="dot")
-    nx.draw(graph, pos)
+    nx.draw_networkx(graph, pos)
     nx.draw_networkx_labels(graph, pos, labels)
     plt.axis("off")
     plt.show()

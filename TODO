@@ -1,0 +1,4 @@
+dynamic dijkstra
+cache visited instead of distance
+prune single out vertices
+tiny separator preprocessing
