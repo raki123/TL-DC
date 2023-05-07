@@ -32,6 +32,7 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
     visited_[start] = true;
     distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
     pruning_dijkstra(terminals_[1], start, distance_to_goal_, budget);
+    prune_singleout(start);
     // only cache if there is more than one edge we can take
     std::vector<std::pair<Vertex, bool>> poss;
     for(auto v : neighbors(start)) {
@@ -89,6 +90,7 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
     }
     distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
     pruning_dijkstra(terminals_[1], start, distance_to_goal_, budget);
+    prune_singleout(start);
     cache_[start][distance_to_goal_] = std::make_pair(budget, ret);
     visited_[start] = false;
     return ret;
@@ -127,6 +129,56 @@ std::vector<Edge_weight> Search::dag_search(Vertex start, Edge_length budget) {
     return result;
 }
 
+void Search::prune_singleout(Vertex start) {
+    std::vector<Vertex> to_check;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(distance_to_goal_[v] == invalid_ || v == terminals_[1]) {
+            continue;
+        }
+        int neighbor = -1;
+        for(auto neigh : neighbors(v)) {
+            if(distance_to_goal_[neigh] != invalid_ || neigh == start) {
+                if(neighbor == -1) {
+                    neighbor = neigh;
+                } else {
+                    neighbor = -1;
+                    break;
+                }
+            }
+        }
+        if(neighbor != -1) {
+            distance_to_goal_[v] = invalid_;
+            if(neighbor < v) {
+                to_check.push_back(neighbor);
+            }
+        }
+    }
+    while(!to_check.empty()) {
+        auto v = to_check.back();
+        to_check.pop_back();
+        if(distance_to_goal_[v] == invalid_ || v == terminals_[1]) {
+            continue;
+        }
+        int neighbor = -1;
+        for(auto neigh : neighbors(v)) {
+            if(distance_to_goal_[neigh] != invalid_ || neigh == start) {
+                if(neighbor == -1) {
+                    neighbor = neigh;
+                } else {
+                    neighbor = -1;
+                    break;
+                }
+            }
+        }
+        if(neighbor != -1) {
+            distance_to_goal_[v] = invalid_;
+            if(neighbor < v) {
+                to_check.push_back(neighbor);
+            }
+        }
+    }
+}
+
 void Search::dijkstra(Vertex start, std::vector<Edge_length>& distance, Edge_length budget) {
     DijkstraQueue queue;
     queue.push(std::make_pair(0, start));
@@ -159,27 +211,15 @@ void Search::pruning_dijkstra(Vertex start, Vertex prune, std::vector<Edge_lengt
         if(cur_cost > distance[cur_vertex]) {
             continue;
         }
-        std::vector<std::pair<Edge_weight, Vertex>> to_add;
-        int found_terminal = 0;
         for(auto &w : neighbors(cur_vertex)) {
-            if(w == prune || w == start) {
-                found_terminal++;
-            }
             if(cur_cost + 1 >= distance[w] || visited_[w]) {
                 continue;
             }
             Edge_length min_cost = adjacency_[cur_vertex][w].begin()->first;
             if(cur_cost + min_cost < distance[w] && cur_cost + min_cost + distance_[prune][w] <= budget) {
                 distance[w] = min_cost + cur_cost;
-                to_add.push_back(std::make_pair(cur_cost + min_cost, w));
+                queue.push(std::make_pair(cur_cost + min_cost, w));
             }
-        }
-        if(to_add.size() + found_terminal > 1) {
-            for(auto pp : to_add) {
-                queue.push(pp);
-            }
-        } else {
-            distance[cur_vertex] = invalid_;
         }
     }
 }

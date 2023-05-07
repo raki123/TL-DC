@@ -41,6 +41,8 @@ class Search {
     std::vector<Edge_weight> search(Vertex start, Edge_length budget);
     std::vector<Edge_weight> dag_search(Vertex start, Edge_length budget);
 
+    void prune_singleout(Vertex start);
+
     // helper functions
     std::set<Vertex> neighbors(Vertex v) { assert(v >= 0 && v < neighbors_.size()); return neighbors_[v]; };
     void dijkstra(Vertex start, std::vector<Edge_length>& distance, Edge_length budget);
