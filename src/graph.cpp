@@ -1,7 +1,9 @@
 #include "graph.h"
+#include <clingo.hh>
 #include <algorithm>
 #include <map>
 #include <limits>
+#include <sstream>
 
 Graph::Graph(std::istream &input) {
     char dec;
@@ -457,6 +459,72 @@ void Graph::dijkstra(Vertex start, std::vector<Edge_length>& distance, const std
     }
 }
 
+std::vector<Vertex> Graph::find_separator(size_t size) {
+    // build the program
+    std::stringstream prog_str;
+    prog_str << "{sep(X) : v(X)}" << size << ".\n\
+    {r(X)}:- v(X), not sep(X).\n\
+    :- e(X,Y), r(X), not r(Y), not sep(Y).\n\
+    :- e(Y,X), r(X), not r(Y), not sep(Y).\n\
+    ok_nr(X) :- v(X), not sep(X), not r(X).\n";
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(!adjacency_[v].empty()) {
+            prog_str << "v(" << v << ").\n";
+        }
+    }
+    prog_str << "r(" << terminals_[0] << ").\n";
+    prog_str << "r(" << terminals_[1] << ").\n";
+    prog_str << ":- sep(" << terminals_[0] << "), sep(" << terminals_[1] << ").\n";
+    prog_str << ":- ";
+    bool first = true;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(!adjacency_[v].empty()) {
+            if(first) {
+                first = false;
+            } else {
+                prog_str << ", ";
+            }
+            prog_str << "not r(" << v << ")";
+        }
+    }
+    prog_str << ".\n";
+    prog_str << ":- ";
+    first = true;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(!adjacency_[v].empty()) {
+            if(first) {
+                first = false;
+            } else {
+                prog_str << ", ";
+            }
+            prog_str << "not ok_nr(" << v << ")";
+        }
+    }
+    prog_str << ".\n";
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        for(Vertex w : neighbors(v)) {
+            prog_str << "e(" << v << "," << w << ").\n";
+        }
+    }
+    prog_str << "#show sep/1.\n";
+    // initialize clingo
+    Clingo::Logger logger = [](Clingo::WarningCode, char const *) {
+        // std::cerr << message << std::endl;
+    };
+    Clingo::Control ctl{{}, logger, 20};
+    ctl.add("base", {}, prog_str.str().c_str());
+    ctl.ground({{"base", {}}});
+    auto handle = ctl.solve();
+    std::vector<Vertex> ret;
+    if(handle.get().is_satisfiable()) {
+        for(auto symbol : handle.model().symbols()) {
+            auto substr = symbol.to_string().substr(4,symbol.to_string().length() - 4 - 1);
+            ret.push_back(std::stoi(substr));
+        }
+    }
+    return ret;
+}
+
 void Graph::binary_add(int32_t trigger, Edge_length to_add, std::vector<int32_t>& bef_bits, std::vector<int32_t> after_bits, std::vector<std::vector<int32_t>>& clauses, int32_t& var_ctr) {
     assert(to_add > 0);
     assert(bef_bits.size() > 0);
@@ -824,4 +892,35 @@ Vertex Graph::preprocess_position_determined() {
         }
     }
     return found;
+}
+
+Vertex Graph::preprocess_tiny_separator() {
+    std::vector<Vertex> separator = find_separator(2);
+    if(separator.size() == 0) {
+        return 0;
+    }
+    assert(separator.size() == 2);
+    std::vector<char> right(adjacency_.size(), false);
+    right[terminals_[0]] = true;
+    right[terminals_[1]] = true;
+    std::vector<Vertex> queue({terminals_[0], terminals_[1]});
+    while(!queue.empty()) {
+        Vertex cur = queue.back();
+        queue.pop_back();
+        for(auto neigh : neighbors(cur)) {
+            if(right[neigh] || neigh == separator[0] || neigh == separator[1]) {
+                continue;
+            }
+            right[neigh] = true;
+            queue.push_back(neigh);
+        }
+    }
+    std::vector<Vertex> left = separator;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(right[v] || adjacency_[v].empty()) {
+            continue;
+        }
+        left.push_back(v);
+    }
+    return left.size();
 }
