@@ -1,4 +1,5 @@
 #include "graph.h"
+#include "search.h"
 #include <clingo.hh>
 #include <algorithm>
 #include <map>
@@ -66,6 +67,7 @@ Graph::Graph(std::istream &input) {
 }
 
 void Graph::preprocess() {
+    std::cerr << terminals_[0] << " " << terminals_[1] << std::endl;
     bool found = true;
     Vertex isolated_removed = 0;
     Vertex forwarder_removed = 0;
@@ -120,243 +122,6 @@ void Graph::print_stats() {
     dijkstra(terminals_[1], distance_to_goal, {});
     std::cerr << "#vertices " << adjacency_.size() << " #edges " << nr_edges;
     std::cerr << " max. length " << max_length_ << " min. length " << distance_to_goal[terminals_[0]] << std::endl;
-}
-
-void Graph::encode_unary(std::ostream& output) {
-    output << "reach(X, 0) :- start(X).\n";
-    output << ":- goal(X)";
-    for(int i = 0; i <= max_length_; i++) {
-        output << ", not reach(X, " << i << ")";
-    }
-    output << ".\n";
-    output << "start(" << terminals_[0] << ").\n";
-    output << "goal(" << terminals_[1] << ").\n";
-    output << ":- reach(X, L), reach(X, L'), L != L'.\n";
-    std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
-    dijkstra(terminals_[0], distance_from_start, {});
-
-    std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
-    dijkstra(terminals_[1], distance_to_goal, {});
-
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(v == terminals_[1] || adjacency_[v].empty()) {
-            continue;
-        }
-        assert(distance_from_start[v] + distance_to_goal[v] <= max_length_);
-        std::vector<std::pair<Vertex,Edge_length>> edges;
-        for(auto &w : neighbors(v)) {
-            if(w == terminals_[0]) {
-                continue;
-            }
-            for(auto &weight : adjacency_[v][w]) {
-                assert(std::find(edges.begin(), edges.end(), std::make_pair(w, weight.first)) == edges.end());
-                edges.push_back(std::make_pair(w, weight.first));
-                // if(weight.second != 1) {
-                //     std::cerr << "Found edge with weight " << weight.second << std::endl;
-                // }
-            }
-        }
-        for(auto &[w, length] : edges) {
-            assert(distance_to_goal[w] <= max_length_);
-            output << "reach(" << w << ",L + L') :- reach(" << v << ", L), edge(" << v << "," << w << ",L'), L <= " << max_length_ - distance_to_goal[w] - length;
-            output << ", L>= " << distance_from_start[v] << ".\n";
-            output << "edge(" << v << "," << w << "," << length << ") :- reach(" << v << ", L), L <= " << max_length_ - distance_to_goal[w] - length;
-            output << ", L>= " << distance_from_start[v];
-            for(auto &[wp, lengthp] : edges) {
-                if(w != wp || length != lengthp) {
-                    output << ", not edge(" << v << "," << wp << "," << lengthp << ")";
-                }
-            }
-            output << ".\n";
-        }
-    }
-}
-
-
-void Graph::encode_lenghtless(std::ostream& output) {
-    output << "reach(X) :- start(X).\n";
-    output << ":- goal(X), not reach(X).\n";
-    output << "start(" << terminals_[0] << ").\n";
-    output << "goal(" << terminals_[1] << ").\n";
-    output << "reach(X) :- edge(X, Y).\n";
-    // output << ":~ edge(X,Y). [1,X,Y]\n";
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(v == terminals_[1] || adjacency_[v].empty()) {
-            continue;
-        }
-        auto neighs = neighbors(v);
-        auto it = neighs.find(terminals_[0]);
-        if(it != neighs.end()) {
-            neighs.erase(it);
-        }
-        for(auto w : neighs) {
-            output << "edge(" << w << "," << v << ") :- reach(" << v << ")";
-            for(auto wp : neighs) {
-                if(w != wp) {
-                    output << ", not edge(" << wp << ", " << v << ")";
-                }
-            }
-            output << ".\n";
-        }
-    }
-}
-
-
-void Graph::encode_binary(std::ostream& output) {
-    uint binary_counter_size = 1;
-    uint numbers = 1;
-    while(numbers < max_length_) {
-        binary_counter_size++;
-        numbers *= 2;
-    }
-    std::vector<int32_t> node_variables(adjacency_.size(), 0);
-    std::vector<std::vector<int32_t>> node_bits(adjacency_.size(), std::vector<int32_t>());
-    int32_t var_ctr = 1;
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(neighbors_[v].empty()) {
-            continue;
-        }
-        node_variables[v] = var_ctr++;
-        for(size_t i = 0; i < binary_counter_size; i++) {
-            node_bits[v].push_back(var_ctr++);
-        }
-    }
-    std::vector<std::vector<std::vector<std::pair<Edge_length, int32_t>>>> edge_variables(adjacency_.size(), 
-                                std::vector<std::vector<std::pair<Edge_length, int32_t>>>(adjacency_.size(), 
-                                            std::vector<std::pair<Edge_length, int32_t>>()));
-    std::vector<std::vector<std::vector<std::pair<Edge_length, std::vector<int32_t>>>>> edge_bits(adjacency_.size(), 
-                            std::vector<std::vector<std::pair<Edge_length, std::vector<int32_t>>>>(adjacency_.size(), 
-                                            std::vector<std::pair<Edge_length, std::vector<int32_t>>>()));
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        // we can never go from the goal to anywhere
-        if(neighbors_[v].empty() || v == terminals_[1]) {
-            continue;
-        }
-        for(auto w : neighbors(v)) {
-            // we can never go to the start
-            if(w == terminals_[0]) {
-                continue;
-            }
-            for(auto &[length, weight] : adjacency_[v][w]) {
-                edge_variables[v][w].push_back(std::make_pair(length, var_ctr++));
-                std::vector<int32_t> bits;
-                for(size_t i = 0; i < binary_counter_size; i++) {
-                    bits.push_back(var_ctr++);
-                }
-                edge_bits[v][w].push_back(std::make_pair(length, bits));
-            }
-        }
-    }
-    std::vector<std::vector<int32_t>> clauses;
-    // both start and goal must be true
-    clauses.push_back({node_variables[terminals_[0]]});
-    clauses.push_back({node_variables[terminals_[1]]});
-    // for the start all bits must be zero
-    for(size_t i = 0; i < binary_counter_size; i++) {
-        clauses.push_back({-node_bits[terminals_[0]][i]});
-    }
-    // each node must use at most max_length_ - distance_to_goal edges
-    std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
-    dijkstra(terminals_[0], distance_from_start, {});
-
-    std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
-    dijkstra(terminals_[1], distance_to_goal, {});
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(neighbors_[v].empty() || v == terminals_[0]) {
-            continue;
-        }
-        add_leq(max_length_ - distance_to_goal[v], node_bits[v], clauses);
-        add_geq(-node_variables[v], distance_from_start[v], node_bits[v], clauses);
-    }
-    // each node (apart from the start) is true iff one of the incoming edges is true
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(neighbors_[v].empty() || v == terminals_[0]) {
-            continue;
-        }
-        // we first assert that the node variable is true iff one of its bits is true
-        std::vector<int32_t> big_or = { -node_variables[v] };
-        assert(node_bits[v].size() == binary_counter_size);
-        for(size_t i = 0; i < binary_counter_size; i++) {
-            big_or.push_back(node_bits[v][i]);
-            clauses.push_back({node_variables[v], -node_bits[v][i]});
-        }
-        clauses.push_back(big_or);
-        // next, we assert that the i-th bit of the node variable holds iff it holds for any of the incoming edges
-        // i.e. we assign the node the same binary counter as the one of the true incoming edge
-        for(size_t i = 0; i < binary_counter_size; i++) {
-            big_or = { -node_bits[v][i] };
-            for(auto w : neighbors(v)) {
-                // edges coming from the goal are never true
-                if(w == terminals_[1]) {
-                    continue;
-                }
-                for(auto &[length, bits] : edge_bits[w][v]) {
-                    big_or.push_back(bits[i]);
-                    clauses.push_back({node_bits[v][i], -bits[i]});
-                }
-            }
-            clauses.push_back(big_or);
-        }
-    }
-    // each edge is true iff its start node is true but none of the other outgoing edges are true
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        // there is exactly one of:
-        // v is false
-        // e_1 is true
-        // ...
-        // e_n is true
-        if(adjacency_[v].empty() || v == terminals_[1]) {
-            continue;
-        }
-        std::vector<int32_t> big_or = { -node_variables[v] };
-        for(Vertex w : neighbors(v)) {
-            if(w == terminals_[0]) {
-                continue;
-            }
-            for(auto [length, variable] : edge_variables[v][w]) {
-                big_or.push_back(variable);
-                clauses.push_back({-variable, node_variables[v]});
-                for(Vertex other : neighbors(v)) {
-                    if(other == terminals_[0]) {
-                        continue;
-                    }
-                    for(auto [other_length, other_variable] : edge_variables[v][other]) {
-                        if(other == w && other_length == length) {
-                            continue;
-                        }
-                        clauses.push_back({-variable, -other_variable});
-                    }
-                }
-            }
-        }
-        clauses.push_back(big_or);
-        // if v is true and e_i is true
-        // then the bits of e_i must be the successor of the bits of v
-        // if e_i is true then v must already be true anyway, so we can use e_i as the trigger
-        for(Vertex w : neighbors(v)) {
-            if(w == terminals_[0]) {
-                continue;
-            }
-            for(size_t i = 0; i < edge_variables[v][w].size(); i++) {
-                auto &[length, variable] = edge_variables[v][w][i];
-                auto &[lengthp, after_bits] = edge_bits[v][w][i];
-                assert(length == lengthp);
-                binary_add(-variable, length, node_bits[v], after_bits, clauses, var_ctr);
-                // also we need to set the bits to false it the e_i is false
-                for(size_t j = 0; j < binary_counter_size; j++) {
-                    clauses.push_back({variable, -after_bits[j]});
-                }
-            }
-        }
-    }
-    output << "p cnf " << var_ctr-1 << " " << clauses.size() << "\n";
-    for(auto & clause : clauses) {
-        assert(clause.size() > 0);
-        for(auto var : clause) {
-            output << var << " ";
-        }
-        output << "0\n";
-    }
 }
 
 void Graph::normalize() {
@@ -455,6 +220,7 @@ Graph Graph::subgraph(std::vector<Vertex> restrict_to) {
             }
         }
     }
+    ret.extra_paths_ = std::vector<Edge_weight>(max_length_ + 1, 0);
     return ret;
 }
 
@@ -548,121 +314,6 @@ std::vector<Vertex> Graph::find_separator(size_t size) {
         }
     }
     return ret;
-}
-
-void Graph::binary_add(int32_t trigger, Edge_length to_add, std::vector<int32_t>& bef_bits, std::vector<int32_t> after_bits, std::vector<std::vector<int32_t>>& clauses, int32_t& var_ctr) {
-    assert(to_add > 0);
-    assert(bef_bits.size() > 0);
-    assert(after_bits.size() == bef_bits.size());
-    std::vector<char> add_bits(bef_bits.size(), 0);
-    size_t power = 0;
-    while(to_add > 0) {
-        assert(power < bef_bits.size());
-        add_bits[power] = to_add % 2;
-        to_add = (int) to_add/2;
-        power++;
-    }
-    std::vector<int32_t> carry_variables(bef_bits.size() - 1, 0);
-    size_t idx = 0;
-    while(add_bits[idx] == 0) {
-        clauses.push_back({trigger, -after_bits[idx], bef_bits[idx]});
-        clauses.push_back({trigger, after_bits[idx], -bef_bits[idx]});
-        idx++;
-    }
-    for(size_t i = idx; i + 1 < bef_bits.size(); i++) {
-        carry_variables[i] = var_ctr++;
-        clauses.push_back({-trigger, -carry_variables[i]});
-    }
-    // here we do not have a carry yet
-    clauses.push_back({trigger, after_bits[idx], bef_bits[idx]});
-    clauses.push_back({trigger, -after_bits[idx], -bef_bits[idx]});
-    if(idx + 1 < bef_bits.size()) {
-        clauses.push_back({trigger, carry_variables[idx], -bef_bits[idx]});
-        clauses.push_back({trigger, -carry_variables[idx], bef_bits[idx]});
-    }
-    idx++;
-    // here we need to use the carry
-    for(; idx + 1 < bef_bits.size(); idx++) {
-        if(add_bits[idx] == 0) {
-            // first set the carry
-            clauses.push_back({trigger, carry_variables[idx], -bef_bits[idx], -carry_variables[idx - 1]});
-            clauses.push_back({trigger, -carry_variables[idx], bef_bits[idx]});
-            clauses.push_back({trigger, -carry_variables[idx], carry_variables[idx - 1]});
-            // next set the after_bit
-            clauses.push_back({trigger, after_bits[idx], -bef_bits[idx], carry_variables[idx - 1]});
-            clauses.push_back({trigger, after_bits[idx], bef_bits[idx], -carry_variables[idx - 1]});
-            clauses.push_back({trigger, -after_bits[idx], bef_bits[idx], carry_variables[idx - 1]});
-            clauses.push_back({trigger, -after_bits[idx], -bef_bits[idx], -carry_variables[idx - 1]});
-        } else {
-            // first set the carry
-            clauses.push_back({trigger, -carry_variables[idx], -bef_bits[idx], -carry_variables[idx - 1]});
-            clauses.push_back({trigger, carry_variables[idx], bef_bits[idx]});
-            clauses.push_back({trigger, carry_variables[idx], carry_variables[idx - 1]});
-            // next set the after_bit
-            clauses.push_back({trigger, -after_bits[idx], -bef_bits[idx], carry_variables[idx - 1]});
-            clauses.push_back({trigger, -after_bits[idx], bef_bits[idx], -carry_variables[idx - 1]});
-            clauses.push_back({trigger, after_bits[idx], bef_bits[idx], carry_variables[idx - 1]});
-            clauses.push_back({trigger, after_bits[idx], -bef_bits[idx], -carry_variables[idx - 1]});
-        }
-    }
-    // no need to set a carry bit for the last one
-    if(idx < bef_bits.size()) {
-        if(add_bits[idx] == 0) {
-            // set the after_bit
-            clauses.push_back({trigger, after_bits[idx], -bef_bits[idx], carry_variables[idx - 1]});
-            clauses.push_back({trigger, after_bits[idx], bef_bits[idx], -carry_variables[idx - 1]});
-            clauses.push_back({trigger, -bef_bits[idx], -carry_variables[idx - 1]});
-            clauses.push_back({trigger, -after_bits[idx], -bef_bits[idx], -carry_variables[idx - 1]});
-        } else {
-            // set the after_bit
-            clauses.push_back({trigger, -bef_bits[idx]});
-            clauses.push_back({trigger, -carry_variables[idx - 1]});
-            clauses.push_back({trigger, after_bits[idx]});
-        }
-    }
-}
-void Graph::add_leq(Edge_length maximum, std::vector<int32_t>& bits, std::vector<std::vector<int32_t>>& clauses) {
-    assert(bits.size() > 0);
-    std::vector<char> max_bits(bits.size(), 0);
-    size_t power = 0;
-    while(maximum > 0) {
-        assert(power <= bits.size());
-        max_bits[power] = maximum % 2;
-        maximum = (int) maximum/2;
-        power++;
-    }
-    std::vector<int32_t> prefix;
-    for(int i = bits.size() - 1; i >= 0; i--) {
-        if(max_bits[i] == 1) {
-            prefix.push_back(-bits[i]);
-            continue;
-        }
-        std::vector<int32_t> clause(prefix);
-        clause.push_back(-bits[i]);
-        clauses.push_back(clause);
-    }
-}
-
-void Graph::add_geq(int32_t trigger, Edge_length minimum, std::vector<int32_t>& bits, std::vector<std::vector<int32_t>>& clauses) {
-    assert(bits.size() > 0);
-    std::vector<char> min_bits(bits.size(), 0);
-    size_t power = 0;
-    while(minimum > 0) {
-        assert(power <= bits.size());
-        min_bits[power] = minimum % 2;
-        minimum = (int) minimum/2;
-        power++;
-    }
-    std::vector<int32_t> prefix = {trigger};
-    for(int i = bits.size() - 1; i >= 0; i--) {
-        if(min_bits[i] == 0) {
-            prefix.push_back(bits[i]);
-            continue;
-        }
-        std::vector<int32_t> clause(prefix);
-        clause.push_back(bits[i]);
-        clauses.push_back(clause);
-    }
 }
 
 Vertex Graph::preprocess_start_goal_edges() {
@@ -926,9 +577,15 @@ Vertex Graph::preprocess_tiny_separator() {
     }
     assert(separator.size() == 2);
     std::vector<char> right(adjacency_.size(), false);
-    right[terminals_[0]] = true;
-    right[terminals_[1]] = true;
-    std::vector<Vertex> queue({terminals_[0], terminals_[1]});
+    std::vector<Vertex> queue;
+    if(terminals_[0] != separator[0] && terminals_[0] != separator[1]) {
+        right[terminals_[0]] = true;
+        queue.push_back(terminals_[0]);   
+    }
+    if(terminals_[1] != separator[0] && terminals_[1] != separator[1]) {
+        right[terminals_[1]] = true;
+        queue.push_back(terminals_[1]);   
+    }
     while(!queue.empty()) {
         Vertex cur = queue.back();
         queue.pop_back();
@@ -942,12 +599,18 @@ Vertex Graph::preprocess_tiny_separator() {
     }
     std::vector<Vertex> left = separator;
     for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(right[v] || adjacency_[v].empty()) {
+        if(right[v] || adjacency_[v].empty() || v == separator[0] || v == separator[1]) {
             continue;
         }
         left.push_back(v);
     }
     Graph left_graph = subgraph(left);
-    left_graph.terminals_ = separator;
-    return left.size();
+    left_graph.terminals_ = {0, 1};
+    left_graph.print_stats();
+    left_graph.preprocess();
+    left_graph.print_stats();
+    Search search(left_graph);
+    auto res = search.search();
+
+    return left.size() - 2;
 }
