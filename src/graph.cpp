@@ -67,7 +67,6 @@ Graph::Graph(std::istream &input) {
 }
 
 void Graph::preprocess() {
-    std::cerr << terminals_[0] << " " << terminals_[1] << std::endl;
     bool found = true;
     Vertex isolated_removed = 0;
     Vertex forwarder_removed = 0;
@@ -75,6 +74,7 @@ void Graph::preprocess() {
     Vertex twin_edges_removed = 0;
     Vertex unreachable_removed = 0;
     Vertex unusable_edge_removed = 0;
+    Vertex two_sep_removed = 0;
     while(found) {
         found = false;
         Vertex cur_isolated_removed = preprocess_isolated();
@@ -102,14 +102,19 @@ void Graph::preprocess() {
             found |= cur_position_determined_removed > 0;
             position_determined_removed += cur_position_determined_removed;
         }
+        if(!found) {
+            Vertex cur_two_sep_removed = preprocess_two_separator();
+            found |= cur_two_sep_removed > 0;
+            two_sep_removed += cur_two_sep_removed;
+        }
     }
-    std::cerr << preprocess_tiny_separator() << std::endl;
     std::cerr << "Removed isolated: " << isolated_removed << std::endl;
     std::cerr << "Removed forwarder: " << forwarder_removed << std::endl;
     std::cerr << "Removed position determined: " << position_determined_removed << std::endl;
     std::cerr << "Removed twin edges: " << twin_edges_removed << std::endl;
     std::cerr << "Removed unreachable: " << unreachable_removed << std::endl;
     std::cerr << "Removed unusable edge: " << unusable_edge_removed << std::endl;
+    std::cerr << "Removed due to 2-separation: " << two_sep_removed << std::endl;
 }
 
 void Graph::print_stats() {
@@ -250,10 +255,38 @@ void Graph::dijkstra(Vertex start, std::vector<Edge_length>& distance, const std
     }
 }
 
+std::vector<std::vector<Vertex>> Graph::components(const std::set<Vertex>& forbidden) {
+    std::vector<std::vector<Vertex>> ret;
+    std::vector<char> visited(adjacency_.size(), false);
+    std::vector<Vertex> queue;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(adjacency_[v].empty() || visited[v] || forbidden.count(v) > 0) {
+            continue;
+        }
+        std::vector<Vertex> component = {v};
+        visited[v] = true;
+        queue.push_back(v);
+        while(!queue.empty()) {
+            Vertex cur = queue.back();
+            queue.pop_back();
+            for(auto w : neighbors(cur)) {
+                if(visited[w] || forbidden.count(w) > 0) {
+                    continue;
+                }
+                visited[w] = true;
+                queue.push_back(w);
+                component.push_back(w);
+            }
+        }
+        ret.push_back(component);
+    }
+    return ret;
+}
+
 std::vector<Vertex> Graph::find_separator(size_t size) {
     // build the program
     std::stringstream prog_str;
-    prog_str << "{sep(X) : v(X)}" << size << ".\n\
+    prog_str << size << "{sep(X) : v(X)}" << size << ".\n\
     {r(X)}:- v(X), not sep(X).\n\
     :- e(X,Y), r(X), not r(Y), not sep(Y).\n\
     :- e(Y,X), r(X), not r(Y), not sep(Y).\n\
@@ -263,9 +296,8 @@ std::vector<Vertex> Graph::find_separator(size_t size) {
             prog_str << "v(" << v << ").\n";
         }
     }
-    prog_str << "r(" << terminals_[0] << ").\n";
-    prog_str << "r(" << terminals_[1] << ").\n";
-    prog_str << ":- sep(" << terminals_[0] << "), sep(" << terminals_[1] << ").\n";
+    prog_str << ":- r(" << terminals_[0] << ").\n";
+    prog_str << ":- r(" << terminals_[1] << ").\n";
     prog_str << ":- ";
     bool first = true;
     for(Vertex v = 0; v < adjacency_.size(); v++) {
@@ -570,47 +602,79 @@ Vertex Graph::preprocess_position_determined() {
     return found;
 }
 
-Vertex Graph::preprocess_tiny_separator() {
+Vertex Graph::preprocess_two_separator() {
+    Vertex found = 0;
     std::vector<Vertex> separator = find_separator(2);
     if(separator.size() == 0) {
         return 0;
     }
     assert(separator.size() == 2);
-    std::vector<char> right(adjacency_.size(), false);
-    std::vector<Vertex> queue;
-    if(terminals_[0] != separator[0] && terminals_[0] != separator[1]) {
-        right[terminals_[0]] = true;
-        queue.push_back(terminals_[0]);   
-    }
-    if(terminals_[1] != separator[0] && terminals_[1] != separator[1]) {
-        right[terminals_[1]] = true;
-        queue.push_back(terminals_[1]);   
-    }
-    while(!queue.empty()) {
-        Vertex cur = queue.back();
-        queue.pop_back();
-        for(auto neigh : neighbors(cur)) {
-            if(right[neigh] || neigh == separator[0] || neigh == separator[1]) {
-                continue;
-            }
-            right[neigh] = true;
-            queue.push_back(neigh);
-        }
-    }
-    std::vector<Vertex> left = separator;
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(right[v] || adjacency_[v].empty() || v == separator[0] || v == separator[1]) {
-            continue;
-        }
-        left.push_back(v);
-    }
-    Graph left_graph = subgraph(left);
-    left_graph.terminals_ = {0, 1};
-    left_graph.print_stats();
-    left_graph.preprocess();
-    left_graph.print_stats();
-    Search search(left_graph);
-    auto res = search.search();
 
-    return left.size() - 2;
+    std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[0], distance_from_start, {});
+
+    std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[1], distance_to_goal, {});
+
+    // compute the components induced by the separator
+    std::set<Vertex> forbidden(separator.begin(), separator.end());
+    std::vector<std::vector<Vertex>> comps = components(forbidden);
+    assert(comps.size() > 1);
+    // try to reduce each of the induced components
+    for(auto &comp : comps) {
+        // different cases depending on whether there 0/1/2 of the terminals in the component
+        bool found_start = std::find(comp.begin(), comp.end(), terminals_[0]) != comp.end();
+        bool found_goal = std::find(comp.begin(), comp.end(), terminals_[1]) != comp.end();
+        if(found_goal && found_start) {
+            // nothing we can do (right?)
+            continue;
+        } 
+        if(found_goal || found_start) {
+            // not sure what we can do here
+            continue;
+        } 
+        // we have to enter AND leave the component, meaning we to traverse s_1 -> G[comp] -> s_2 (or the other way around)
+        // thus we can reduce to {s_1, s_2}
+        found += comp.size();
+        comp.push_back(separator[0]);
+        std::swap(comp[0], comp.back());
+        comp.push_back(separator[1]);
+        std::swap(comp[1], comp.back());
+        Graph comp_graph = subgraph(comp);
+        Edge_length d1 = 0, d2 = 0;
+        if(max_length_ > distance_from_start[separator[0]] + distance_to_goal[separator[1]]) {
+            d1 = max_length_ - distance_from_start[separator[0]] - distance_to_goal[separator[1]];
+        }
+        if(max_length_ > distance_from_start[separator[1]] + distance_to_goal[separator[0]]) {
+            d2 = max_length_ - distance_from_start[separator[1]] - distance_to_goal[separator[0]];
+        }
+        comp_graph.max_length_ = std::max(d1, d2);
+        comp_graph.terminals_ = {0, 1};
+        comp_graph.print_stats();
+        comp_graph.preprocess();
+        comp_graph.normalize();
+        // comp_graph.print_stats();
+        Search search(comp_graph);
+        auto res = search.search();
+        // search.print_stats();
+        auto res_extra = comp_graph.extra_paths();
+        res.resize(std::max(res.size(), res_extra.size()));
+        res_extra.resize(std::max(res.size(), res_extra.size()));
+        // remove all vertices in the component (apart from the separator)
+        for(size_t i = 2; i < comp.size(); i++) {
+            remove_vertex(comp[i]);
+        }
+        // remove all previous edges between the separator vertices
+        // we covered them in the result of the search
+        remove_edge(Edge(separator[0], separator[1]));
+        assert(res[0] == 0);
+        assert(res_extra[0] == 0);
+        for(Edge_length length = 1; length < res.size(); length++) {
+            Edge_weight weight = res[length] + res_extra[length];
+            if(weight > 0) {
+                add_edge(Edge(separator[0], separator[1]), Weight(length, weight));
+            }
+        }
+    }
+    return found;
 }

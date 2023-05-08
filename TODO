@@ -1,4 +1,8 @@
 dynamic dijkstra
 cache visited instead of distance
-prune single out vertices
-tiny separator preprocessing
+prune single out vertices faster (via neighborhood)
+tiny separator preprocessing:
+    do one separators
+    check what can be done for two/three separators
+
+prune hidden behind articulation point

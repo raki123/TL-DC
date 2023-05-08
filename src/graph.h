@@ -51,6 +51,7 @@ class Graph {
 
     // utility functions
     void dijkstra(Vertex start, std::vector<Edge_length>& distance, const std::set<Vertex>& forbidden);
+    std::vector<std::vector<Vertex>> components(const std::set<Vertex>& forbidden);
     std::vector<Vertex> find_separator(size_t size);
     
     // preprocessing subroutines
@@ -61,7 +62,7 @@ class Graph {
     Vertex preprocess_twins();
     Vertex preprocess_unusable_edge();
     Vertex preprocess_position_determined();
-    Vertex preprocess_tiny_separator();
+    Vertex preprocess_two_separator();
 
 
 };
