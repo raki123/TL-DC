@@ -48,6 +48,8 @@ class Graph {
     void remove_edge(Edge edge);
     void remove_vertex(Vertex v);
     std::set<Vertex> neighbors(Vertex v);
+    // check returns true if a vertex is in an exclusion constraint
+    bool fixed(Vertex v) { return !exclude_[v].empty(); }
 
     Graph(Vertex n);
     Graph subgraph(std::vector<Vertex> restrict_to);

@@ -6,9 +6,16 @@ add handling for "binary clauses" to the search:
     * enables three-separators when start and goal are not separated 
     * check if we need to set the original value or if we can set it to false
 
+improve handling for exclusion constraints in preprocessing:
+    * allow more preprocessing/propagate the constraints
+
 use articulation points:
     * for preprocessing
     * for inprocessing
     -> split if articulation point is between start and goal
     -> prune otherwise
 if that doesnt help: prune single out vertices fast (via neighborhood)
+
+dag_search can only trigger if the max_length_ can actually happen
+-> e.g. for 002 we have max_length_ = 39 but the longest path thats shorter has length 38
+-> check if/how we can adapt max_length_ efficiently

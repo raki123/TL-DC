@@ -27,6 +27,7 @@ Graph::Graph(std::istream &input) {
                                     std::vector<std::map<Edge_length,Edge_weight>>(nr_vertices + 2, 
                                                             std::map<Edge_length,Edge_weight>()));
             neighbors_ = std::vector<std::set<Vertex>>(nr_vertices + 2, std::set<Vertex>());
+            exclude_ = std::vector<std::vector<Vertex>>(nr_vertices + 2, std::vector<Vertex>());
             max_length_ = nr_vertices + 2;
             break;
         }
@@ -145,6 +146,7 @@ void Graph::normalize() {
                             std::vector<std::map<Edge_length,Edge_weight>>(cur_name, 
                                                     std::map<Edge_length,Edge_weight>()));
     auto new_neighbors = std::vector<std::set<Vertex>>(cur_name, std::set<Vertex>());
+    auto new_exclude = std::vector<std::vector<Vertex>>(cur_name, std::vector<Vertex>());
     for(Vertex v = 0; v < adjacency_.size(); v++) {
         if(adjacency_[v].empty()) {
             continue;
@@ -154,9 +156,14 @@ void Graph::normalize() {
             new_neighbors[new_name[v]].insert(new_name[neigh]);
             new_adjacency[new_name[v]][new_name[neigh]] = adjacency_[v][neigh];
         }
+        for(auto excluded : exclude_[v]) {
+            assert(new_name[excluded] != unnamed);
+            new_exclude[new_name[v]].push_back(new_name[excluded]);
+        }
     }
     adjacency_ = new_adjacency;
     neighbors_ = new_neighbors;
+    exclude_ = new_exclude;
     terminals_[0] = new_name[terminals_[0]];
     terminals_[1] = new_name[terminals_[1]];
 }
@@ -179,6 +186,7 @@ void Graph::add_edge(Edge edge, Weight weight) {
 void Graph::remove_vertex(Vertex v) {
     assert(v >= 0 && v < adjacency_.size());
     assert(!adjacency_[v].empty());
+    assert(exclude_[v].empty());
     for(auto neighbor : neighbors(v)) {
         adjacency_[neighbor][v].clear();
         neighbors_[neighbor].erase(v);
@@ -205,7 +213,8 @@ std::set<Vertex> Graph::neighbors(Vertex v) {
 
 Graph::Graph(Vertex n) :    max_length_(-1),
                             neighbors_(n, std::set<Vertex>()),
-                            adjacency_(n, std::vector<std::map<Edge_length, Edge_weight>>(n, std::map<Edge_length, Edge_weight>())) {
+                            adjacency_(n, std::vector<std::map<Edge_length, Edge_weight>>(n, std::map<Edge_length, Edge_weight>())),
+                            exclude_(n, std::vector<Vertex>()) {
 
 }
 
@@ -223,6 +232,10 @@ Graph Graph::subgraph(std::vector<Vertex> restrict_to) {
                 ret.neighbors_[new_name[v]].insert(new_name[neigh]);
                 ret.adjacency_[new_name[v]][new_name[neigh]] = adjacency_[v][neigh];
             }
+        }
+        for(Vertex excluded : exclude_[v]) {
+            assert(new_name[excluded] != std::numeric_limits<Vertex>::max());
+            ret.exclude_[new_name[v]].push_back(new_name[excluded]);
         }
     }
     ret.extra_paths_ = std::vector<Edge_weight>(max_length_ + 1, 0);
@@ -286,14 +299,21 @@ std::vector<std::vector<Vertex>> Graph::components(const std::set<Vertex>& forbi
 std::vector<Vertex> Graph::find_separator(size_t size) {
     // build the program
     std::stringstream prog_str;
-    prog_str << size << "{sep(X) : v(X)}" << size << ".\n\
+    prog_str << size << "{sep(X) : v(X), not fixed(X)}" << size << ".\n\
     {r(X)}:- v(X), not sep(X).\n\
     :- e(X,Y), r(X), not r(Y), not sep(Y).\n\
-    :- e(Y,X), r(X), not r(Y), not sep(Y).\n\
     ok_nr(X) :- v(X), not sep(X), not r(X).\n";
     for(Vertex v = 0; v < adjacency_.size(); v++) {
         if(!adjacency_[v].empty()) {
             prog_str << "v(" << v << ").\n";
+        }
+        if(fixed(v)) {
+            // dont use fixed vertices as separators
+            prog_str << "fixed(" << v << ").\n";
+            // and have fixed vertices in the same component as the others that are in an exclusion constraint with them
+            for(auto excluded : exclude_[v]) {
+                prog_str << "e(" << v << "," << excluded << ")";
+            }
         }
     }
     prog_str << ":- r(" << terminals_[0] << ").\n";
@@ -366,6 +386,9 @@ Vertex Graph::preprocess_start_goal_edges() {
 Vertex Graph::preprocess_isolated() {
     Vertex found = 0;
     for(size_t v = 0; v < adjacency_.size(); v++) {
+        if(fixed(v)) {
+            continue;
+        }
         auto cur_neighbors = neighbors(v);
         if(cur_neighbors.size() == 1) {
             Vertex neighbor = *cur_neighbors.begin();
@@ -409,6 +432,10 @@ Vertex Graph::preprocess_forwarder() {
             // we cannot remove terminals this way
             continue;
         }
+        if(fixed(v)) {
+            // we cannot remove fixed vertices this way
+            continue;
+        }
         auto cur_neighbors = neighbors(v);
         if(cur_neighbors.size() == 2) {
             found++;
@@ -438,6 +465,9 @@ Vertex Graph::preprocess_unreachable() {
         if(adjacency_[v].size() == 0) {
             continue;
         }
+        if(fixed(v)) {
+            continue;
+        }
         if(distance_from_start[v] + distance_to_goal[v] > max_length_) {
             found++;
             remove_vertex(v);
@@ -455,6 +485,18 @@ Vertex Graph::preprocess_twins() {
         auto tmp = neighbors(v);
         std::vector<Vertex> neighs(tmp.begin(), tmp.end());
         assert(std::find(neighs.begin(), neighs.end(), terminals_[1 - i]) == neighs.end());
+        // first make sure that none of the neighbors are fixed because then we cannot touch them here
+        bool any_fixed = false;
+        for(auto neigh : neighs) {
+            if(fixed(neigh)) {
+                any_fixed = true;
+                break;
+            }
+        }
+        if(any_fixed) {
+            continue;
+        }
+        // gather equivalent vertices (i.e. twins) and merge them into one vertex each
         std::map<Vertex, std::vector<Vertex>> eq;
         for(auto neigh : neighs) {
             eq[neigh] = {neigh};
@@ -501,6 +543,7 @@ Vertex Graph::preprocess_twins() {
                 }
             }
         }
+        // merge the equivalent vertices
         for(auto &[representative, others] : eq) {
             if(others.size() == 1) {
                 continue;
@@ -538,8 +581,14 @@ Vertex Graph::preprocess_unusable_edge() {
         dijkstra(terminals_[1], distances_to_goal[v], {v});
     }
     for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(fixed(v)) {
+            continue;
+        }
         std::vector<Vertex> remove_completely;
         for(auto &w : neighbors(v)) {
+            if(fixed(w)) {
+                continue;
+            }
             Edge_length min_without_edge = std::min(distances_from_start[v][w] + distances_to_goal[w][v], distances_from_start[w][v] + distances_to_goal[v][w]);
             std::map<Edge_length, Edge_weight> new_weights;
             for(auto &weight : adjacency_[v][w]) {
@@ -576,6 +625,10 @@ Vertex Graph::preprocess_position_determined() {
             continue;
         }
         if(terminals_[0] == v || terminals_[1] == v) {
+            continue;
+        }
+        if(fixed(v)) {
+            // we cannot touch fixed vertices here
             continue;
         }
         if(distance_from_start[v] + distance_to_goal[v] == max_length_) {
