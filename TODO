@@ -3,6 +3,9 @@ cache visited instead of distance
 
 enable three-separators when start and goal are not separated 
 
+for two separators:
+    * improve the max_length_ bound
+    
 use articulation points:
     * for preprocessing
     * for inprocessing
@@ -10,8 +13,6 @@ use articulation points:
     -> prune otherwise
 if that doesnt help: prune single out vertices fast (via neighborhood)
 
-for two separators:
-    * improve the max_length_ bound
 
 improve handling for exclusion constraints in preprocessing:
     * allow more preprocessing/propagate the constraints
