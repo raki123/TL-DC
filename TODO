@@ -1,8 +1,13 @@
 dynamic dijkstra
 cache visited instead of distance
-prune single out vertices faster (via neighborhood)
-tiny separator preprocessing:
-    do one separators
-    check what can be done for two/three separators
 
-prune hidden behind articulation point
+add handling for "binary clauses" to the search:
+    * enables two-separators also when start and goal are separated
+    * enables three-separators when start and goal are not separated 
+
+use articulation points:
+    * for preprocessing
+    * for inprocessing
+    -> split if articulation point is between start and goal
+    -> prune otherwise
+if that doesnt help: prune single out vertices fast (via neighborhood)
