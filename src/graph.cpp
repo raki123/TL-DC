@@ -244,11 +244,8 @@ Graph Graph::subgraph(std::vector<Vertex> restrict_to) {
             }
         }
         for(Vertex excluded : exclude_[v]) {
-            if(new_name[excluded] != std::numeric_limits<Vertex>::max()) {
-                // FIXME, why does this happen??
-                assert(new_name[excluded] != std::numeric_limits<Vertex>::max());
-                ret.exclude_[new_name[v]].push_back(new_name[excluded]);
-            }
+            assert(new_name[excluded] != std::numeric_limits<Vertex>::max());
+            ret.exclude_[new_name[v]].push_back(new_name[excluded]);
         }
     }
     ret.extra_paths_ = std::vector<Edge_weight>(max_length_ + 1, 0);
@@ -685,7 +682,7 @@ Vertex Graph::preprocess_two_separator() {
         return 0;
     }
     assert(separator.size() == 2);
-
+    std::map<Vertex, std::set<Vertex>> to_exclude;
     std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
     dijkstra(terminals_[0], distance_from_start, {});
 
@@ -860,8 +857,16 @@ Vertex Graph::preprocess_two_separator() {
                     add_edge(Edge(comp[1], separator[1]), Weight(length - 1, c_two_y[length] - c_two_n[length]));
                 }
             }
-            add_exclude(comp[0], separator[1]);
-            add_exclude(comp[1], separator[0]);
+            if(comp[0] < separator[1]) {
+                to_exclude[comp[0]].insert(separator[1]);
+            } else {
+                to_exclude[separator[1]].insert(comp[0]);
+            }
+            if(comp[1] < separator[0]) {
+                to_exclude[comp[1]].insert(separator[0]);
+            } else {
+                to_exclude[separator[0]].insert(comp[1]);
+            }
             continue;
         } 
         // we have to enter AND leave the component, meaning we to traverse s_1 -> G[comp] -> s_2 (or the other way around)
@@ -905,6 +910,11 @@ Vertex Graph::preprocess_two_separator() {
             if(weight > 0) {
                 add_edge(Edge(separator[0], separator[1]), Weight(length, weight));
             }
+        }
+    }
+    for(auto &[ex_1, ex_set] : to_exclude) {
+        for(auto ex_2 : ex_set) {
+            add_exclude(ex_1, ex_2);
         }
     }
     return found;

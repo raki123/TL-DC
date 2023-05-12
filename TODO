@@ -8,7 +8,7 @@ add handling for "binary clauses" to the search:
 
 for two separators:
     * improve the max_length_ bound
-    * find out why we can have an exclusion constraint split out by a separator
+    * ensure that it is enough to add exclude constraints after all components have been processed
 
 improve handling for exclusion constraints in preprocessing:
     * allow more preprocessing/propagate the constraints
