@@ -45,6 +45,7 @@ class Graph {
     bool all_pair_ = false;
 
     void add_edge(Edge edge, Weight weight);
+    void add_exclude(Vertex v, Vertex w);
     void remove_edge(Edge edge);
     void remove_vertex(Vertex v);
     std::set<Vertex> neighbors(Vertex v);
@@ -57,7 +58,7 @@ class Graph {
     // utility functions
     void dijkstra(Vertex start, std::vector<Edge_length>& distance, const std::set<Vertex>& forbidden);
     std::vector<std::vector<Vertex>> components(const std::set<Vertex>& forbidden);
-    std::vector<Vertex> find_separator(size_t size);
+    std::vector<Vertex> find_separator(size_t size, size_t min_component_size, bool terminals_in_same = true);
     
     // preprocessing subroutines
     Vertex preprocess_start_goal_edges();

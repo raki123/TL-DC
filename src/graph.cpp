@@ -183,6 +183,16 @@ void Graph::add_edge(Edge edge, Weight weight) {
     neighbors_[edge.second].insert(edge.first);
 }
 
+void Graph::add_exclude(Vertex v, Vertex w) {
+    assert(v != w);
+    assert(v >= 0 && v < adjacency_.size());
+    assert(w >= 0 && w < adjacency_.size());
+    assert(!adjacency_[v].empty());
+    assert(!adjacency_[w].empty());
+    exclude_[v].push_back(w);
+    exclude_[w].push_back(v);
+}
+
 void Graph::remove_vertex(Vertex v) {
     assert(v >= 0 && v < adjacency_.size());
     assert(!adjacency_[v].empty());
@@ -234,8 +244,11 @@ Graph Graph::subgraph(std::vector<Vertex> restrict_to) {
             }
         }
         for(Vertex excluded : exclude_[v]) {
-            assert(new_name[excluded] != std::numeric_limits<Vertex>::max());
-            ret.exclude_[new_name[v]].push_back(new_name[excluded]);
+            if(new_name[excluded] != std::numeric_limits<Vertex>::max()) {
+                // FIXME, why does this happen??
+                assert(new_name[excluded] != std::numeric_limits<Vertex>::max());
+                ret.exclude_[new_name[v]].push_back(new_name[excluded]);
+            }
         }
     }
     ret.extra_paths_ = std::vector<Edge_weight>(max_length_ + 1, 0);
@@ -296,13 +309,15 @@ std::vector<std::vector<Vertex>> Graph::components(const std::set<Vertex>& forbi
     return ret;
 }
 
-std::vector<Vertex> Graph::find_separator(size_t size) {
+std::vector<Vertex> Graph::find_separator(size_t size, size_t min_component_size, bool terminals_in_same) {
     // build the program
     std::stringstream prog_str;
     prog_str << size << "{sep(X) : v(X), not fixed(X)}" << size << ".\n\
     {r(X)}:- v(X), not sep(X).\n\
     :- e(X,Y), r(X), not r(Y), not sep(Y).\n\
-    ok_nr(X) :- v(X), not sep(X), not r(X).\n";
+    ok_nr(X) :- v(X), not sep(X), not r(X).\n\
+    :- #count{ X : r(X)} < " << min_component_size << ".\n\
+    :- #count{ X : ok_nr(X)} < " << min_component_size << ".\n";
     for(Vertex v = 0; v < adjacency_.size(); v++) {
         if(!adjacency_[v].empty()) {
             prog_str << "v(" << v << ").\n";
@@ -312,12 +327,14 @@ std::vector<Vertex> Graph::find_separator(size_t size) {
             prog_str << "fixed(" << v << ").\n";
             // and have fixed vertices in the same component as the others that are in an exclusion constraint with them
             for(auto excluded : exclude_[v]) {
-                prog_str << "e(" << v << "," << excluded << ")";
+                prog_str << "e(" << v << "," << excluded << ").\n";
             }
         }
     }
-    prog_str << ":- r(" << terminals_[0] << ").\n";
-    prog_str << ":- r(" << terminals_[1] << ").\n";
+    if(terminals_in_same) {
+        prog_str << ":- r(" << terminals_[0] << "), not sep(" << terminals_[0] << ").\n";
+        prog_str << ":- r(" << terminals_[1] << "), not sep(" << terminals_[1] << ").\n";
+    }
     prog_str << ":- ";
     bool first = true;
     for(Vertex v = 0; v < adjacency_.size(); v++) {
@@ -363,6 +380,7 @@ std::vector<Vertex> Graph::find_separator(size_t size) {
         for(auto symbol : handle.model().symbols()) {
             auto substr = symbol.to_string().substr(4,symbol.to_string().length() - 4 - 1);
             ret.push_back(std::stoi(substr));
+            // std::cout << substr << " " << symbol << std::endl;
         }
     }
     return ret;
@@ -657,7 +675,12 @@ Vertex Graph::preprocess_position_determined() {
 
 Vertex Graph::preprocess_two_separator() {
     Vertex found = 0;
-    std::vector<Vertex> separator = find_separator(2);
+    // if the separator can split start and goal it should have a minimum size
+    // otherwise we can separate if the start or the goal have less than two neighbors
+    std::vector<Vertex> separator = find_separator(2, 6, false);
+    if(separator.size() == 0) {
+        separator = find_separator(2, 1, true);
+    }
     if(separator.size() == 0) {
         return 0;
     }
@@ -679,11 +702,166 @@ Vertex Graph::preprocess_two_separator() {
         bool found_start = std::find(comp.begin(), comp.end(), terminals_[0]) != comp.end();
         bool found_goal = std::find(comp.begin(), comp.end(), terminals_[1]) != comp.end();
         if(found_goal && found_start) {
-            // nothing we can do (right?)
+            // nothing we can do
             continue;
         } 
         if(found_goal || found_start) {
-            // not sure what we can do here
+            // let t be the terminal found and s_1, s_2 the separators
+            // solve four subqueries:
+            // C(1,Y) = number of paths from t to s_1 that may use s_2
+            // C(1,N) = number of paths from t to s_1 that may not use s_2
+            // C(2,Y) = number of paths from t to s_2 that may use s_1
+            // C(2,N) = number of paths from t to s_2 that may not use s_1
+            // then we modify the graph by replacing the component with 
+            //      x---t---y
+            //      |  / \  |
+            //      | /   \ |
+            //      |/     \|
+            //     s_1(---)s_2
+            // where:
+            // {x,t}, {y,t} have (0,1)
+            // {t,s_1} has C(1,N)
+            // {t,s_2} has C(2,N)
+            // {x,s_1} has C(1,Y) - C(1,N) (i.e. all paths from t to s_1 that use s_2)
+            // {y,s_2} has C(2,Y) - C(2,N) (i.e. all paths from t to s_2 that use s_1)
+            // and 
+            // x and s_2 exclude each other
+            // y and s_1 exclude each other
+
+            // minus three because we also add two vertices and keep t
+            found += comp.size() - 3;
+            Vertex terminal = found_goal?terminals_[1]:terminals_[0];
+            // compute C(1,Y)
+            std::vector<Vertex> subset = comp;
+            subset.push_back(separator[0]);
+            std::swap(subset[0], subset.back());
+            subset.push_back(separator[1]);
+            std::swap(subset[1], subset.back());
+            auto term_it = std::find(subset.begin(), subset.end(), terminal);
+            size_t term_index = std::distance(subset.begin(), term_it);
+            assert(term_index != subset.size());
+            Graph comp_graph = subgraph(subset);
+            comp_graph.max_length_ = max_length_;
+            comp_graph.terminals_ = {0, (Vertex)term_index};
+            comp_graph.preprocess();
+            comp_graph.normalize();
+            Search search(comp_graph);
+            auto res = search.search();
+            auto res_extra = comp_graph.extra_paths();
+            res.resize(max_length_ + 1);
+            res_extra.resize(max_length_ + 1);
+            std::vector<Edge_weight> c_one_y;
+            for(size_t length = 0; length < res.size(); length++) {
+                c_one_y.push_back(res[length] + res_extra[length]);
+            }
+            // compute C(1,N)
+            subset = comp;
+            subset.push_back(separator[0]);
+            std::swap(subset[0], subset.back());
+            term_it = std::find(subset.begin(), subset.end(), terminal);
+            term_index = std::distance(subset.begin(), term_it);
+            assert(term_index != subset.size());
+            comp_graph = subgraph(subset);
+            comp_graph.max_length_ = max_length_;
+            comp_graph.terminals_ = {0, (Vertex)term_index};
+            comp_graph.preprocess();
+            comp_graph.normalize();
+            search = Search(comp_graph);
+            res = search.search();
+            res_extra = comp_graph.extra_paths();
+            res.resize(max_length_ + 1);
+            res_extra.resize(max_length_ + 1);
+            std::vector<Edge_weight> c_one_n;
+            for(size_t length = 0; length < res.size(); length++) {
+                c_one_n.push_back(res[length] + res_extra[length]);
+            }
+            // compute C(2,Y)
+            subset = comp;
+            subset.push_back(separator[0]);
+            std::swap(subset[0], subset.back());
+            subset.push_back(separator[1]);
+            std::swap(subset[1], subset.back());
+            term_it = std::find(subset.begin(), subset.end(), terminal);
+            term_index = std::distance(subset.begin(), term_it);
+            assert(term_index != subset.size());
+            comp_graph = subgraph(subset);
+            comp_graph.max_length_ = max_length_;
+            comp_graph.terminals_ = {1, (Vertex)term_index};
+            comp_graph.preprocess();
+            comp_graph.normalize();
+            search = Search(comp_graph);
+            res = search.search();
+            res_extra = comp_graph.extra_paths();
+            res.resize(max_length_ + 1);
+            res_extra.resize(max_length_ + 1);
+            std::vector<Edge_weight> c_two_y;
+            for(size_t length = 0; length < res.size(); length++) {
+                c_two_y.push_back(res[length] + res_extra[length]);
+            }
+            // compute C(2,N)
+            subset = comp;
+            subset.push_back(separator[1]);
+            std::swap(subset[0], subset.back());
+            term_it = std::find(subset.begin(), subset.end(), terminal);
+            term_index = std::distance(subset.begin(), term_it);
+            assert(term_index != subset.size());
+            comp_graph = subgraph(subset);
+            comp_graph.max_length_ = max_length_;
+            comp_graph.terminals_ = {0, (Vertex)term_index};
+            comp_graph.preprocess();
+            comp_graph.normalize();
+            search = Search(comp_graph);
+            res = search.search();
+            res_extra = comp_graph.extra_paths();
+            res.resize(max_length_ + 1);
+            res_extra.resize(max_length_ + 1);
+            std::vector<Edge_weight> c_two_n;
+            for(size_t length = 0; length < res.size(); length++) {
+                c_two_n.push_back(res[length] + res_extra[length]);
+            }
+            // modify the component accordingly
+            // remove all vertices in the component (apart from the separator, the terminal, and two vertices that we will reuse)
+            term_it = std::find(comp.begin(), comp.end(), terminal);
+            term_index = std::distance(comp.begin(), term_it);
+            assert(term_index != comp.size());
+            std::swap(comp[term_index], comp[2]);
+            // we keep the first three: two vertices to reuse and the terminal (in the third position)
+            for(size_t i = 3; i < comp.size(); i++) {
+                remove_vertex(comp[i]);
+            }
+            // for the kept vertices we need to remove the edges though
+            for(size_t i = 0; i < 3; i++) {
+                remove_edge(Edge(comp[i], separator[0]));
+                remove_edge(Edge(comp[i], separator[1]));
+                for(size_t j = i + 1; j < 3; j++) {
+                    remove_edge(Edge(comp[i], comp[j]));
+                }
+            }
+            // now readd appropriate edges
+            assert(c_one_y[0] == 0);
+            assert(c_one_n[0] == 0);
+            assert(c_two_y[0] == 0);
+            assert(c_two_n[0] == 0);
+            assert(c_one_y[1] - c_one_n[1] == 0);
+            assert(c_two_y[1] - c_two_n[1] == 0);
+            add_edge(Edge(comp[0], terminal), Weight(1,1));
+            add_edge(Edge(comp[1], terminal), Weight(1,1));
+            for(Edge_length length = 0; length <= max_length_; length++) {
+                if(c_one_n[length] > 0) {
+                    add_edge(Edge(terminal, separator[0]), Weight(length, c_one_n[length]));
+                }
+                if(c_two_n[length] > 0) {
+                    add_edge(Edge(terminal, separator[1]), Weight(length, c_two_n[length]));
+                }
+                if(c_one_y[length] - c_one_n[length] > 0) {
+                    add_edge(Edge(comp[0], separator[0]), Weight(length - 1, c_one_y[length] - c_one_n[length]));
+                }
+                if(c_two_y[length] - c_two_n[length] > 0) {
+                    add_edge(Edge(comp[1], separator[1]), Weight(length - 1, c_two_y[length] - c_two_n[length]));
+                }
+            }
+            add_exclude(comp[0], separator[1]);
+            add_exclude(comp[1], separator[0]);
             continue;
         } 
         // we have to enter AND leave the component, meaning we to traverse s_1 -> G[comp] -> s_2 (or the other way around)

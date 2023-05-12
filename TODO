@@ -6,6 +6,10 @@ add handling for "binary clauses" to the search:
     * enables three-separators when start and goal are not separated 
     * check if we need to set the original value or if we can set it to false
 
+for two separators:
+    * improve the max_length_ bound
+    * find out why we can have an exclusion constraint split out by a separator
+
 improve handling for exclusion constraints in preprocessing:
     * allow more preprocessing/propagate the constraints
 
