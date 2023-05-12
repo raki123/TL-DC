@@ -703,6 +703,9 @@ Vertex Graph::preprocess_two_separator() {
             continue;
         } 
         if(found_goal || found_start) {
+            if(comp.size() < 4) {
+                continue;
+            }
             // let t be the terminal found and s_1, s_2 the separators
             // solve four subqueries:
             // C(1,Y) = number of paths from t to s_1 that may use s_2
