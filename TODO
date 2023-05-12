@@ -4,6 +4,7 @@ cache visited instead of distance
 add handling for "binary clauses" to the search:
     * enables two-separators also when start and goal are separated
     * enables three-separators when start and goal are not separated 
+    * check if we need to set the original value or if we can set it to false
 
 use articulation points:
     * for preprocessing

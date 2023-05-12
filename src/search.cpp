@@ -11,6 +11,7 @@ Search::Search(Graph& input) :  max_length_(input.max_length_),
                                 invalid_(std::numeric_limits<Edge_length>::max() - max_length_ - 1),
                                 distance_to_goal_(adjacency_.size(), invalid_),
                                 distance_(adjacency_.size(), std::vector<Edge_length>(adjacency_.size(), invalid_)),
+                                exclude_(input.exclude_),
                                 visited_(adjacency_.size(), false),
                                 cache_(adjacency_.size(), std::unordered_map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>>())  {
     assert(terminals_.size() == 2);
@@ -30,6 +31,10 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
         return {1};
     }
     visited_[start] = true;
+    for(Vertex excluded : exclude_[start]) {
+        assert(!visited_[excluded]);
+        visited_[excluded] = true;
+    }
     distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
     pruning_dijkstra(terminals_[1], start, distance_to_goal_, budget);
     prune_singleout(start);
@@ -56,6 +61,9 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
             }
         }
         visited_[start] = false;
+        for(Vertex excluded : exclude_[start]) {
+            visited_[excluded] = false;
+        }
         return ret;
     }
     auto cached_result = cache_[start].find(distance_to_goal_);
@@ -63,6 +71,9 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
         if(cached_result->second.first >= budget) {
             pos_hits++;
             visited_[start] = false;
+            for(Vertex excluded : exclude_[start]) {
+                visited_[excluded] = false;
+            }
             std::vector<Edge_weight> ret(cached_result->second.second.begin(), cached_result->second.second.begin() + budget + 1);
             return ret;
         }
@@ -93,6 +104,9 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
     prune_singleout(start);
     cache_[start][distance_to_goal_] = std::make_pair(budget, ret);
     visited_[start] = false;
+    for(Vertex excluded : exclude_[start]) {
+        visited_[excluded] = false;
+    }
     return ret;
 }
 

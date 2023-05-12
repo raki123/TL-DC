@@ -37,6 +37,9 @@ class Graph {
     std::vector<std::vector<std::map<Edge_length, Edge_weight>>> adjacency_; 
     std::vector<Vertex> terminals_;
 
+    // if vertex v is included, then all vertices in exclude_[v] must be excluded
+    std::vector<std::vector<Vertex>> exclude_;
+
     std::vector<Edge_weight> extra_paths_;
 
     bool all_pair_ = false;
