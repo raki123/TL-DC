@@ -69,6 +69,7 @@ class Graph {
     Vertex preprocess_unusable_edge();
     Vertex preprocess_position_determined();
     Vertex preprocess_two_separator();
+    Vertex preprocess_three_separator();
 
 
 };

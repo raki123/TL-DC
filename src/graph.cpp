@@ -76,6 +76,7 @@ void Graph::preprocess() {
     Vertex unreachable_removed = 0;
     Vertex unusable_edge_removed = 0;
     Vertex two_sep_removed = 0;
+    Vertex three_sep_removed = 0;
     while(found) {
         found = false;
         Vertex cur_isolated_removed = preprocess_isolated();
@@ -108,6 +109,11 @@ void Graph::preprocess() {
             found |= cur_two_sep_removed > 0;
             two_sep_removed += cur_two_sep_removed;
         }
+        // if(!found) {
+        //     Vertex cur_three_sep_removed = preprocess_three_separator();
+        //     found |= cur_three_sep_removed > 0;
+        //     three_sep_removed += cur_three_sep_removed;
+        // }
     }
     std::cerr << "Removed isolated: " << isolated_removed << std::endl;
     std::cerr << "Removed forwarder: " << forwarder_removed << std::endl;
@@ -116,6 +122,7 @@ void Graph::preprocess() {
     std::cerr << "Removed unreachable: " << unreachable_removed << std::endl;
     std::cerr << "Removed unusable edge: " << unusable_edge_removed << std::endl;
     std::cerr << "Removed due to 2-separation: " << two_sep_removed << std::endl;
+    std::cerr << "Removed due to 3-separation: " << three_sep_removed << std::endl;
 }
 
 void Graph::print_stats() {
@@ -683,9 +690,9 @@ Vertex Graph::preprocess_two_separator() {
     Vertex found = 0;
     // if the separator can split start and goal it should have a minimum size
     // otherwise we can separate if the start or the goal have less than two neighbors
-    std::vector<Vertex> separator = find_separator(2, 4, false);
+    std::vector<Vertex> separator = find_separator(2, 1, true);
     if(separator.size() == 0) {
-        separator = find_separator(2, 1, true);
+        separator = find_separator(2, 4, false);
     }
     if(separator.size() == 0) {
         return 0;
@@ -720,7 +727,7 @@ Vertex Graph::preprocess_two_separator() {
                 // we could in principle look at them together
                 continue;
             }
-            // let t be the terminal found and s_1, s_2 the separators
+            // let t be the terminal found, and s_1 and s_2 be the separators
             // solve four subqueries:
             // C(1,Y) = number of paths from t to s_1 that may use s_2
             // C(1,N) = number of paths from t to s_1 that may not use s_2
@@ -946,6 +953,181 @@ Vertex Graph::preprocess_two_separator() {
             Edge_weight weight = res[length] + res_extra[length];
             if(weight > 0) {
                 add_edge(Edge(separator[0], separator[1]), Weight(length, weight));
+            }
+        }
+    }
+    for(auto &[ex_1, ex_set] : to_exclude) {
+        for(auto ex_2 : ex_set) {
+            add_exclude(ex_1, ex_2);
+        }
+    }
+    return found;
+}
+
+
+Vertex Graph::preprocess_three_separator() {
+    Vertex found = 0;
+    // here we can only do something if neither start nor goal are in the component
+    // furthermore, we at least need 
+    std::vector<Vertex> separator = find_separator(3, 7, true);
+    if(separator.size() == 0) {
+        return 0;
+    }
+    assert(separator.size() == 3);
+    assert(exclude_[separator[0]].empty());
+    assert(exclude_[separator[1]].empty());
+    assert(exclude_[separator[2]].empty());
+    std::map<Vertex, std::set<Vertex>> to_exclude;
+    std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[0], distance_from_start, {});
+
+    std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[1], distance_to_goal, {});
+
+    // compute the components induced by the separator
+    std::set<Vertex> forbidden(separator.begin(), separator.end());
+    std::vector<std::vector<Vertex>> comps = components(forbidden);
+    assert(comps.size() > 1);
+    // try to reduce each of the induced components
+    for(auto &comp : comps) {
+        // different cases depending on whether there 0/1/2 of the terminals in the component
+        bool found_start = std::find(comp.begin(), comp.end(), terminals_[0]) != comp.end();
+        bool found_goal = std::find(comp.begin(), comp.end(), terminals_[1]) != comp.end();
+        if(found_goal || found_start) {
+            // nothing we can do
+            continue;
+        } 
+        found += comp.size() - 6;
+        // let s_0, s_1, and s_2 be the separators
+        // solve four subqueries:
+        // counts[i][j] for i = 0, 1, 2, j = 0, 1
+        // if j == 0, counts[i][j] contains the number of paths 
+        // between the two other separators
+        // in the component that may use separator[i]
+        // if j == 1, counts[i][j] contains the number of paths 
+        // between the two other separators
+        // in the component that may *not* use separator[i]
+        // then we modify the graph by replacing the component with 
+        //     e_0-----s_0-----e_5
+        //      |      / \      |
+        //      |     /   \     |
+        //      |    /     \    |
+        //      |  e_1     e_4  |
+        //      |  /         \  |
+        //      | / /--e_3--\ \ |
+        //      |/ /         \ \|
+        //      s_1           s_2
+        //         \         /
+        //          \--e_2--/
+        // where:
+        // for i = 0, 1, 2:
+        //      {s_i,e_2*i}, {s_i,e_2*1 + 1}    have (0,1)
+        //      {s_i,e_2*(i-1)}                 has counts[i+1][1] 
+        //      {s_i,e_2*(i-1) + 1}             has counts[i+1][0] - counts[i+1][1]
+        // and 
+        // e_1 and s_2 exclude each other (implies that e_1 and all other e_i's exclude each other)
+        // e_3 and s_0 exclude each other (implies that e_3 and all other e_i's exclude each other)
+        // e_5 and s_1 exclude each other (implies that e_5 and all other e_i's exclude each other)
+        // e_0 and all other e_i's exclude each other (e_0 in principle already excludes e_1,e_3,e_5 so excluding e_2,e_4 is enough)
+        // e_2 and all other e_i's exclude each other (e_2 in principle already excludes e_1,e_3,e_5 so excluding e_0,e_4 is enough)
+        // e_4 and all other e_i's exclude each other (e_4 in principle already excludes e_1,e_3,e_5 so excluding e_0,e_2 is enough)
+        std::vector<Edge_weight> counts[3][2];
+        for(size_t i = 0; i < 3; i++) {
+            // separator[i] is not a terminal
+            for(size_t j = 0; j < 2; j++) {
+                // we may use separator[i] iff j == 0
+                // compute counts[i][j]
+                // construct the subgraph
+                std::vector<Vertex> subset = comp;
+                size_t start_idx = (i + 1) % 3;
+                size_t goal_idx = (i + 2) % 3;
+                subset.push_back(separator[start_idx]);
+                std::swap(subset[0], subset.back());
+                subset.push_back(separator[goal_idx]);
+                std::swap(subset[1], subset.back());
+                if(j == 0) {
+                    subset.push_back(separator[i]);
+                }
+                Graph comp_graph = subgraph(subset);
+                // restrict local maximum length
+                Edge_length d1 = 0, d2 = 0;
+                if(max_length_ > distance_from_start[separator[start_idx]] + distance_to_goal[separator[goal_idx]]) {
+                    d1 = max_length_ - distance_from_start[separator[start_idx]] - distance_to_goal[separator[goal_idx]];
+                }
+                if(max_length_ > distance_from_start[separator[goal_idx]] + distance_to_goal[separator[start_idx]]) {
+                    d2 = max_length_ - distance_from_start[separator[goal_idx]] - distance_to_goal[separator[start_idx]];
+                }
+                comp_graph.max_length_ = std::max(d1, d2);
+                comp_graph.terminals_ = {0, 1};
+                comp_graph.preprocess();
+                comp_graph.normalize();
+                Search search(comp_graph);
+                auto res = search.search();
+                auto res_extra = comp_graph.extra_paths();
+                res.resize(max_length_ + 1);
+                res_extra.resize(max_length_ + 1);
+                for(size_t length = 0; length < res.size(); length++) {
+                    counts[i][j].push_back(res[length] + res_extra[length]);
+                }
+                assert(counts[i][j][0] == 0);
+                if(j == 1) {
+                    assert(counts[i][0][1] - counts[i][1][1] == 0);
+                }
+            }
+        }
+        // modify the graph accordingly
+        // remove all vertices in the component (apart from the separator, the terminal, and two vertices that we will reuse)
+        // we keep the first six to reuse
+        for(size_t i = 6; i < comp.size(); i++) {
+            remove_vertex(comp[i]);
+        }
+        // for the kept vertices we need to remove the edges though
+        for(size_t i = 0; i < 6; i++) {
+            exclude_[comp[i]].clear();
+            remove_edge(Edge(comp[i], separator[0]));
+            remove_edge(Edge(comp[i], separator[1]));
+            remove_edge(Edge(comp[i], separator[2]));
+            for(size_t j = i + 1; j < 6; j++) {
+                remove_edge(Edge(comp[i], comp[j]));
+            }
+        }
+        // now readd appropriate edges
+        // first half, unweighted
+        for(size_t i = 0; i < 3; i++) {
+            add_edge(Edge(comp[2*i], separator[i]), Weight(1,1));
+            add_edge(Edge(comp[2*i + 1], separator[i]), Weight(1,1));
+        }
+        // second half, weighted
+        for(Edge_length length = 0; length <= max_length_; length++) {
+            for(size_t i = 0; i < 3; i++) {
+                if(counts[(i + 1) % 3][1][length] > 0) {
+                    add_edge(
+                                Edge(separator[i], comp[(2*(i + 2)) % 6]),
+                                Weight(length - 1, counts[(i + 1) % 3][1][length])
+                            );
+                }
+                if(counts[(i + 1) % 3][0][length] - counts[(i + 1) % 3][1][length] > 0) {
+                    add_edge(
+                                Edge(separator[i], comp[(2*(i + 2) + 1) % 6]),
+                                Weight(length - 1, counts[(i + 1) % 3][0][length] - counts[(i + 1) % 3][1][length])
+                            );
+                }
+            }
+        }
+        for(size_t i = 0; i < 3; i++) {
+            auto comp_idx = (2*i + 3) % 6;
+            if(comp[comp_idx] < separator[i]) {
+                to_exclude[comp[comp_idx]].insert(separator[i]);
+            } else {
+                to_exclude[separator[i]].insert(comp[comp_idx]);
+            }
+        }
+        for(size_t i = 1; i < 2; i++) {
+            auto comp_idx = 2*i;
+            if(comp[comp_idx] < comp[0]) {
+                to_exclude[comp[comp_idx]].insert(comp[0]);
+            } else {
+                to_exclude[comp[0]].insert(comp[comp_idx]);
             }
         }
     }

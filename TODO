@@ -1,8 +1,10 @@
 dynamic dijkstra
 cache visited instead of distance
 
-enable three-separators when start and goal are not separated 
-    
+for three-separators figure out what we need to do with the direct edges between the separators
+    -> idea: remove them in the subgraphs but keep them afterwards as they are
+for three-separators to work properly, ensure that we can handle seeing a subgraph without a path to the goal during search
+
 use articulation points:
     * for preprocessing
     * for inprocessing
