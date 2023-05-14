@@ -2,9 +2,6 @@ dynamic dijkstra
 cache visited instead of distance
 
 enable three-separators when start and goal are not separated 
-
-for two separators:
-    * improve the max_length_ bound
     
 use articulation points:
     * for preprocessing

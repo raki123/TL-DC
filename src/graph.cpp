@@ -196,13 +196,13 @@ void Graph::add_exclude(Vertex v, Vertex w) {
 void Graph::remove_vertex(Vertex v) {
     assert(v >= 0 && v < adjacency_.size());
     assert(!adjacency_[v].empty());
-    assert(exclude_[v].empty());
     for(auto neighbor : neighbors(v)) {
         adjacency_[neighbor][v].clear();
         neighbors_[neighbor].erase(v);
     }
     adjacency_[v].clear();
     neighbors_[v].clear();
+    exclude_[v].clear();
 }
 
 void Graph::remove_edge(Edge edge) {
@@ -284,6 +284,7 @@ std::vector<std::vector<Vertex>> Graph::components(const std::set<Vertex>& forbi
     std::vector<Vertex> queue;
     for(Vertex v = 0; v < adjacency_.size(); v++) {
         if(adjacency_[v].empty() || visited[v] || forbidden.count(v) > 0) {
+            assert(!adjacency_[v].empty() || exclude_[v].empty());
             continue;
         }
         std::vector<Vertex> component = {v};
@@ -293,6 +294,14 @@ std::vector<std::vector<Vertex>> Graph::components(const std::set<Vertex>& forbi
             Vertex cur = queue.back();
             queue.pop_back();
             for(auto w : neighbors(cur)) {
+                if(visited[w] || forbidden.count(w) > 0) {
+                    continue;
+                }
+                visited[w] = true;
+                queue.push_back(w);
+                component.push_back(w);
+            }
+            for(auto w : exclude_[cur]) {
                 if(visited[w] || forbidden.count(w) > 0) {
                     continue;
                 }
@@ -682,6 +691,8 @@ Vertex Graph::preprocess_two_separator() {
         return 0;
     }
     assert(separator.size() == 2);
+    assert(exclude_[separator[0]].empty());
+    assert(exclude_[separator[1]].empty());
     std::map<Vertex, std::set<Vertex>> to_exclude;
     std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
     dijkstra(terminals_[0], distance_from_start, {});
@@ -731,6 +742,23 @@ Vertex Graph::preprocess_two_separator() {
             // minus three because we also add two vertices and keep t
             found += comp.size() - 3;
             Vertex terminal = found_goal?terminals_[1]:terminals_[0];
+            // first bound the length of the path within the component
+            Edge_length c_one_length, c_two_length;
+            if(found_goal) {
+                // if we found the goal in this component
+                // we first need to get from the start to the separator
+                assert(distance_from_start[separator[0]] <= max_length_);
+                assert(distance_from_start[separator[1]] <= max_length_);
+                c_one_length = max_length_ - distance_from_start[separator[0]];
+                c_two_length = max_length_ - distance_from_start[separator[1]];
+            } else {
+                // if we found the start in this component
+                // we first need to get from the goal to the separator
+                assert(distance_to_goal[separator[0]] <= max_length_);
+                assert(distance_to_goal[separator[1]] <= max_length_);
+                c_one_length = max_length_ - distance_to_goal[separator[0]];
+                c_two_length = max_length_ - distance_to_goal[separator[1]];
+            }
             // compute C(1,Y)
             std::vector<Vertex> subset = comp;
             subset.push_back(separator[0]);
@@ -741,7 +769,7 @@ Vertex Graph::preprocess_two_separator() {
             size_t term_index = std::distance(subset.begin(), term_it);
             assert(term_index != subset.size());
             Graph comp_graph = subgraph(subset);
-            comp_graph.max_length_ = max_length_;
+            comp_graph.max_length_ = c_one_length;
             comp_graph.terminals_ = {0, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
@@ -762,7 +790,7 @@ Vertex Graph::preprocess_two_separator() {
             term_index = std::distance(subset.begin(), term_it);
             assert(term_index != subset.size());
             comp_graph = subgraph(subset);
-            comp_graph.max_length_ = max_length_;
+            comp_graph.max_length_ = c_one_length;
             comp_graph.terminals_ = {0, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
@@ -785,7 +813,7 @@ Vertex Graph::preprocess_two_separator() {
             term_index = std::distance(subset.begin(), term_it);
             assert(term_index != subset.size());
             comp_graph = subgraph(subset);
-            comp_graph.max_length_ = max_length_;
+            comp_graph.max_length_ = c_two_length;
             comp_graph.terminals_ = {1, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
@@ -806,7 +834,7 @@ Vertex Graph::preprocess_two_separator() {
             term_index = std::distance(subset.begin(), term_it);
             assert(term_index != subset.size());
             comp_graph = subgraph(subset);
-            comp_graph.max_length_ = max_length_;
+            comp_graph.max_length_ = c_two_length;
             comp_graph.terminals_ = {0, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
@@ -831,6 +859,7 @@ Vertex Graph::preprocess_two_separator() {
             }
             // for the kept vertices we need to remove the edges though
             for(size_t i = 0; i < 3; i++) {
+                exclude_[comp[i]].clear();
                 remove_edge(Edge(comp[i], separator[0]));
                 remove_edge(Edge(comp[i], separator[1]));
                 for(size_t j = i + 1; j < 3; j++) {
@@ -906,6 +935,8 @@ Vertex Graph::preprocess_two_separator() {
         // remove all previous edges between the separator vertices
         // we covered them in the result of the search
         remove_edge(Edge(separator[0], separator[1]));
+        // there cannot be any exclusion constraints on the separator
+        // so we do not need to remove those here
         assert(res[0] == 0);
         assert(res_extra[0] == 0);
         for(Edge_length length = 1; length < res.size(); length++) {
