@@ -683,7 +683,7 @@ Vertex Graph::preprocess_two_separator() {
     Vertex found = 0;
     // if the separator can split start and goal it should have a minimum size
     // otherwise we can separate if the start or the goal have less than two neighbors
-    std::vector<Vertex> separator = find_separator(2, 6, false);
+    std::vector<Vertex> separator = find_separator(2, 4, false);
     if(separator.size() == 0) {
         separator = find_separator(2, 1, true);
     }
@@ -715,6 +715,9 @@ Vertex Graph::preprocess_two_separator() {
         } 
         if(found_goal || found_start) {
             if(comp.size() < 4) {
+                // it could happen that we have multiple components that are smaller 
+                // but whose size adds up to more than 4
+                // we could in principle look at them together
                 continue;
             }
             // let t be the terminal found and s_1, s_2 the separators
