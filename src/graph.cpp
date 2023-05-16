@@ -1,4 +1,5 @@
 #include "graph.h"
+#include "search.h"
 #include <clingo.hh>
 #include <algorithm>
 #include <map>
@@ -26,6 +27,7 @@ Graph::Graph(std::istream &input) {
                                     std::vector<std::map<Edge_length,Edge_weight>>(nr_vertices + 2, 
                                                             std::map<Edge_length,Edge_weight>()));
             neighbors_ = std::vector<std::set<Vertex>>(nr_vertices + 2, std::set<Vertex>());
+            exclude_ = std::vector<std::vector<Vertex>>(nr_vertices + 2, std::vector<Vertex>());
             max_length_ = nr_vertices + 2;
             break;
         }
@@ -73,6 +75,8 @@ void Graph::preprocess() {
     Vertex twin_edges_removed = 0;
     Vertex unreachable_removed = 0;
     Vertex unusable_edge_removed = 0;
+    Vertex two_sep_removed = 0;
+    Vertex three_sep_removed = 0;
     while(found) {
         found = false;
         Vertex cur_isolated_removed = preprocess_isolated();
@@ -100,14 +104,25 @@ void Graph::preprocess() {
             found |= cur_position_determined_removed > 0;
             position_determined_removed += cur_position_determined_removed;
         }
+        if(!found) {
+            Vertex cur_two_sep_removed = preprocess_two_separator();
+            found |= cur_two_sep_removed > 0;
+            two_sep_removed += cur_two_sep_removed;
+        }
+        // if(!found) {
+        //     Vertex cur_three_sep_removed = preprocess_three_separator();
+        //     found |= cur_three_sep_removed > 0;
+        //     three_sep_removed += cur_three_sep_removed;
+        // }
     }
-    std::cerr << preprocess_tiny_separator() << std::endl;
     std::cerr << "Removed isolated: " << isolated_removed << std::endl;
     std::cerr << "Removed forwarder: " << forwarder_removed << std::endl;
     std::cerr << "Removed position determined: " << position_determined_removed << std::endl;
     std::cerr << "Removed twin edges: " << twin_edges_removed << std::endl;
     std::cerr << "Removed unreachable: " << unreachable_removed << std::endl;
     std::cerr << "Removed unusable edge: " << unusable_edge_removed << std::endl;
+    std::cerr << "Removed due to 2-separation: " << two_sep_removed << std::endl;
+    std::cerr << "Removed due to 3-separation: " << three_sep_removed << std::endl;
 }
 
 void Graph::print_stats() {
@@ -120,243 +135,6 @@ void Graph::print_stats() {
     dijkstra(terminals_[1], distance_to_goal, {});
     std::cerr << "#vertices " << adjacency_.size() << " #edges " << nr_edges;
     std::cerr << " max. length " << max_length_ << " min. length " << distance_to_goal[terminals_[0]] << std::endl;
-}
-
-void Graph::encode_unary(std::ostream& output) {
-    output << "reach(X, 0) :- start(X).\n";
-    output << ":- goal(X)";
-    for(int i = 0; i <= max_length_; i++) {
-        output << ", not reach(X, " << i << ")";
-    }
-    output << ".\n";
-    output << "start(" << terminals_[0] << ").\n";
-    output << "goal(" << terminals_[1] << ").\n";
-    output << ":- reach(X, L), reach(X, L'), L != L'.\n";
-    std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
-    dijkstra(terminals_[0], distance_from_start, {});
-
-    std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
-    dijkstra(terminals_[1], distance_to_goal, {});
-
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(v == terminals_[1] || adjacency_[v].empty()) {
-            continue;
-        }
-        assert(distance_from_start[v] + distance_to_goal[v] <= max_length_);
-        std::vector<std::pair<Vertex,Edge_length>> edges;
-        for(auto &w : neighbors(v)) {
-            if(w == terminals_[0]) {
-                continue;
-            }
-            for(auto &weight : adjacency_[v][w]) {
-                assert(std::find(edges.begin(), edges.end(), std::make_pair(w, weight.first)) == edges.end());
-                edges.push_back(std::make_pair(w, weight.first));
-                // if(weight.second != 1) {
-                //     std::cerr << "Found edge with weight " << weight.second << std::endl;
-                // }
-            }
-        }
-        for(auto &[w, length] : edges) {
-            assert(distance_to_goal[w] <= max_length_);
-            output << "reach(" << w << ",L + L') :- reach(" << v << ", L), edge(" << v << "," << w << ",L'), L <= " << max_length_ - distance_to_goal[w] - length;
-            output << ", L>= " << distance_from_start[v] << ".\n";
-            output << "edge(" << v << "," << w << "," << length << ") :- reach(" << v << ", L), L <= " << max_length_ - distance_to_goal[w] - length;
-            output << ", L>= " << distance_from_start[v];
-            for(auto &[wp, lengthp] : edges) {
-                if(w != wp || length != lengthp) {
-                    output << ", not edge(" << v << "," << wp << "," << lengthp << ")";
-                }
-            }
-            output << ".\n";
-        }
-    }
-}
-
-
-void Graph::encode_lenghtless(std::ostream& output) {
-    output << "reach(X) :- start(X).\n";
-    output << ":- goal(X), not reach(X).\n";
-    output << "start(" << terminals_[0] << ").\n";
-    output << "goal(" << terminals_[1] << ").\n";
-    output << "reach(X) :- edge(X, Y).\n";
-    // output << ":~ edge(X,Y). [1,X,Y]\n";
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(v == terminals_[1] || adjacency_[v].empty()) {
-            continue;
-        }
-        auto neighs = neighbors(v);
-        auto it = neighs.find(terminals_[0]);
-        if(it != neighs.end()) {
-            neighs.erase(it);
-        }
-        for(auto w : neighs) {
-            output << "edge(" << w << "," << v << ") :- reach(" << v << ")";
-            for(auto wp : neighs) {
-                if(w != wp) {
-                    output << ", not edge(" << wp << ", " << v << ")";
-                }
-            }
-            output << ".\n";
-        }
-    }
-}
-
-
-void Graph::encode_binary(std::ostream& output) {
-    uint binary_counter_size = 1;
-    uint numbers = 1;
-    while(numbers < max_length_) {
-        binary_counter_size++;
-        numbers *= 2;
-    }
-    std::vector<int32_t> node_variables(adjacency_.size(), 0);
-    std::vector<std::vector<int32_t>> node_bits(adjacency_.size(), std::vector<int32_t>());
-    int32_t var_ctr = 1;
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(neighbors_[v].empty()) {
-            continue;
-        }
-        node_variables[v] = var_ctr++;
-        for(size_t i = 0; i < binary_counter_size; i++) {
-            node_bits[v].push_back(var_ctr++);
-        }
-    }
-    std::vector<std::vector<std::vector<std::pair<Edge_length, int32_t>>>> edge_variables(adjacency_.size(), 
-                                std::vector<std::vector<std::pair<Edge_length, int32_t>>>(adjacency_.size(), 
-                                            std::vector<std::pair<Edge_length, int32_t>>()));
-    std::vector<std::vector<std::vector<std::pair<Edge_length, std::vector<int32_t>>>>> edge_bits(adjacency_.size(), 
-                            std::vector<std::vector<std::pair<Edge_length, std::vector<int32_t>>>>(adjacency_.size(), 
-                                            std::vector<std::pair<Edge_length, std::vector<int32_t>>>()));
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        // we can never go from the goal to anywhere
-        if(neighbors_[v].empty() || v == terminals_[1]) {
-            continue;
-        }
-        for(auto w : neighbors(v)) {
-            // we can never go to the start
-            if(w == terminals_[0]) {
-                continue;
-            }
-            for(auto &[length, weight] : adjacency_[v][w]) {
-                edge_variables[v][w].push_back(std::make_pair(length, var_ctr++));
-                std::vector<int32_t> bits;
-                for(size_t i = 0; i < binary_counter_size; i++) {
-                    bits.push_back(var_ctr++);
-                }
-                edge_bits[v][w].push_back(std::make_pair(length, bits));
-            }
-        }
-    }
-    std::vector<std::vector<int32_t>> clauses;
-    // both start and goal must be true
-    clauses.push_back({node_variables[terminals_[0]]});
-    clauses.push_back({node_variables[terminals_[1]]});
-    // for the start all bits must be zero
-    for(size_t i = 0; i < binary_counter_size; i++) {
-        clauses.push_back({-node_bits[terminals_[0]][i]});
-    }
-    // each node must use at most max_length_ - distance_to_goal edges
-    std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
-    dijkstra(terminals_[0], distance_from_start, {});
-
-    std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
-    dijkstra(terminals_[1], distance_to_goal, {});
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(neighbors_[v].empty() || v == terminals_[0]) {
-            continue;
-        }
-        add_leq(max_length_ - distance_to_goal[v], node_bits[v], clauses);
-        add_geq(-node_variables[v], distance_from_start[v], node_bits[v], clauses);
-    }
-    // each node (apart from the start) is true iff one of the incoming edges is true
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(neighbors_[v].empty() || v == terminals_[0]) {
-            continue;
-        }
-        // we first assert that the node variable is true iff one of its bits is true
-        std::vector<int32_t> big_or = { -node_variables[v] };
-        assert(node_bits[v].size() == binary_counter_size);
-        for(size_t i = 0; i < binary_counter_size; i++) {
-            big_or.push_back(node_bits[v][i]);
-            clauses.push_back({node_variables[v], -node_bits[v][i]});
-        }
-        clauses.push_back(big_or);
-        // next, we assert that the i-th bit of the node variable holds iff it holds for any of the incoming edges
-        // i.e. we assign the node the same binary counter as the one of the true incoming edge
-        for(size_t i = 0; i < binary_counter_size; i++) {
-            big_or = { -node_bits[v][i] };
-            for(auto w : neighbors(v)) {
-                // edges coming from the goal are never true
-                if(w == terminals_[1]) {
-                    continue;
-                }
-                for(auto &[length, bits] : edge_bits[w][v]) {
-                    big_or.push_back(bits[i]);
-                    clauses.push_back({node_bits[v][i], -bits[i]});
-                }
-            }
-            clauses.push_back(big_or);
-        }
-    }
-    // each edge is true iff its start node is true but none of the other outgoing edges are true
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        // there is exactly one of:
-        // v is false
-        // e_1 is true
-        // ...
-        // e_n is true
-        if(adjacency_[v].empty() || v == terminals_[1]) {
-            continue;
-        }
-        std::vector<int32_t> big_or = { -node_variables[v] };
-        for(Vertex w : neighbors(v)) {
-            if(w == terminals_[0]) {
-                continue;
-            }
-            for(auto [length, variable] : edge_variables[v][w]) {
-                big_or.push_back(variable);
-                clauses.push_back({-variable, node_variables[v]});
-                for(Vertex other : neighbors(v)) {
-                    if(other == terminals_[0]) {
-                        continue;
-                    }
-                    for(auto [other_length, other_variable] : edge_variables[v][other]) {
-                        if(other == w && other_length == length) {
-                            continue;
-                        }
-                        clauses.push_back({-variable, -other_variable});
-                    }
-                }
-            }
-        }
-        clauses.push_back(big_or);
-        // if v is true and e_i is true
-        // then the bits of e_i must be the successor of the bits of v
-        // if e_i is true then v must already be true anyway, so we can use e_i as the trigger
-        for(Vertex w : neighbors(v)) {
-            if(w == terminals_[0]) {
-                continue;
-            }
-            for(size_t i = 0; i < edge_variables[v][w].size(); i++) {
-                auto &[length, variable] = edge_variables[v][w][i];
-                auto &[lengthp, after_bits] = edge_bits[v][w][i];
-                assert(length == lengthp);
-                binary_add(-variable, length, node_bits[v], after_bits, clauses, var_ctr);
-                // also we need to set the bits to false it the e_i is false
-                for(size_t j = 0; j < binary_counter_size; j++) {
-                    clauses.push_back({variable, -after_bits[j]});
-                }
-            }
-        }
-    }
-    output << "p cnf " << var_ctr-1 << " " << clauses.size() << "\n";
-    for(auto & clause : clauses) {
-        assert(clause.size() > 0);
-        for(auto var : clause) {
-            output << var << " ";
-        }
-        output << "0\n";
-    }
 }
 
 void Graph::normalize() {
@@ -375,6 +153,7 @@ void Graph::normalize() {
                             std::vector<std::map<Edge_length,Edge_weight>>(cur_name, 
                                                     std::map<Edge_length,Edge_weight>()));
     auto new_neighbors = std::vector<std::set<Vertex>>(cur_name, std::set<Vertex>());
+    auto new_exclude = std::vector<std::vector<Vertex>>(cur_name, std::vector<Vertex>());
     for(Vertex v = 0; v < adjacency_.size(); v++) {
         if(adjacency_[v].empty()) {
             continue;
@@ -384,9 +163,14 @@ void Graph::normalize() {
             new_neighbors[new_name[v]].insert(new_name[neigh]);
             new_adjacency[new_name[v]][new_name[neigh]] = adjacency_[v][neigh];
         }
+        for(auto excluded : exclude_[v]) {
+            assert(new_name[excluded] != unnamed);
+            new_exclude[new_name[v]].push_back(new_name[excluded]);
+        }
     }
     adjacency_ = new_adjacency;
     neighbors_ = new_neighbors;
+    exclude_ = new_exclude;
     terminals_[0] = new_name[terminals_[0]];
     terminals_[1] = new_name[terminals_[1]];
 }
@@ -406,6 +190,16 @@ void Graph::add_edge(Edge edge, Weight weight) {
     neighbors_[edge.second].insert(edge.first);
 }
 
+void Graph::add_exclude(Vertex v, Vertex w) {
+    assert(v != w);
+    assert(v >= 0 && v < adjacency_.size());
+    assert(w >= 0 && w < adjacency_.size());
+    assert(!adjacency_[v].empty());
+    assert(!adjacency_[w].empty());
+    exclude_[v].push_back(w);
+    exclude_[w].push_back(v);
+}
+
 void Graph::remove_vertex(Vertex v) {
     assert(v >= 0 && v < adjacency_.size());
     assert(!adjacency_[v].empty());
@@ -415,6 +209,7 @@ void Graph::remove_vertex(Vertex v) {
     }
     adjacency_[v].clear();
     neighbors_[v].clear();
+    exclude_[v].clear();
 }
 
 void Graph::remove_edge(Edge edge) {
@@ -435,7 +230,8 @@ std::set<Vertex> Graph::neighbors(Vertex v) {
 
 Graph::Graph(Vertex n) :    max_length_(-1),
                             neighbors_(n, std::set<Vertex>()),
-                            adjacency_(n, std::vector<std::map<Edge_length, Edge_weight>>(n, std::map<Edge_length, Edge_weight>())) {
+                            adjacency_(n, std::vector<std::map<Edge_length, Edge_weight>>(n, std::map<Edge_length, Edge_weight>())),
+                            exclude_(n, std::vector<Vertex>()) {
 
 }
 
@@ -454,7 +250,12 @@ Graph Graph::subgraph(std::vector<Vertex> restrict_to) {
                 ret.adjacency_[new_name[v]][new_name[neigh]] = adjacency_[v][neigh];
             }
         }
+        for(Vertex excluded : exclude_[v]) {
+            assert(new_name[excluded] != std::numeric_limits<Vertex>::max());
+            ret.exclude_[new_name[v]].push_back(new_name[excluded]);
+        }
     }
+    ret.extra_paths_ = std::vector<Edge_weight>(max_length_ + 1, 0);
     return ret;
 }
 
@@ -484,22 +285,69 @@ void Graph::dijkstra(Vertex start, std::vector<Edge_length>& distance, const std
     }
 }
 
-std::vector<Vertex> Graph::find_separator(size_t size) {
+std::vector<std::vector<Vertex>> Graph::components(const std::set<Vertex>& forbidden) {
+    std::vector<std::vector<Vertex>> ret;
+    std::vector<char> visited(adjacency_.size(), false);
+    std::vector<Vertex> queue;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(adjacency_[v].empty() || visited[v] || forbidden.count(v) > 0) {
+            assert(!adjacency_[v].empty() || exclude_[v].empty());
+            continue;
+        }
+        std::vector<Vertex> component = {v};
+        visited[v] = true;
+        queue.push_back(v);
+        while(!queue.empty()) {
+            Vertex cur = queue.back();
+            queue.pop_back();
+            for(auto w : neighbors(cur)) {
+                if(visited[w] || forbidden.count(w) > 0) {
+                    continue;
+                }
+                visited[w] = true;
+                queue.push_back(w);
+                component.push_back(w);
+            }
+            for(auto w : exclude_[cur]) {
+                if(visited[w] || forbidden.count(w) > 0) {
+                    continue;
+                }
+                visited[w] = true;
+                queue.push_back(w);
+                component.push_back(w);
+            }
+        }
+        ret.push_back(component);
+    }
+    return ret;
+}
+
+std::vector<Vertex> Graph::find_separator(size_t size, size_t min_component_size, bool terminals_in_same) {
     // build the program
     std::stringstream prog_str;
-    prog_str << "{sep(X) : v(X)}" << size << ".\n\
+    prog_str << size << "{sep(X) : v(X), not fixed(X)}" << size << ".\n\
     {r(X)}:- v(X), not sep(X).\n\
     :- e(X,Y), r(X), not r(Y), not sep(Y).\n\
-    :- e(Y,X), r(X), not r(Y), not sep(Y).\n\
-    ok_nr(X) :- v(X), not sep(X), not r(X).\n";
+    ok_nr(X) :- v(X), not sep(X), not r(X).\n\
+    :- #count{ X : r(X)} < " << min_component_size << ".\n\
+    :- #count{ X : ok_nr(X)} < " << min_component_size << ".\n";
     for(Vertex v = 0; v < adjacency_.size(); v++) {
         if(!adjacency_[v].empty()) {
             prog_str << "v(" << v << ").\n";
         }
+        if(fixed(v)) {
+            // dont use fixed vertices as separators
+            prog_str << "fixed(" << v << ").\n";
+            // and have fixed vertices in the same component as the others that are in an exclusion constraint with them
+            for(auto excluded : exclude_[v]) {
+                prog_str << "e(" << v << "," << excluded << ").\n";
+            }
+        }
     }
-    prog_str << "r(" << terminals_[0] << ").\n";
-    prog_str << "r(" << terminals_[1] << ").\n";
-    prog_str << ":- sep(" << terminals_[0] << "), sep(" << terminals_[1] << ").\n";
+    if(terminals_in_same) {
+        prog_str << ":- r(" << terminals_[0] << "), not sep(" << terminals_[0] << ").\n";
+        prog_str << ":- r(" << terminals_[1] << "), not sep(" << terminals_[1] << ").\n";
+    }
     prog_str << ":- ";
     bool first = true;
     for(Vertex v = 0; v < adjacency_.size(); v++) {
@@ -545,124 +393,10 @@ std::vector<Vertex> Graph::find_separator(size_t size) {
         for(auto symbol : handle.model().symbols()) {
             auto substr = symbol.to_string().substr(4,symbol.to_string().length() - 4 - 1);
             ret.push_back(std::stoi(substr));
+            // std::cout << substr << " " << symbol << std::endl;
         }
     }
     return ret;
-}
-
-void Graph::binary_add(int32_t trigger, Edge_length to_add, std::vector<int32_t>& bef_bits, std::vector<int32_t> after_bits, std::vector<std::vector<int32_t>>& clauses, int32_t& var_ctr) {
-    assert(to_add > 0);
-    assert(bef_bits.size() > 0);
-    assert(after_bits.size() == bef_bits.size());
-    std::vector<char> add_bits(bef_bits.size(), 0);
-    size_t power = 0;
-    while(to_add > 0) {
-        assert(power < bef_bits.size());
-        add_bits[power] = to_add % 2;
-        to_add = (int) to_add/2;
-        power++;
-    }
-    std::vector<int32_t> carry_variables(bef_bits.size() - 1, 0);
-    size_t idx = 0;
-    while(add_bits[idx] == 0) {
-        clauses.push_back({trigger, -after_bits[idx], bef_bits[idx]});
-        clauses.push_back({trigger, after_bits[idx], -bef_bits[idx]});
-        idx++;
-    }
-    for(size_t i = idx; i + 1 < bef_bits.size(); i++) {
-        carry_variables[i] = var_ctr++;
-        clauses.push_back({-trigger, -carry_variables[i]});
-    }
-    // here we do not have a carry yet
-    clauses.push_back({trigger, after_bits[idx], bef_bits[idx]});
-    clauses.push_back({trigger, -after_bits[idx], -bef_bits[idx]});
-    if(idx + 1 < bef_bits.size()) {
-        clauses.push_back({trigger, carry_variables[idx], -bef_bits[idx]});
-        clauses.push_back({trigger, -carry_variables[idx], bef_bits[idx]});
-    }
-    idx++;
-    // here we need to use the carry
-    for(; idx + 1 < bef_bits.size(); idx++) {
-        if(add_bits[idx] == 0) {
-            // first set the carry
-            clauses.push_back({trigger, carry_variables[idx], -bef_bits[idx], -carry_variables[idx - 1]});
-            clauses.push_back({trigger, -carry_variables[idx], bef_bits[idx]});
-            clauses.push_back({trigger, -carry_variables[idx], carry_variables[idx - 1]});
-            // next set the after_bit
-            clauses.push_back({trigger, after_bits[idx], -bef_bits[idx], carry_variables[idx - 1]});
-            clauses.push_back({trigger, after_bits[idx], bef_bits[idx], -carry_variables[idx - 1]});
-            clauses.push_back({trigger, -after_bits[idx], bef_bits[idx], carry_variables[idx - 1]});
-            clauses.push_back({trigger, -after_bits[idx], -bef_bits[idx], -carry_variables[idx - 1]});
-        } else {
-            // first set the carry
-            clauses.push_back({trigger, -carry_variables[idx], -bef_bits[idx], -carry_variables[idx - 1]});
-            clauses.push_back({trigger, carry_variables[idx], bef_bits[idx]});
-            clauses.push_back({trigger, carry_variables[idx], carry_variables[idx - 1]});
-            // next set the after_bit
-            clauses.push_back({trigger, -after_bits[idx], -bef_bits[idx], carry_variables[idx - 1]});
-            clauses.push_back({trigger, -after_bits[idx], bef_bits[idx], -carry_variables[idx - 1]});
-            clauses.push_back({trigger, after_bits[idx], bef_bits[idx], carry_variables[idx - 1]});
-            clauses.push_back({trigger, after_bits[idx], -bef_bits[idx], -carry_variables[idx - 1]});
-        }
-    }
-    // no need to set a carry bit for the last one
-    if(idx < bef_bits.size()) {
-        if(add_bits[idx] == 0) {
-            // set the after_bit
-            clauses.push_back({trigger, after_bits[idx], -bef_bits[idx], carry_variables[idx - 1]});
-            clauses.push_back({trigger, after_bits[idx], bef_bits[idx], -carry_variables[idx - 1]});
-            clauses.push_back({trigger, -bef_bits[idx], -carry_variables[idx - 1]});
-            clauses.push_back({trigger, -after_bits[idx], -bef_bits[idx], -carry_variables[idx - 1]});
-        } else {
-            // set the after_bit
-            clauses.push_back({trigger, -bef_bits[idx]});
-            clauses.push_back({trigger, -carry_variables[idx - 1]});
-            clauses.push_back({trigger, after_bits[idx]});
-        }
-    }
-}
-void Graph::add_leq(Edge_length maximum, std::vector<int32_t>& bits, std::vector<std::vector<int32_t>>& clauses) {
-    assert(bits.size() > 0);
-    std::vector<char> max_bits(bits.size(), 0);
-    size_t power = 0;
-    while(maximum > 0) {
-        assert(power <= bits.size());
-        max_bits[power] = maximum % 2;
-        maximum = (int) maximum/2;
-        power++;
-    }
-    std::vector<int32_t> prefix;
-    for(int i = bits.size() - 1; i >= 0; i--) {
-        if(max_bits[i] == 1) {
-            prefix.push_back(-bits[i]);
-            continue;
-        }
-        std::vector<int32_t> clause(prefix);
-        clause.push_back(-bits[i]);
-        clauses.push_back(clause);
-    }
-}
-
-void Graph::add_geq(int32_t trigger, Edge_length minimum, std::vector<int32_t>& bits, std::vector<std::vector<int32_t>>& clauses) {
-    assert(bits.size() > 0);
-    std::vector<char> min_bits(bits.size(), 0);
-    size_t power = 0;
-    while(minimum > 0) {
-        assert(power <= bits.size());
-        min_bits[power] = minimum % 2;
-        minimum = (int) minimum/2;
-        power++;
-    }
-    std::vector<int32_t> prefix = {trigger};
-    for(int i = bits.size() - 1; i >= 0; i--) {
-        if(min_bits[i] == 0) {
-            prefix.push_back(bits[i]);
-            continue;
-        }
-        std::vector<int32_t> clause(prefix);
-        clause.push_back(bits[i]);
-        clauses.push_back(clause);
-    }
 }
 
 Vertex Graph::preprocess_start_goal_edges() {
@@ -683,6 +417,9 @@ Vertex Graph::preprocess_start_goal_edges() {
 Vertex Graph::preprocess_isolated() {
     Vertex found = 0;
     for(size_t v = 0; v < adjacency_.size(); v++) {
+        if(fixed(v)) {
+            continue;
+        }
         auto cur_neighbors = neighbors(v);
         if(cur_neighbors.size() == 1) {
             Vertex neighbor = *cur_neighbors.begin();
@@ -726,6 +463,10 @@ Vertex Graph::preprocess_forwarder() {
             // we cannot remove terminals this way
             continue;
         }
+        if(fixed(v)) {
+            // we cannot remove fixed vertices this way
+            continue;
+        }
         auto cur_neighbors = neighbors(v);
         if(cur_neighbors.size() == 2) {
             found++;
@@ -755,6 +496,9 @@ Vertex Graph::preprocess_unreachable() {
         if(adjacency_[v].size() == 0) {
             continue;
         }
+        if(fixed(v)) {
+            continue;
+        }
         if(distance_from_start[v] + distance_to_goal[v] > max_length_) {
             found++;
             remove_vertex(v);
@@ -772,6 +516,18 @@ Vertex Graph::preprocess_twins() {
         auto tmp = neighbors(v);
         std::vector<Vertex> neighs(tmp.begin(), tmp.end());
         assert(std::find(neighs.begin(), neighs.end(), terminals_[1 - i]) == neighs.end());
+        // first make sure that none of the neighbors are fixed because then we cannot touch them here
+        bool any_fixed = false;
+        for(auto neigh : neighs) {
+            if(fixed(neigh)) {
+                any_fixed = true;
+                break;
+            }
+        }
+        if(any_fixed) {
+            continue;
+        }
+        // gather equivalent vertices (i.e. twins) and merge them into one vertex each
         std::map<Vertex, std::vector<Vertex>> eq;
         for(auto neigh : neighs) {
             eq[neigh] = {neigh};
@@ -818,6 +574,7 @@ Vertex Graph::preprocess_twins() {
                 }
             }
         }
+        // merge the equivalent vertices
         for(auto &[representative, others] : eq) {
             if(others.size() == 1) {
                 continue;
@@ -855,8 +612,14 @@ Vertex Graph::preprocess_unusable_edge() {
         dijkstra(terminals_[1], distances_to_goal[v], {v});
     }
     for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(fixed(v)) {
+            continue;
+        }
         std::vector<Vertex> remove_completely;
         for(auto &w : neighbors(v)) {
+            if(fixed(w)) {
+                continue;
+            }
             Edge_length min_without_edge = std::min(distances_from_start[v][w] + distances_to_goal[w][v], distances_from_start[w][v] + distances_to_goal[v][w]);
             std::map<Edge_length, Edge_weight> new_weights;
             for(auto &weight : adjacency_[v][w]) {
@@ -895,6 +658,10 @@ Vertex Graph::preprocess_position_determined() {
         if(terminals_[0] == v || terminals_[1] == v) {
             continue;
         }
+        if(fixed(v)) {
+            // we cannot touch fixed vertices here
+            continue;
+        }
         if(distance_from_start[v] + distance_to_goal[v] == max_length_) {
             found++;
             std::vector<std::tuple<Edge, Edge_length, Edge_weight>> to_add;
@@ -919,35 +686,455 @@ Vertex Graph::preprocess_position_determined() {
     return found;
 }
 
-Vertex Graph::preprocess_tiny_separator() {
-    std::vector<Vertex> separator = find_separator(2);
+Vertex Graph::preprocess_two_separator() {
+    Vertex found = 0;
+    // if the separator can split start and goal it should have a minimum size
+    // otherwise we can separate if the start or the goal have less than two neighbors
+    std::vector<Vertex> separator = find_separator(2, 1, true);
+    if(separator.size() == 0) {
+        separator = find_separator(2, 4, false);
+    }
     if(separator.size() == 0) {
         return 0;
     }
     assert(separator.size() == 2);
-    std::vector<char> right(adjacency_.size(), false);
-    right[terminals_[0]] = true;
-    right[terminals_[1]] = true;
-    std::vector<Vertex> queue({terminals_[0], terminals_[1]});
-    while(!queue.empty()) {
-        Vertex cur = queue.back();
-        queue.pop_back();
-        for(auto neigh : neighbors(cur)) {
-            if(right[neigh] || neigh == separator[0] || neigh == separator[1]) {
+    assert(exclude_[separator[0]].empty());
+    assert(exclude_[separator[1]].empty());
+    std::map<Vertex, std::set<Vertex>> to_exclude;
+    std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[0], distance_from_start, {});
+
+    std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[1], distance_to_goal, {});
+
+    // compute the components induced by the separator
+    std::set<Vertex> forbidden(separator.begin(), separator.end());
+    std::vector<std::vector<Vertex>> comps = components(forbidden);
+    assert(comps.size() > 1);
+    // try to reduce each of the induced components
+    for(auto &comp : comps) {
+        // different cases depending on whether there 0/1/2 of the terminals in the component
+        bool found_start = std::find(comp.begin(), comp.end(), terminals_[0]) != comp.end();
+        bool found_goal = std::find(comp.begin(), comp.end(), terminals_[1]) != comp.end();
+        if(found_goal && found_start) {
+            // nothing we can do
+            continue;
+        } 
+        if(found_goal || found_start) {
+            if(comp.size() < 4) {
+                // it could happen that we have multiple components that are smaller 
+                // but whose size adds up to more than 4
+                // we could in principle look at them together
                 continue;
             }
-            right[neigh] = true;
-            queue.push_back(neigh);
-        }
-    }
-    std::vector<Vertex> left = separator;
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(right[v] || adjacency_[v].empty()) {
+            // let t be the terminal found, and s_1 and s_2 be the separators
+            // solve four subqueries:
+            // C(1,Y) = number of paths from t to s_1 that may use s_2
+            // C(1,N) = number of paths from t to s_1 that may not use s_2
+            // C(2,Y) = number of paths from t to s_2 that may use s_1
+            // C(2,N) = number of paths from t to s_2 that may not use s_1
+            // then we modify the graph by replacing the component with 
+            //      x---t---y
+            //      |  / \  |
+            //      | /   \ |
+            //      |/     \|
+            //     s_1(---)s_2
+            // where:
+            // {x,t}, {y,t} have (0,1)
+            // {t,s_1} has C(1,N)
+            // {t,s_2} has C(2,N)
+            // {x,s_1} has C(1,Y) - C(1,N) (i.e. all paths from t to s_1 that use s_2)
+            // {y,s_2} has C(2,Y) - C(2,N) (i.e. all paths from t to s_2 that use s_1)
+            // and 
+            // x and s_2 exclude each other
+            // y and s_1 exclude each other
+
+            // minus three because we also add two vertices and keep t
+            found += comp.size() - 3;
+            Vertex terminal = found_goal?terminals_[1]:terminals_[0];
+            // first bound the length of the path within the component
+            Edge_length c_one_length, c_two_length;
+            if(found_goal) {
+                // if we found the goal in this component
+                // we first need to get from the start to the separator
+                assert(distance_from_start[separator[0]] <= max_length_);
+                assert(distance_from_start[separator[1]] <= max_length_);
+                c_one_length = max_length_ - distance_from_start[separator[0]];
+                c_two_length = max_length_ - distance_from_start[separator[1]];
+            } else {
+                // if we found the start in this component
+                // we first need to get from the goal to the separator
+                assert(distance_to_goal[separator[0]] <= max_length_);
+                assert(distance_to_goal[separator[1]] <= max_length_);
+                c_one_length = max_length_ - distance_to_goal[separator[0]];
+                c_two_length = max_length_ - distance_to_goal[separator[1]];
+            }
+            // compute C(1,Y)
+            std::vector<Vertex> subset = comp;
+            subset.push_back(separator[0]);
+            std::swap(subset[0], subset.back());
+            subset.push_back(separator[1]);
+            std::swap(subset[1], subset.back());
+            auto term_it = std::find(subset.begin(), subset.end(), terminal);
+            size_t term_index = std::distance(subset.begin(), term_it);
+            assert(term_index != subset.size());
+            Graph comp_graph = subgraph(subset);
+            comp_graph.max_length_ = c_one_length;
+            comp_graph.terminals_ = {0, (Vertex)term_index};
+            comp_graph.preprocess();
+            comp_graph.normalize();
+            Search search(comp_graph);
+            auto res = search.search();
+            auto res_extra = comp_graph.extra_paths();
+            res.resize(max_length_ + 1);
+            res_extra.resize(max_length_ + 1);
+            std::vector<Edge_weight> c_one_y;
+            for(size_t length = 0; length < res.size(); length++) {
+                c_one_y.push_back(res[length] + res_extra[length]);
+            }
+            // compute C(1,N)
+            subset = comp;
+            subset.push_back(separator[0]);
+            std::swap(subset[0], subset.back());
+            term_it = std::find(subset.begin(), subset.end(), terminal);
+            term_index = std::distance(subset.begin(), term_it);
+            assert(term_index != subset.size());
+            comp_graph = subgraph(subset);
+            comp_graph.max_length_ = c_one_length;
+            comp_graph.terminals_ = {0, (Vertex)term_index};
+            comp_graph.preprocess();
+            comp_graph.normalize();
+            search = Search(comp_graph);
+            res = search.search();
+            res_extra = comp_graph.extra_paths();
+            res.resize(max_length_ + 1);
+            res_extra.resize(max_length_ + 1);
+            std::vector<Edge_weight> c_one_n;
+            for(size_t length = 0; length < res.size(); length++) {
+                c_one_n.push_back(res[length] + res_extra[length]);
+            }
+            // compute C(2,Y)
+            subset = comp;
+            subset.push_back(separator[0]);
+            std::swap(subset[0], subset.back());
+            subset.push_back(separator[1]);
+            std::swap(subset[1], subset.back());
+            term_it = std::find(subset.begin(), subset.end(), terminal);
+            term_index = std::distance(subset.begin(), term_it);
+            assert(term_index != subset.size());
+            comp_graph = subgraph(subset);
+            comp_graph.max_length_ = c_two_length;
+            comp_graph.terminals_ = {1, (Vertex)term_index};
+            comp_graph.preprocess();
+            comp_graph.normalize();
+            search = Search(comp_graph);
+            res = search.search();
+            res_extra = comp_graph.extra_paths();
+            res.resize(max_length_ + 1);
+            res_extra.resize(max_length_ + 1);
+            std::vector<Edge_weight> c_two_y;
+            for(size_t length = 0; length < res.size(); length++) {
+                c_two_y.push_back(res[length] + res_extra[length]);
+            }
+            // compute C(2,N)
+            subset = comp;
+            subset.push_back(separator[1]);
+            std::swap(subset[0], subset.back());
+            term_it = std::find(subset.begin(), subset.end(), terminal);
+            term_index = std::distance(subset.begin(), term_it);
+            assert(term_index != subset.size());
+            comp_graph = subgraph(subset);
+            comp_graph.max_length_ = c_two_length;
+            comp_graph.terminals_ = {0, (Vertex)term_index};
+            comp_graph.preprocess();
+            comp_graph.normalize();
+            search = Search(comp_graph);
+            res = search.search();
+            res_extra = comp_graph.extra_paths();
+            res.resize(max_length_ + 1);
+            res_extra.resize(max_length_ + 1);
+            std::vector<Edge_weight> c_two_n;
+            for(size_t length = 0; length < res.size(); length++) {
+                c_two_n.push_back(res[length] + res_extra[length]);
+            }
+            // modify the component accordingly
+            // remove all vertices in the component (apart from the separator, the terminal, and two vertices that we will reuse)
+            term_it = std::find(comp.begin(), comp.end(), terminal);
+            term_index = std::distance(comp.begin(), term_it);
+            assert(term_index != comp.size());
+            std::swap(comp[term_index], comp[2]);
+            // we keep the first three: two vertices to reuse and the terminal (in the third position)
+            for(size_t i = 3; i < comp.size(); i++) {
+                remove_vertex(comp[i]);
+            }
+            // for the kept vertices we need to remove the edges though
+            for(size_t i = 0; i < 3; i++) {
+                exclude_[comp[i]].clear();
+                remove_edge(Edge(comp[i], separator[0]));
+                remove_edge(Edge(comp[i], separator[1]));
+                for(size_t j = i + 1; j < 3; j++) {
+                    remove_edge(Edge(comp[i], comp[j]));
+                }
+            }
+            // now readd appropriate edges
+            assert(c_one_y[0] == 0);
+            assert(c_one_n[0] == 0);
+            assert(c_two_y[0] == 0);
+            assert(c_two_n[0] == 0);
+            assert(c_one_y[1] - c_one_n[1] == 0);
+            assert(c_two_y[1] - c_two_n[1] == 0);
+            add_edge(Edge(comp[0], terminal), Weight(1,1));
+            add_edge(Edge(comp[1], terminal), Weight(1,1));
+            for(Edge_length length = 0; length <= max_length_; length++) {
+                if(c_one_n[length] > 0) {
+                    add_edge(Edge(terminal, separator[0]), Weight(length, c_one_n[length]));
+                }
+                if(c_two_n[length] > 0) {
+                    add_edge(Edge(terminal, separator[1]), Weight(length, c_two_n[length]));
+                }
+                if(c_one_y[length] - c_one_n[length] > 0) {
+                    add_edge(Edge(comp[0], separator[0]), Weight(length - 1, c_one_y[length] - c_one_n[length]));
+                }
+                if(c_two_y[length] - c_two_n[length] > 0) {
+                    add_edge(Edge(comp[1], separator[1]), Weight(length - 1, c_two_y[length] - c_two_n[length]));
+                }
+            }
+            if(comp[0] < separator[1]) {
+                to_exclude[comp[0]].insert(separator[1]);
+            } else {
+                to_exclude[separator[1]].insert(comp[0]);
+            }
+            if(comp[1] < separator[0]) {
+                to_exclude[comp[1]].insert(separator[0]);
+            } else {
+                to_exclude[separator[0]].insert(comp[1]);
+            }
             continue;
+        } 
+        // we have to enter AND leave the component, meaning we to traverse s_1 -> G[comp] -> s_2 (or the other way around)
+        // thus we can reduce to {s_1, s_2}
+        found += comp.size();
+        comp.push_back(separator[0]);
+        std::swap(comp[0], comp.back());
+        comp.push_back(separator[1]);
+        std::swap(comp[1], comp.back());
+        Graph comp_graph = subgraph(comp);
+        Edge_length d1 = 0, d2 = 0;
+        if(max_length_ > distance_from_start[separator[0]] + distance_to_goal[separator[1]]) {
+            d1 = max_length_ - distance_from_start[separator[0]] - distance_to_goal[separator[1]];
         }
-        left.push_back(v);
+        if(max_length_ > distance_from_start[separator[1]] + distance_to_goal[separator[0]]) {
+            d2 = max_length_ - distance_from_start[separator[1]] - distance_to_goal[separator[0]];
+        }
+        comp_graph.max_length_ = std::max(d1, d2);
+        comp_graph.terminals_ = {0, 1};
+        comp_graph.print_stats();
+        comp_graph.preprocess();
+        comp_graph.normalize();
+        // comp_graph.print_stats();
+        Search search(comp_graph);
+        auto res = search.search();
+        // search.print_stats();
+        auto res_extra = comp_graph.extra_paths();
+        res.resize(std::max(res.size(), res_extra.size()));
+        res_extra.resize(std::max(res.size(), res_extra.size()));
+        // remove all vertices in the component (apart from the separator)
+        for(size_t i = 2; i < comp.size(); i++) {
+            remove_vertex(comp[i]);
+        }
+        // remove all previous edges between the separator vertices
+        // we covered them in the result of the search
+        remove_edge(Edge(separator[0], separator[1]));
+        // there cannot be any exclusion constraints on the separator
+        // so we do not need to remove those here
+        assert(res[0] == 0);
+        assert(res_extra[0] == 0);
+        for(Edge_length length = 1; length < res.size(); length++) {
+            Edge_weight weight = res[length] + res_extra[length];
+            if(weight > 0) {
+                add_edge(Edge(separator[0], separator[1]), Weight(length, weight));
+            }
+        }
     }
-    Graph left_graph = subgraph(left);
-    left_graph.terminals_ = separator;
-    return left.size();
+    for(auto &[ex_1, ex_set] : to_exclude) {
+        for(auto ex_2 : ex_set) {
+            add_exclude(ex_1, ex_2);
+        }
+    }
+    return found;
+}
+
+
+Vertex Graph::preprocess_three_separator() {
+    Vertex found = 0;
+    // here we can only do something if neither start nor goal are in the component
+    // furthermore, we at least need 
+    std::vector<Vertex> separator = find_separator(3, 7, true);
+    if(separator.size() == 0) {
+        return 0;
+    }
+    assert(separator.size() == 3);
+    assert(exclude_[separator[0]].empty());
+    assert(exclude_[separator[1]].empty());
+    assert(exclude_[separator[2]].empty());
+    std::map<Vertex, std::set<Vertex>> to_exclude;
+    std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[0], distance_from_start, {});
+
+    std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[1], distance_to_goal, {});
+
+    // compute the components induced by the separator
+    std::set<Vertex> forbidden(separator.begin(), separator.end());
+    std::vector<std::vector<Vertex>> comps = components(forbidden);
+    assert(comps.size() > 1);
+    // try to reduce each of the induced components
+    for(auto &comp : comps) {
+        // different cases depending on whether there 0/1/2 of the terminals in the component
+        bool found_start = std::find(comp.begin(), comp.end(), terminals_[0]) != comp.end();
+        bool found_goal = std::find(comp.begin(), comp.end(), terminals_[1]) != comp.end();
+        if(found_goal || found_start) {
+            // nothing we can do
+            continue;
+        } 
+        found += comp.size() - 6;
+        // let s_0, s_1, and s_2 be the separators
+        // solve four subqueries:
+        // counts[i][j] for i = 0, 1, 2, j = 0, 1
+        // if j == 0, counts[i][j] contains the number of paths 
+        // between the two other separators
+        // in the component that may use separator[i]
+        // if j == 1, counts[i][j] contains the number of paths 
+        // between the two other separators
+        // in the component that may *not* use separator[i]
+        // then we modify the graph by replacing the component with 
+        //     e_0-----s_0-----e_5
+        //      |      / \      |
+        //      |     /   \     |
+        //      |    /     \    |
+        //      |  e_1     e_4  |
+        //      |  /         \  |
+        //      | / /--e_3--\ \ |
+        //      |/ /         \ \|
+        //      s_1           s_2
+        //         \         /
+        //          \--e_2--/
+        // where:
+        // for i = 0, 1, 2:
+        //      {s_i,e_2*i}, {s_i,e_2*1 + 1}    have (0,1)
+        //      {s_i,e_2*(i-1)}                 has counts[i+1][1] 
+        //      {s_i,e_2*(i-1) + 1}             has counts[i+1][0] - counts[i+1][1]
+        // and 
+        // e_1 and s_2 exclude each other (implies that e_1 and all other e_i's exclude each other)
+        // e_3 and s_0 exclude each other (implies that e_3 and all other e_i's exclude each other)
+        // e_5 and s_1 exclude each other (implies that e_5 and all other e_i's exclude each other)
+        // e_0 and all other e_i's exclude each other (e_0 in principle already excludes e_1,e_3,e_5 so excluding e_2,e_4 is enough)
+        // e_2 and all other e_i's exclude each other (e_2 in principle already excludes e_1,e_3,e_5 so excluding e_0,e_4 is enough)
+        // e_4 and all other e_i's exclude each other (e_4 in principle already excludes e_1,e_3,e_5 so excluding e_0,e_2 is enough)
+        std::vector<Edge_weight> counts[3][2];
+        for(size_t i = 0; i < 3; i++) {
+            // separator[i] is not a terminal
+            for(size_t j = 0; j < 2; j++) {
+                // we may use separator[i] iff j == 0
+                // compute counts[i][j]
+                // construct the subgraph
+                std::vector<Vertex> subset = comp;
+                size_t start_idx = (i + 1) % 3;
+                size_t goal_idx = (i + 2) % 3;
+                subset.push_back(separator[start_idx]);
+                std::swap(subset[0], subset.back());
+                subset.push_back(separator[goal_idx]);
+                std::swap(subset[1], subset.back());
+                if(j == 0) {
+                    subset.push_back(separator[i]);
+                }
+                Graph comp_graph = subgraph(subset);
+                // restrict local maximum length
+                Edge_length d1 = 0, d2 = 0;
+                if(max_length_ > distance_from_start[separator[start_idx]] + distance_to_goal[separator[goal_idx]]) {
+                    d1 = max_length_ - distance_from_start[separator[start_idx]] - distance_to_goal[separator[goal_idx]];
+                }
+                if(max_length_ > distance_from_start[separator[goal_idx]] + distance_to_goal[separator[start_idx]]) {
+                    d2 = max_length_ - distance_from_start[separator[goal_idx]] - distance_to_goal[separator[start_idx]];
+                }
+                comp_graph.max_length_ = std::max(d1, d2);
+                comp_graph.terminals_ = {0, 1};
+                comp_graph.preprocess();
+                comp_graph.normalize();
+                Search search(comp_graph);
+                auto res = search.search();
+                auto res_extra = comp_graph.extra_paths();
+                res.resize(max_length_ + 1);
+                res_extra.resize(max_length_ + 1);
+                for(size_t length = 0; length < res.size(); length++) {
+                    counts[i][j].push_back(res[length] + res_extra[length]);
+                }
+                assert(counts[i][j][0] == 0);
+                if(j == 1) {
+                    assert(counts[i][0][1] - counts[i][1][1] == 0);
+                }
+            }
+        }
+        // modify the graph accordingly
+        // remove all vertices in the component (apart from the separator, the terminal, and two vertices that we will reuse)
+        // we keep the first six to reuse
+        for(size_t i = 6; i < comp.size(); i++) {
+            remove_vertex(comp[i]);
+        }
+        // for the kept vertices we need to remove the edges though
+        for(size_t i = 0; i < 6; i++) {
+            exclude_[comp[i]].clear();
+            remove_edge(Edge(comp[i], separator[0]));
+            remove_edge(Edge(comp[i], separator[1]));
+            remove_edge(Edge(comp[i], separator[2]));
+            for(size_t j = i + 1; j < 6; j++) {
+                remove_edge(Edge(comp[i], comp[j]));
+            }
+        }
+        // now readd appropriate edges
+        // first half, unweighted
+        for(size_t i = 0; i < 3; i++) {
+            add_edge(Edge(comp[2*i], separator[i]), Weight(1,1));
+            add_edge(Edge(comp[2*i + 1], separator[i]), Weight(1,1));
+        }
+        // second half, weighted
+        for(Edge_length length = 0; length <= max_length_; length++) {
+            for(size_t i = 0; i < 3; i++) {
+                if(counts[(i + 1) % 3][1][length] > 0) {
+                    add_edge(
+                                Edge(separator[i], comp[(2*(i + 2)) % 6]),
+                                Weight(length - 1, counts[(i + 1) % 3][1][length])
+                            );
+                }
+                if(counts[(i + 1) % 3][0][length] - counts[(i + 1) % 3][1][length] > 0) {
+                    add_edge(
+                                Edge(separator[i], comp[(2*(i + 2) + 1) % 6]),
+                                Weight(length - 1, counts[(i + 1) % 3][0][length] - counts[(i + 1) % 3][1][length])
+                            );
+                }
+            }
+        }
+        for(size_t i = 0; i < 3; i++) {
+            auto comp_idx = (2*i + 3) % 6;
+            if(comp[comp_idx] < separator[i]) {
+                to_exclude[comp[comp_idx]].insert(separator[i]);
+            } else {
+                to_exclude[separator[i]].insert(comp[comp_idx]);
+            }
+        }
+        for(size_t i = 1; i < 2; i++) {
+            auto comp_idx = 2*i;
+            if(comp[comp_idx] < comp[0]) {
+                to_exclude[comp[comp_idx]].insert(comp[0]);
+            } else {
+                to_exclude[comp[0]].insert(comp[comp_idx]);
+            }
+        }
+    }
+    for(auto &[ex_1, ex_set] : to_exclude) {
+        for(auto ex_2 : ex_set) {
+            add_exclude(ex_1, ex_2);
+        }
+    }
+    return found;
 }

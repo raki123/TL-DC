@@ -26,11 +26,6 @@ class Graph {
 
     void print_stats();
 
-    // encodings
-    void encode_unary(std::ostream& out); 
-    void encode_lenghtless(std::ostream& output);
-    void encode_binary(std::ostream& output);
-
     std::vector<Edge_weight> extra_paths() { return extra_paths_; }
 
     void normalize();
@@ -42,26 +37,28 @@ class Graph {
     std::vector<std::vector<std::map<Edge_length, Edge_weight>>> adjacency_; 
     std::vector<Vertex> terminals_;
 
+    // if vertex v is included, then all vertices in exclude_[v] must be excluded
+    std::vector<std::vector<Vertex>> exclude_;
+
     std::vector<Edge_weight> extra_paths_;
 
     bool all_pair_ = false;
 
     void add_edge(Edge edge, Weight weight);
+    void add_exclude(Vertex v, Vertex w);
     void remove_edge(Edge edge);
     void remove_vertex(Vertex v);
     std::set<Vertex> neighbors(Vertex v);
+    // check returns true if a vertex is in an exclusion constraint
+    bool fixed(Vertex v) { return !exclude_[v].empty(); }
 
     Graph(Vertex n);
     Graph subgraph(std::vector<Vertex> restrict_to);
 
     // utility functions
     void dijkstra(Vertex start, std::vector<Edge_length>& distance, const std::set<Vertex>& forbidden);
-    std::vector<Vertex> find_separator(size_t size);
-
-    // encoding helpers
-    void binary_add(int32_t trigger, Edge_length to_add, std::vector<int32_t>& bef_bits, std::vector<int32_t> after_bits, std::vector<std::vector<int32_t>>& clauses, int32_t& var_ctr);
-    void add_leq(Edge_length maximum, std::vector<int32_t>& bits, std::vector<std::vector<int32_t>>& clauses);
-    void add_geq(int32_t trigger, Edge_length minimum, std::vector<int32_t>& bits, std::vector<std::vector<int32_t>>& clauses);
+    std::vector<std::vector<Vertex>> components(const std::set<Vertex>& forbidden);
+    std::vector<Vertex> find_separator(size_t size, size_t min_component_size, bool terminals_in_same = true);
     
     // preprocessing subroutines
     Vertex preprocess_start_goal_edges();
@@ -71,7 +68,8 @@ class Graph {
     Vertex preprocess_twins();
     Vertex preprocess_unusable_edge();
     Vertex preprocess_position_determined();
-    Vertex preprocess_tiny_separator();
+    Vertex preprocess_two_separator();
+    Vertex preprocess_three_separator();
 
 
 };
