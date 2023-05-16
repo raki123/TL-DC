@@ -41,7 +41,7 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
     }
     distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
     pruning_dijkstra(terminals_[1], start, distance_to_goal_, budget);
-    prune_singleout(start);
+    prune_articulation(start);
     // only cache if there is more than one edge we can take
     std::vector<std::pair<Vertex, bool>> poss;
     for(auto v : neighbors(start)) {
@@ -49,12 +49,23 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
             poss.push_back(std::make_pair(v, budget == distance_to_goal_[v] + adjacency_[start][v].begin()->first));
         }
     }
-    assert(poss.size() >= 1);
+    if(poss.size() == 0) {
+        visited_[start] = false;
+        for(Vertex excluded : restore) {
+            visited_[excluded] = false;
+        }
+        return {};
+    }
     if(poss.size() == 1) {
         propagations++;
         Vertex v = poss[0].first;
-        assert(!poss[0].second);
-        auto tmp = search(v, budget - adjacency_[start][v].begin()->first);
+        std::vector<Edge_weight> tmp;
+        if(poss[0].second) {
+            dags++;
+            tmp = dag_search(v, budget - adjacency_[start][v].begin()->first);
+        } else {
+            tmp = search(v, budget - adjacency_[start][v].begin()->first);
+        }
         std::vector<Edge_weight> ret(budget + 1, 0);
         for(size_t i = 0; i < tmp.size(); i++) {
             for(auto &[length, weight] : adjacency_[start][v]) {
@@ -105,7 +116,7 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
     }
     distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
     pruning_dijkstra(terminals_[1], start, distance_to_goal_, budget);
-    prune_singleout(start);
+    prune_articulation(start);
     cache_[start][distance_to_goal_] = std::make_pair(budget, ret);
     visited_[start] = false;
     for(Vertex excluded : restore) {
@@ -147,55 +158,78 @@ std::vector<Edge_weight> Search::dag_search(Vertex start, Edge_length budget) {
     return result;
 }
 
-void Search::prune_singleout(Vertex start) {
-    std::vector<Vertex> to_check;
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(distance_to_goal_[v] == invalid_ || v == terminals_[1]) {
+void Search::prune_articulation(Vertex start) {
+    std::vector<Vertex> disc(adjacency_.size(), 0);
+    std::vector<Vertex> low(adjacency_.size(), 0);
+    std::vector<char> visited(adjacency_.size(), false);
+    int time = 0;
+    ap_util(start, visited, disc, low, time, -1, start);
+}
+
+bool Search::ap_util(Vertex u, std::vector<char>& visited, std::vector<Vertex>& disc, std::vector<Vertex>& low, int& time, int parent, Vertex start) {
+    // Count of children in DFS Tree
+    int children = 0;
+ 
+    // Mark the current node as visited
+    visited[u] = true;
+
+    bool found_elsewhere = false;
+ 
+    // Initialize discovery time and low value
+    disc[u] = low[u] = ++time;
+ 
+    // Go through all vertices adjacent to this
+    for (auto v : neighbors(u)) {
+        // If v is not visited yet, then make it a child of u
+        // in DFS tree and recur for it            
+        if(v != start && (distance_to_goal_[v] == invalid_ || visited_[v])) {
             continue;
         }
-        int neighbor = -1;
-        for(auto neigh : neighbors(v)) {
-            if(distance_to_goal_[neigh] != invalid_ || neigh == start) {
-                if(neighbor == -1) {
-                    neighbor = neigh;
-                } else {
-                    neighbor = -1;
-                    break;
+        if (!visited[v]) {
+            children++;
+            bool found_here = ap_util(v, visited, disc, low, time, u, start);
+            found_elsewhere |= found_here;
+ 
+            // Check if the subtree rooted with v has
+            // a connection to one of the ancestors of u
+            low[u] = std::min(low[u], low[v]);
+ 
+            // If u is not root and low value of one of
+            // its child is more than discovery value of u.
+            if (parent != -1 && low[v] >= disc[u]) {
+                // AP
+                if(!found_here) {
+                    auto tmp = distance_to_goal_[u];
+                    distance_to_goal_[u] = invalid_;
+                    // prune the rest
+                    distance_to_goal_[v] = invalid_;
+                    prune_util(v);
+                    distance_to_goal_[u] = tmp;
                 }
             }
-        }
-        if(neighbor != -1) {
-            distance_to_goal_[v] = invalid_;
-            if(neighbor < v) {
-                to_check.push_back(neighbor);
-            }
+        } else if (v != parent) {
+            low[u] = std::min(low[u], disc[v]);
         }
     }
-    while(!to_check.empty()) {
-        auto v = to_check.back();
-        to_check.pop_back();
-        if(distance_to_goal_[v] == invalid_ || v == terminals_[1]) {
-            continue;
-        }
-        int neighbor = -1;
-        for(auto neigh : neighbors(v)) {
-            if(distance_to_goal_[neigh] != invalid_ || neigh == start) {
-                if(neighbor == -1) {
-                    neighbor = neigh;
-                } else {
-                    neighbor = -1;
-                    break;
-                }
-            }
-        }
-        if(neighbor != -1) {
+ 
+    // If u is root of DFS tree and has two or more children.
+    if (parent == -1 && children > 1) {
+        // AP
+    }
+    return found_elsewhere || u == terminals_[1];
+}
+
+void Search::prune_util(Vertex u) {
+    for (auto v : neighbors(u)) {
+        // If v is not visited yet, then make it a child of u
+        // in DFS tree and recur for it
+        if (distance_to_goal_[v] != invalid_ && !visited_[v]) {
             distance_to_goal_[v] = invalid_;
-            if(neighbor < v) {
-                to_check.push_back(neighbor);
-            }
+            prune_util(v);
         }
     }
 }
+ 
 
 void Search::dijkstra(Vertex start, std::vector<Edge_length>& distance, Edge_length budget) {
     DijkstraQueue queue;

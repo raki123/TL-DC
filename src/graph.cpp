@@ -104,7 +104,8 @@ void Graph::preprocess() {
             found |= cur_position_determined_removed > 0;
             position_determined_removed += cur_position_determined_removed;
         }
-        if(!found) {
+
+    }           if(!found) {
             Vertex cur_two_sep_removed = preprocess_two_separator();
             found |= cur_two_sep_removed > 0;
             two_sep_removed += cur_two_sep_removed;
@@ -113,8 +114,7 @@ void Graph::preprocess() {
         //     Vertex cur_three_sep_removed = preprocess_three_separator();
         //     found |= cur_three_sep_removed > 0;
         //     three_sep_removed += cur_three_sep_removed;
-        // }
-    }
+        // }     
     std::cerr << "Removed isolated: " << isolated_removed << std::endl;
     std::cerr << "Removed forwarder: " << forwarder_removed << std::endl;
     std::cerr << "Removed position determined: " << position_determined_removed << std::endl;
@@ -721,6 +721,10 @@ Vertex Graph::preprocess_two_separator() {
             continue;
         } 
         if(found_goal || found_start) {
+            if(found)
+            {
+                continue;
+            }
             if(comp.size() < 4) {
                 // it could happen that we have multiple components that are smaller 
                 // but whose size adds up to more than 4
@@ -781,8 +785,8 @@ Vertex Graph::preprocess_two_separator() {
             Graph comp_graph = subgraph(subset);
             comp_graph.max_length_ = c_one_length;
             comp_graph.terminals_ = {0, (Vertex)term_index};
-            comp_graph.preprocess();
-            comp_graph.normalize();
+            // comp_graph.preprocess();
+            // comp_graph.normalize();
             Search search(comp_graph);
             auto res = search.search();
             auto res_extra = comp_graph.extra_paths();
@@ -791,7 +795,9 @@ Vertex Graph::preprocess_two_separator() {
             std::vector<Edge_weight> c_one_y;
             for(size_t length = 0; length < res.size(); length++) {
                 c_one_y.push_back(res[length] + res_extra[length]);
+                std::cout << res[length] + res_extra[length] << " ";
             }
+            std::cout << std::endl;
             // compute C(1,N)
             subset = comp;
             subset.push_back(separator[0]);
@@ -802,8 +808,8 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph = subgraph(subset);
             comp_graph.max_length_ = c_one_length;
             comp_graph.terminals_ = {0, (Vertex)term_index};
-            comp_graph.preprocess();
-            comp_graph.normalize();
+            // comp_graph.preprocess();
+            // comp_graph.normalize();
             search = Search(comp_graph);
             res = search.search();
             res_extra = comp_graph.extra_paths();
@@ -812,7 +818,9 @@ Vertex Graph::preprocess_two_separator() {
             std::vector<Edge_weight> c_one_n;
             for(size_t length = 0; length < res.size(); length++) {
                 c_one_n.push_back(res[length] + res_extra[length]);
+                std::cout << res[length] + res_extra[length] << " ";
             }
+            std::cout << std::endl;
             // compute C(2,Y)
             subset = comp;
             subset.push_back(separator[0]);
@@ -825,8 +833,8 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph = subgraph(subset);
             comp_graph.max_length_ = c_two_length;
             comp_graph.terminals_ = {1, (Vertex)term_index};
-            comp_graph.preprocess();
-            comp_graph.normalize();
+            // comp_graph.preprocess();
+            // comp_graph.normalize();
             search = Search(comp_graph);
             res = search.search();
             res_extra = comp_graph.extra_paths();
@@ -835,7 +843,9 @@ Vertex Graph::preprocess_two_separator() {
             std::vector<Edge_weight> c_two_y;
             for(size_t length = 0; length < res.size(); length++) {
                 c_two_y.push_back(res[length] + res_extra[length]);
+                std::cout << res[length] + res_extra[length] << " ";
             }
+            std::cout << std::endl;
             // compute C(2,N)
             subset = comp;
             subset.push_back(separator[1]);
@@ -846,8 +856,8 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph = subgraph(subset);
             comp_graph.max_length_ = c_two_length;
             comp_graph.terminals_ = {0, (Vertex)term_index};
-            comp_graph.preprocess();
-            comp_graph.normalize();
+            // comp_graph.preprocess();
+            // comp_graph.normalize();
             search = Search(comp_graph);
             res = search.search();
             res_extra = comp_graph.extra_paths();
@@ -856,7 +866,9 @@ Vertex Graph::preprocess_two_separator() {
             std::vector<Edge_weight> c_two_n;
             for(size_t length = 0; length < res.size(); length++) {
                 c_two_n.push_back(res[length] + res_extra[length]);
+                std::cout << res[length] + res_extra[length] << " ";
             }
+            std::cout << std::endl;
             // modify the component accordingly
             // remove all vertices in the component (apart from the separator, the terminal, and two vertices that we will reuse)
             term_it = std::find(comp.begin(), comp.end(), terminal);
@@ -910,7 +922,7 @@ Vertex Graph::preprocess_two_separator() {
                 to_exclude[separator[0]].insert(comp[1]);
             }
             continue;
-        } 
+        }
         // we have to enter AND leave the component, meaning we to traverse s_1 -> G[comp] -> s_2 (or the other way around)
         // thus we can reduce to {s_1, s_2}
         found += comp.size();
@@ -1091,6 +1103,11 @@ Vertex Graph::preprocess_three_separator() {
                 remove_edge(Edge(comp[i], comp[j]));
             }
         }
+        for(size_t i = 0; i < 3; i++) {
+            for(size_t j = i + 1; j < 3; j++) {
+                remove_edge(Edge(separator[i], separator[j]));
+            }
+        }
         // now readd appropriate edges
         // first half, unweighted
         for(size_t i = 0; i < 3; i++) {
@@ -1098,7 +1115,15 @@ Vertex Graph::preprocess_three_separator() {
             add_edge(Edge(comp[2*i + 1], separator[i]), Weight(1,1));
         }
         // second half, weighted
-        for(Edge_length length = 0; length <= max_length_; length++) {
+        for(size_t i = 0; i < 3; i++) {
+            if(counts[(i + 1) % 3][1][1] > 0) {
+                add_edge(
+                    Edge(separator[i], separator[(i + 2) % 3]),
+                    Weight(1, counts[(i + 1) % 3][1][1])
+                );
+            }
+        }
+        for(Edge_length length = 2; length <= max_length_; length++) {
             for(size_t i = 0; i < 3; i++) {
                 if(counts[(i + 1) % 3][1][length] > 0) {
                     add_edge(
@@ -1114,6 +1139,7 @@ Vertex Graph::preprocess_three_separator() {
                 }
             }
         }
+        // add exclusion constraints
         for(size_t i = 0; i < 3; i++) {
             auto comp_idx = (2*i + 3) % 6;
             if(comp[comp_idx] < separator[i]) {
@@ -1129,6 +1155,11 @@ Vertex Graph::preprocess_three_separator() {
             } else {
                 to_exclude[comp[0]].insert(comp[comp_idx]);
             }
+        }
+        if(comp[2] < comp[4]) {
+            to_exclude[comp[2]].insert(comp[4]);
+        } else {
+            to_exclude[comp[4]].insert(comp[2]);
         }
     }
     for(auto &[ex_1, ex_set] : to_exclude) {
