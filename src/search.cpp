@@ -11,10 +11,17 @@ Search::Search(Graph& input) :  max_length_(input.max_length_),
                                 invalid_(std::numeric_limits<Edge_length>::max() - max_length_ - 1),
                                 distance_to_goal_(adjacency_.size(), invalid_),
                                 distance_(adjacency_.size(), std::vector<Edge_length>(adjacency_.size(), invalid_)),
-                                exclude_(input.exclude_),
+                                exclude_(adjacency_.size()),
                                 visited_(adjacency_.size(), false),
                                 cache_(adjacency_.size(), std::unordered_map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>>())  {
     assert(terminals_.size() == 2);
+    for(Vertex v = 0; v < adjacency_.size();v++) {
+        for(Vertex w : input.exclusion_classes_[input.exclude_[v]]) {
+            if(w != v) {
+                exclude_[v].push_back(w);
+            }
+        }
+    }
     dijkstra(terminals_[1], distance_to_goal_, max_length_);
     for(Vertex v = 0; v < adjacency_.size(); v++) {
         dijkstra(v, distance_[v], max_length_);

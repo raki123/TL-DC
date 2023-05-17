@@ -38,7 +38,8 @@ class Graph {
     std::vector<Vertex> terminals_;
 
     // if vertex v is included, then all vertices in exclude_[v] must be excluded
-    std::vector<std::vector<Vertex>> exclude_;
+    std::vector<std::set<Vertex>> exclusion_classes_;
+    std::vector<size_t> exclude_;
 
     std::vector<Edge_weight> extra_paths_;
 
@@ -50,7 +51,7 @@ class Graph {
     void remove_vertex(Vertex v);
     std::set<Vertex> neighbors(Vertex v);
     // check returns true if a vertex is in an exclusion constraint
-    bool fixed(Vertex v) { return !exclude_[v].empty(); }
+    bool fixed(Vertex v) { return exclusion_classes_[exclude_[v]].size() > 1; }
 
     Graph(Vertex n);
     Graph subgraph(std::vector<Vertex> restrict_to);

@@ -27,7 +27,12 @@ Graph::Graph(std::istream &input) {
                                     std::vector<std::map<Edge_length,Edge_weight>>(nr_vertices + 2, 
                                                             std::map<Edge_length,Edge_weight>()));
             neighbors_ = std::vector<std::set<Vertex>>(nr_vertices + 2, std::set<Vertex>());
-            exclude_ = std::vector<std::vector<Vertex>>(nr_vertices + 2, std::vector<Vertex>());
+            exclusion_classes_ = std::vector<std::set<Vertex>>(nr_vertices + 2, std::set<Vertex>());
+            exclude_ = std::vector<size_t>(nr_vertices + 2);
+            for(size_t i = 0; i < nr_vertices + 2; i++) {
+                exclusion_classes_[i].insert(i);
+                exclude_[i] = i;
+            }
             max_length_ = nr_vertices + 2;
             break;
         }
@@ -97,7 +102,6 @@ void Graph::preprocess() {
                 found |= cur_unusable_edge_removed > 0;
                 unusable_edge_removed += cur_unusable_edge_removed;
             }
-            
         }
         if(!found) {
             Vertex cur_position_determined_removed = preprocess_position_determined();
@@ -113,7 +117,7 @@ void Graph::preprocess() {
             Vertex cur_three_sep_removed = preprocess_three_separator();
             found |= cur_three_sep_removed > 0;
             three_sep_removed += cur_three_sep_removed;
-        }    
+        }
     } 
  
     std::cerr << "Removed isolated: " << isolated_removed << std::endl;
@@ -154,9 +158,12 @@ void Graph::normalize() {
                             std::vector<std::map<Edge_length,Edge_weight>>(cur_name, 
                                                     std::map<Edge_length,Edge_weight>()));
     auto new_neighbors = std::vector<std::set<Vertex>>(cur_name, std::set<Vertex>());
-    auto new_exclude = std::vector<std::vector<Vertex>>(cur_name, std::vector<Vertex>());
+    auto new_exclusion_classes = std::vector<std::set<Vertex>>();
+    auto new_exclude = std::vector<size_t>(cur_name, -1);
+    Vertex cur_exclude = 0;
+    std::vector<Vertex> new_exclude_name(exclusion_classes_.size(), unnamed);
     for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(adjacency_[v].empty()) {
+        if(adjacency_[v].empty() && v != terminals_[0] && v != terminals_[1]) {
             continue;
         }
         for(auto neigh : neighbors(v)) {
@@ -164,13 +171,19 @@ void Graph::normalize() {
             new_neighbors[new_name[v]].insert(new_name[neigh]);
             new_adjacency[new_name[v]][new_name[neigh]] = adjacency_[v][neigh];
         }
-        for(auto excluded : exclude_[v]) {
-            assert(new_name[excluded] != unnamed);
-            new_exclude[new_name[v]].push_back(new_name[excluded]);
+        if(new_exclude_name[exclude_[v]] == unnamed) {
+            new_exclusion_classes.push_back({});
+            new_exclude_name[exclude_[v]] = cur_exclude++;
+            for(auto excluded : exclusion_classes_[exclude_[v]]) {
+                assert(new_name[excluded] != unnamed);
+                new_exclusion_classes[new_exclude_name[exclude_[v]]].insert(new_name[excluded]);
+            }
         }
+        new_exclude[new_name[v]] = new_exclude_name[exclude_[v]];
     }
     adjacency_ = new_adjacency;
     neighbors_ = new_neighbors;
+    exclusion_classes_ = new_exclusion_classes;
     exclude_ = new_exclude;
     terminals_[0] = new_name[terminals_[0]];
     terminals_[1] = new_name[terminals_[1]];
@@ -197,8 +210,17 @@ void Graph::add_exclude(Vertex v, Vertex w) {
     assert(w >= 0 && w < adjacency_.size());
     assert(!adjacency_[v].empty());
     assert(!adjacency_[w].empty());
-    exclude_[v].push_back(w);
-    exclude_[w].push_back(v);
+    if(exclude_[v] == exclude_[w]) {
+        assert(exclusion_classes_[exclude_[v]].count(w) > 0);
+        assert(exclusion_classes_[exclude_[v]].count(v) > 0);
+        return;
+    }
+    exclusion_classes_[exclude_[v]].insert(exclusion_classes_[exclude_[w]].begin(), exclusion_classes_[exclude_[w]].end());
+    auto prev = exclude_[w];
+    for(auto other : exclusion_classes_[exclude_[w]]) {
+        exclude_[other] = exclude_[v];
+    }
+    exclusion_classes_[prev].clear();
 }
 
 void Graph::remove_vertex(Vertex v) {
@@ -210,7 +232,7 @@ void Graph::remove_vertex(Vertex v) {
     }
     adjacency_[v].clear();
     neighbors_[v].clear();
-    exclude_[v].clear();
+    exclusion_classes_[exclude_[v]].erase(v);
 }
 
 void Graph::remove_edge(Edge edge) {
@@ -232,29 +254,43 @@ std::set<Vertex> Graph::neighbors(Vertex v) {
 Graph::Graph(Vertex n) :    max_length_(-1),
                             neighbors_(n, std::set<Vertex>()),
                             adjacency_(n, std::vector<std::map<Edge_length, Edge_weight>>(n, std::map<Edge_length, Edge_weight>())),
-                            exclude_(n, std::vector<Vertex>()) {
-
+                            exclusion_classes_(n),
+                            exclude_(n) {
+    for(size_t i = 0; i < n; i++) {
+        exclusion_classes_[i].insert(i);
+        exclude_[i] = i;
+    }
 }
 
 Graph Graph::subgraph(std::vector<Vertex> restrict_to) {
     Graph ret(restrict_to.size());
     ret.max_length_ = max_length_;
-    std::vector<Vertex> new_name(adjacency_.size(), std::numeric_limits<Vertex>::max());
+    auto unnamed = std::numeric_limits<Vertex>::max();
+    std::vector<Vertex> new_name(adjacency_.size(), unnamed);
     Vertex cur_name = 0;
     for(Vertex v : restrict_to) {
         new_name[v] = cur_name++;
     }
+    ret.exclusion_classes_ = std::vector<std::set<Vertex>>();
+    ret.exclude_ = std::vector<size_t>(cur_name, -1);
+    Vertex cur_exclude = 0;
+    std::vector<Vertex> new_exclude_name(adjacency_.size(), unnamed);
     for(Vertex v : restrict_to) {
         for(Vertex neigh : neighbors(v)) {
-            if(new_name[neigh] != std::numeric_limits<Vertex>::max()) {
+            if(new_name[neigh] != unnamed) {
                 ret.neighbors_[new_name[v]].insert(new_name[neigh]);
                 ret.adjacency_[new_name[v]][new_name[neigh]] = adjacency_[v][neigh];
             }
         }
-        for(Vertex excluded : exclude_[v]) {
-            assert(new_name[excluded] != std::numeric_limits<Vertex>::max());
-            ret.exclude_[new_name[v]].push_back(new_name[excluded]);
+        if(new_exclude_name[exclude_[v]] == unnamed) {
+            ret.exclusion_classes_.push_back({});
+            new_exclude_name[exclude_[v]] = cur_exclude++;
+            for(auto excluded : exclusion_classes_[exclude_[v]]) {
+                assert(new_name[excluded] != unnamed);
+                ret.exclusion_classes_[new_exclude_name[exclude_[v]]].insert(new_name[excluded]);
+            }
         }
+        ret.exclude_[new_name[v]] = new_exclude_name[exclude_[v]];
     }
     ret.extra_paths_ = std::vector<Edge_weight>(max_length_ + 1, 0);
     return ret;
@@ -292,7 +328,7 @@ std::vector<std::vector<Vertex>> Graph::components(const std::set<Vertex>& forbi
     std::vector<Vertex> queue;
     for(Vertex v = 0; v < adjacency_.size(); v++) {
         if(adjacency_[v].empty() || visited[v] || forbidden.count(v) > 0) {
-            assert(!adjacency_[v].empty() || exclude_[v].empty());
+            assert(!adjacency_[v].empty() || !fixed(v));
             continue;
         }
         std::vector<Vertex> component = {v};
@@ -309,7 +345,7 @@ std::vector<std::vector<Vertex>> Graph::components(const std::set<Vertex>& forbi
                 queue.push_back(w);
                 component.push_back(w);
             }
-            for(auto w : exclude_[cur]) {
+            for(auto w : exclusion_classes_[exclude_[cur]]) {
                 if(visited[w] || forbidden.count(w) > 0) {
                     continue;
                 }
@@ -340,7 +376,7 @@ std::vector<Vertex> Graph::find_separator(size_t size, size_t min_component_size
             // dont use fixed vertices as separators
             prog_str << "fixed(" << v << ").\n";
             // and have fixed vertices in the same component as the others that are in an exclusion constraint with them
-            for(auto excluded : exclude_[v]) {
+            for(auto excluded : exclusion_classes_[exclude_[v]]) {
                 prog_str << "e(" << v << "," << excluded << ").\n";
             }
         }
@@ -699,8 +735,8 @@ Vertex Graph::preprocess_two_separator() {
         return 0;
     }
     assert(separator.size() == 2);
-    assert(exclude_[separator[0]].empty());
-    assert(exclude_[separator[1]].empty());
+    assert(!fixed(separator[0]));
+    assert(!fixed(separator[1]));
     std::map<Vertex, std::set<Vertex>> to_exclude;
     std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
     dijkstra(terminals_[0], distance_from_start, {});
@@ -876,7 +912,9 @@ Vertex Graph::preprocess_two_separator() {
             }
             // for the kept vertices we need to remove the edges though
             for(size_t i = 0; i < 3; i++) {
-                exclude_[comp[i]].clear();
+                exclusion_classes_[exclude_[comp[i]]].erase(comp[i]);
+                exclusion_classes_.push_back({comp[i]});
+                exclude_[comp[i]] = exclusion_classes_.size() - 1;
                 remove_edge(Edge(comp[i], separator[0]));
                 remove_edge(Edge(comp[i], separator[1]));
                 for(size_t j = i + 1; j < 3; j++) {
@@ -981,9 +1019,9 @@ Vertex Graph::preprocess_three_separator() {
         return 0;
     }
     assert(separator.size() == 3);
-    assert(exclude_[separator[0]].empty());
-    assert(exclude_[separator[1]].empty());
-    assert(exclude_[separator[2]].empty());
+    assert(!fixed(separator[0]));
+    assert(!fixed(separator[1]));
+    assert(!fixed(separator[2]));
     std::map<Vertex, std::set<Vertex>> to_exclude;
     std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
     dijkstra(terminals_[0], distance_from_start, {});
@@ -1090,7 +1128,9 @@ Vertex Graph::preprocess_three_separator() {
         }
         // for the kept vertices we need to remove the edges though
         for(size_t i = 0; i < 6; i++) {
-            exclude_[comp[i]].clear();
+            exclusion_classes_[exclude_[comp[i]]].erase(comp[i]);
+            exclusion_classes_.push_back({comp[i]});
+            exclude_[comp[i]] = exclusion_classes_.size() - 1;
             remove_edge(Edge(comp[i], separator[0]));
             remove_edge(Edge(comp[i], separator[1]));
             remove_edge(Edge(comp[i], separator[2]));
