@@ -104,17 +104,18 @@ void Graph::preprocess() {
             found |= cur_position_determined_removed > 0;
             position_determined_removed += cur_position_determined_removed;
         }
-
-    }           if(!found) {
+        if(!found) {
             Vertex cur_two_sep_removed = preprocess_two_separator();
             found |= cur_two_sep_removed > 0;
             two_sep_removed += cur_two_sep_removed;
         }
-        // if(!found) {
-        //     Vertex cur_three_sep_removed = preprocess_three_separator();
-        //     found |= cur_three_sep_removed > 0;
-        //     three_sep_removed += cur_three_sep_removed;
-        // }     
+        if(!found) {
+            Vertex cur_three_sep_removed = preprocess_three_separator();
+            found |= cur_three_sep_removed > 0;
+            three_sep_removed += cur_three_sep_removed;
+        }    
+    } 
+ 
     std::cerr << "Removed isolated: " << isolated_removed << std::endl;
     std::cerr << "Removed forwarder: " << forwarder_removed << std::endl;
     std::cerr << "Removed position determined: " << position_determined_removed << std::endl;
@@ -721,10 +722,6 @@ Vertex Graph::preprocess_two_separator() {
             continue;
         } 
         if(found_goal || found_start) {
-            if(found)
-            {
-                continue;
-            }
             if(comp.size() < 4) {
                 // it could happen that we have multiple components that are smaller 
                 // but whose size adds up to more than 4
@@ -783,10 +780,13 @@ Vertex Graph::preprocess_two_separator() {
             size_t term_index = std::distance(subset.begin(), term_it);
             assert(term_index != subset.size());
             Graph comp_graph = subgraph(subset);
+            if(neighbors(separator[0]).count(separator[1]) > 0) {
+                comp_graph.remove_edge(Edge(0,1));
+            }
             comp_graph.max_length_ = c_one_length;
             comp_graph.terminals_ = {0, (Vertex)term_index};
-            // comp_graph.preprocess();
-            // comp_graph.normalize();
+            comp_graph.preprocess();
+            comp_graph.normalize();
             Search search(comp_graph);
             auto res = search.search();
             auto res_extra = comp_graph.extra_paths();
@@ -795,9 +795,7 @@ Vertex Graph::preprocess_two_separator() {
             std::vector<Edge_weight> c_one_y;
             for(size_t length = 0; length < res.size(); length++) {
                 c_one_y.push_back(res[length] + res_extra[length]);
-                std::cout << res[length] + res_extra[length] << " ";
             }
-            std::cout << std::endl;
             // compute C(1,N)
             subset = comp;
             subset.push_back(separator[0]);
@@ -808,8 +806,8 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph = subgraph(subset);
             comp_graph.max_length_ = c_one_length;
             comp_graph.terminals_ = {0, (Vertex)term_index};
-            // comp_graph.preprocess();
-            // comp_graph.normalize();
+            comp_graph.preprocess();
+            comp_graph.normalize();
             search = Search(comp_graph);
             res = search.search();
             res_extra = comp_graph.extra_paths();
@@ -818,9 +816,7 @@ Vertex Graph::preprocess_two_separator() {
             std::vector<Edge_weight> c_one_n;
             for(size_t length = 0; length < res.size(); length++) {
                 c_one_n.push_back(res[length] + res_extra[length]);
-                std::cout << res[length] + res_extra[length] << " ";
             }
-            std::cout << std::endl;
             // compute C(2,Y)
             subset = comp;
             subset.push_back(separator[0]);
@@ -831,10 +827,13 @@ Vertex Graph::preprocess_two_separator() {
             term_index = std::distance(subset.begin(), term_it);
             assert(term_index != subset.size());
             comp_graph = subgraph(subset);
+            if(neighbors(separator[0]).count(separator[1]) > 0) {
+                comp_graph.remove_edge(Edge(0,1));
+            }
             comp_graph.max_length_ = c_two_length;
             comp_graph.terminals_ = {1, (Vertex)term_index};
-            // comp_graph.preprocess();
-            // comp_graph.normalize();
+            comp_graph.preprocess();
+            comp_graph.normalize();
             search = Search(comp_graph);
             res = search.search();
             res_extra = comp_graph.extra_paths();
@@ -843,9 +842,7 @@ Vertex Graph::preprocess_two_separator() {
             std::vector<Edge_weight> c_two_y;
             for(size_t length = 0; length < res.size(); length++) {
                 c_two_y.push_back(res[length] + res_extra[length]);
-                std::cout << res[length] + res_extra[length] << " ";
             }
-            std::cout << std::endl;
             // compute C(2,N)
             subset = comp;
             subset.push_back(separator[1]);
@@ -856,8 +853,8 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph = subgraph(subset);
             comp_graph.max_length_ = c_two_length;
             comp_graph.terminals_ = {0, (Vertex)term_index};
-            // comp_graph.preprocess();
-            // comp_graph.normalize();
+            comp_graph.preprocess();
+            comp_graph.normalize();
             search = Search(comp_graph);
             res = search.search();
             res_extra = comp_graph.extra_paths();
@@ -866,9 +863,7 @@ Vertex Graph::preprocess_two_separator() {
             std::vector<Edge_weight> c_two_n;
             for(size_t length = 0; length < res.size(); length++) {
                 c_two_n.push_back(res[length] + res_extra[length]);
-                std::cout << res[length] + res_extra[length] << " ";
             }
-            std::cout << std::endl;
             // modify the component accordingly
             // remove all vertices in the component (apart from the separator, the terminal, and two vertices that we will reuse)
             term_it = std::find(comp.begin(), comp.end(), terminal);
