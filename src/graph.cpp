@@ -100,11 +100,11 @@ void Graph::preprocess() {
             found |= cur_position_determined_removed > 0;
             position_determined_removed += cur_position_determined_removed;
         }
-        // if(!found) {
-        //     Vertex cur_two_sep_removed = preprocess_two_separator();
-        //     found |= cur_two_sep_removed > 0;
-        //     two_sep_removed += cur_two_sep_removed;
-        // }
+        if(!found) {
+            Vertex cur_two_sep_removed = preprocess_two_separator();
+            found |= cur_two_sep_removed > 0;
+            two_sep_removed += cur_two_sep_removed;
+        }
         if(!found) {
             Vertex cur_three_sep_removed = preprocess_three_separator();
             found |= cur_three_sep_removed > 0;
@@ -265,7 +265,7 @@ Graph Graph::subgraph(std::vector<Vertex> restrict_to) {
     ret.exclusion_classes_ = std::vector<std::set<Vertex>>();
     ret.exclude_ = std::vector<size_t>(cur_name, -1);
     Vertex cur_exclude = 0;
-    std::vector<Vertex> new_exclude_name(adjacency_.size(), unnamed);
+    std::vector<Vertex> new_exclude_name(exclusion_classes_.size(), unnamed);
     for(Vertex v : restrict_to) {
         for(Vertex neigh : neighbors(v)) {
             if(new_name[neigh] != unnamed) {
@@ -376,32 +376,6 @@ std::vector<Vertex> Graph::find_separator(size_t size, size_t min_component_size
         prog_str << ":- r(" << terminals_[0] << "), not sep(" << terminals_[0] << ").\n";
         prog_str << ":- r(" << terminals_[1] << "), not sep(" << terminals_[1] << ").\n";
     }
-    prog_str << ":- ";
-    bool first = true;
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(!adjacency_[v].empty()) {
-            if(first) {
-                first = false;
-            } else {
-                prog_str << ", ";
-            }
-            prog_str << "not r(" << v << ")";
-        }
-    }
-    prog_str << ".\n";
-    prog_str << ":- ";
-    first = true;
-    for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(!adjacency_[v].empty()) {
-            if(first) {
-                first = false;
-            } else {
-                prog_str << ", ";
-            }
-            prog_str << "not ok_nr(" << v << ")";
-        }
-    }
-    prog_str << ".\n";
     for(Vertex v = 0; v < adjacency_.size(); v++) {
         for(Vertex w : neighbors(v)) {
             prog_str << "e(" << v << "," << w << ").\n";
@@ -410,7 +384,6 @@ std::vector<Vertex> Graph::find_separator(size_t size, size_t min_component_size
     prog_str << "#show sep/1.\n";
     // initialize clingo
     Clingo::Logger logger = [](Clingo::WarningCode, char const *) {
-        // std::cerr << message << std::endl;
     };
     Clingo::Control ctl{{}, logger, 20};
     ctl.add("base", {}, prog_str.str().c_str());
@@ -421,7 +394,6 @@ std::vector<Vertex> Graph::find_separator(size_t size, size_t min_component_size
         for(auto symbol : handle.model().symbols()) {
             auto substr = symbol.to_string().substr(4,symbol.to_string().length() - 4 - 1);
             ret.push_back(std::stoi(substr));
-            // std::cout << substr << " " << symbol << std::endl;
         }
     }
     return ret;

@@ -1,5 +1,3 @@
-for three-separators figure out what we need to do with the direct edges between the separators
-    -> idea: remove them in the subgraphs but keep them afterwards as they are
 
 use articulation points:
     * for preprocessing
@@ -12,6 +10,12 @@ improve handling for exclusion constraints in preprocessing:
     * allow more preprocessing/propagate the constraints
 
 incorporate paralellism
+
+decide what to do with dag_search:
+    * currently: disable only in the presence of exclusion constraints
+    * keep:
+        - fix in the presence of exclusion constraints (how?)
+    * disable in general (if it just performs badly)
 
 dag_search can only trigger if the max_length_ can actually happen
 -> e.g. for 002 we have max_length_ = 39 but the longest path thats shorter has length 38

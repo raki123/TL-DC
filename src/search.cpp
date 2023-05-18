@@ -4,7 +4,8 @@
 
 clhasher hasher__(UINT64_C(0x23a23cf5033c3c81),UINT64_C(0xb3816f6a2c68e530));
 
-Search::Search(Graph& input) :  max_length_(input.max_length_),
+Search::Search(Graph& input) :  enable_dag_(true),
+                                max_length_(input.max_length_),
                                 terminals_(input.terminals_),
                                 neighbors_(input.neighbors_),
                                 adjacency_(input.adjacency_),
@@ -18,6 +19,7 @@ Search::Search(Graph& input) :  max_length_(input.max_length_),
     for(Vertex v = 0; v < adjacency_.size();v++) {
         for(Vertex w : input.exclusion_classes_[input.exclude_[v]]) {
             if(w != v) {
+                enable_dag_ = false;
                 exclude_[v].push_back(w);
             }
         }
@@ -50,29 +52,53 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
     pruning_dijkstra(terminals_[1], start, distance_to_goal_, budget);
     prune_articulation(start);
     // only cache if there is more than one edge we can take
-    std::vector<std::pair<Vertex, bool>> poss;
+    std::vector<Vertex> poss_non_dag, poss_dag;
     for(auto v : neighbors(start)) {
-        if(budget >= distance_to_goal_[v] + adjacency_[start][v].begin()->first) {
-            poss.push_back(std::make_pair(v, budget == distance_to_goal_[v] + adjacency_[start][v].begin()->first));
+        if(budget > distance_to_goal_[v] + adjacency_[start][v].begin()->first) {
+            poss_non_dag.push_back(v);
+        }
+        if(budget == distance_to_goal_[v] + adjacency_[start][v].begin()->first) {
+            poss_dag.push_back(v);
         }
     }
-    if(poss.size() == 0) {
+    if(poss_non_dag.size() + poss_dag.size() == 0) {
         visited_[start] = false;
         for(Vertex excluded : restore) {
             visited_[excluded] = false;
         }
         return {};
     }
-    if(poss.size() == 1) {
-        propagations++;
-        Vertex v = poss[0].first;
-        std::vector<Edge_weight> tmp;
-        if(poss[0].second) {
+    if(poss_non_dag.size() == 0 && enable_dag_) {
+        // dont cache and do everything here
+        std::vector<Edge_weight> ret(budget + 1, 0);
+        for(auto v : poss_dag) {
             dags++;
-            tmp = dag_search(v, budget - adjacency_[start][v].begin()->first);
-        } else {
-            tmp = search(v, budget - adjacency_[start][v].begin()->first);
+            std::vector<Edge_weight> tmp = dag_search(v, budget - adjacency_[start][v].begin()->first);
+            for(size_t i = 0; i < tmp.size(); i++) {
+                for(auto &[length, weight] : adjacency_[start][v]) {
+                    if(length + i > budget) {
+                        break;
+                    }
+                    ret[length + i] += weight*tmp[i];
+                }
+            }
         }
+        visited_[start] = false;
+        for(Vertex excluded : restore) {
+            visited_[excluded] = false;
+        }
+        return ret;
+    }
+    if(poss_dag.size() + poss_non_dag.size() == 1) {
+        propagations++;
+        std::vector<Edge_weight> tmp;
+        Vertex v;
+        if(poss_dag.size() > 0) {
+            v = poss_dag[0];
+        } else {
+            v = poss_non_dag[0];
+        }
+        tmp = search(v, budget - adjacency_[start][v].begin()->first);
         std::vector<Edge_weight> ret(budget + 1, 0);
         for(size_t i = 0; i < tmp.size(); i++) {
             for(auto &[length, weight] : adjacency_[start][v]) {
@@ -101,13 +127,12 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
         }
     }
     neg_hits++;
+    auto cached_position = cache_[start].insert(std::make_pair(distance_to_goal_, std::make_pair(budget, std::vector<Edge_weight>())));
     std::vector<Edge_weight> ret(budget + 1, 0);
-    for(auto [v, dag] : poss) {
+    for(auto v : poss_dag) {
         std::vector<Edge_weight> tmp;
-        if(dag) {
+        if(enable_dag_) {
             dags++;
-            distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
-            pruning_dijkstra(terminals_[1], start, distance_to_goal_, budget);
             tmp = dag_search(v, budget - adjacency_[start][v].begin()->first);
         } else {
             tmp = search(v, budget - adjacency_[start][v].begin()->first);
@@ -120,11 +145,18 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
                 ret[length + i] += weight*tmp[i];
             }
         }
+    }for(auto v : poss_non_dag) {
+        std::vector<Edge_weight> tmp = search(v, budget - adjacency_[start][v].begin()->first);
+        for(size_t i = 0; i < tmp.size(); i++) {
+            for(auto &[length, weight] : adjacency_[start][v]) {
+                if(length + i > budget) {
+                    break;
+                }
+                ret[length + i] += weight*tmp[i];
+            }
+        }
     }
-    distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
-    pruning_dijkstra(terminals_[1], start, distance_to_goal_, budget);
-    prune_articulation(start);
-    cache_[start][distance_to_goal_] = std::make_pair(budget, ret);
+    cached_position.first->second.second = ret;
     visited_[start] = false;
     for(Vertex excluded : restore) {
         visited_[excluded] = false;

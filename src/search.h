@@ -25,6 +25,7 @@ class Search {
 
     void print_stats();
     private:
+    bool enable_dag_;
     Edge_length max_length_;
     std::vector<Vertex> terminals_;
     std::vector<std::set<Vertex>> neighbors_;
