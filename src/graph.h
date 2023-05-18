@@ -72,5 +72,15 @@ class Graph {
     Vertex preprocess_two_separator();
     Vertex preprocess_three_separator();
 
+    // preprocessing stats
+    Vertex isolated_removed = 0;
+    Vertex forwarder_removed = 0;
+    Vertex position_determined_removed = 0;
+    Vertex twin_edges_removed = 0;
+    Vertex unreachable_removed = 0;
+    Vertex unusable_edge_removed = 0;
+    Vertex two_sep_removed = 0;
+    Vertex three_sep_removed = 0;
+
 
 };

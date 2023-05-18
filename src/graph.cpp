@@ -74,14 +74,6 @@ Graph::Graph(std::istream &input) {
 
 void Graph::preprocess() {
     bool found = true;
-    Vertex isolated_removed = 0;
-    Vertex forwarder_removed = 0;
-    Vertex position_determined_removed = 0;
-    Vertex twin_edges_removed = 0;
-    Vertex unreachable_removed = 0;
-    Vertex unusable_edge_removed = 0;
-    Vertex two_sep_removed = 0;
-    Vertex three_sep_removed = 0;
     while(found) {
         found = false;
         Vertex cur_isolated_removed = preprocess_isolated();
@@ -108,26 +100,17 @@ void Graph::preprocess() {
             found |= cur_position_determined_removed > 0;
             position_determined_removed += cur_position_determined_removed;
         }
-        if(!found) {
-            Vertex cur_two_sep_removed = preprocess_two_separator();
-            found |= cur_two_sep_removed > 0;
-            two_sep_removed += cur_two_sep_removed;
-        }
+        // if(!found) {
+        //     Vertex cur_two_sep_removed = preprocess_two_separator();
+        //     found |= cur_two_sep_removed > 0;
+        //     two_sep_removed += cur_two_sep_removed;
+        // }
         if(!found) {
             Vertex cur_three_sep_removed = preprocess_three_separator();
             found |= cur_three_sep_removed > 0;
             three_sep_removed += cur_three_sep_removed;
         }
     } 
- 
-    std::cerr << "Removed isolated: " << isolated_removed << std::endl;
-    std::cerr << "Removed forwarder: " << forwarder_removed << std::endl;
-    std::cerr << "Removed position determined: " << position_determined_removed << std::endl;
-    std::cerr << "Removed twin edges: " << twin_edges_removed << std::endl;
-    std::cerr << "Removed unreachable: " << unreachable_removed << std::endl;
-    std::cerr << "Removed unusable edge: " << unusable_edge_removed << std::endl;
-    std::cerr << "Removed due to 2-separation: " << two_sep_removed << std::endl;
-    std::cerr << "Removed due to 3-separation: " << three_sep_removed << std::endl;
 }
 
 void Graph::print_stats() {
@@ -138,6 +121,14 @@ void Graph::print_stats() {
     nr_edges /= 2;
     std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
     dijkstra(terminals_[1], distance_to_goal, {});
+    if(isolated_removed)            std::cerr << "Removed isolated: " << isolated_removed << std::endl;
+    if(forwarder_removed)           std::cerr << "Removed forwarder: " << forwarder_removed << std::endl;
+    if(position_determined_removed) std::cerr << "Removed position determined: " << position_determined_removed << std::endl;
+    if(twin_edges_removed)          std::cerr << "Removed twin edges: " << twin_edges_removed << std::endl;
+    if(unreachable_removed)         std::cerr << "Removed unreachable: " << unreachable_removed << std::endl;
+    if(unusable_edge_removed)       std::cerr << "Removed unusable edge: " << unusable_edge_removed << std::endl;
+    if(two_sep_removed)             std::cerr << "Removed due to 2-separation: " << two_sep_removed << std::endl;
+    if(three_sep_removed)           std::cerr << "Removed due to 3-separation: " << three_sep_removed << std::endl;
     std::cerr << "#vertices " << adjacency_.size() << " #edges " << nr_edges;
     std::cerr << " max. length " << max_length_ << " min. length " << distance_to_goal[terminals_[0]] << std::endl;
 }
@@ -973,7 +964,6 @@ Vertex Graph::preprocess_two_separator() {
         }
         comp_graph.max_length_ = std::max(d1, d2);
         comp_graph.terminals_ = {0, 1};
-        comp_graph.print_stats();
         comp_graph.preprocess();
         comp_graph.normalize();
         // comp_graph.print_stats();
@@ -1094,6 +1084,17 @@ Vertex Graph::preprocess_three_separator() {
                     subset.push_back(separator[i]);
                 }
                 Graph comp_graph = subgraph(subset);
+                if(neighbors(separator[start_idx]).count(separator[goal_idx])) {
+                    comp_graph.remove_edge(Edge(0,1));
+                }
+                if(j == 0) {
+                    if(neighbors(separator[start_idx]).count(separator[i])) {
+                        comp_graph.remove_edge(Edge(0,subset.size() - 1));
+                    }
+                    if(neighbors(separator[goal_idx]).count(separator[i])) {
+                        comp_graph.remove_edge(Edge(1,subset.size() - 1));
+                    }
+                }
                 // restrict local maximum length
                 Edge_length d1 = 0, d2 = 0;
                 if(max_length_ > distance_from_start[separator[start_idx]] + distance_to_goal[separator[goal_idx]]) {
@@ -1138,11 +1139,6 @@ Vertex Graph::preprocess_three_separator() {
                 remove_edge(Edge(comp[i], comp[j]));
             }
         }
-        for(size_t i = 0; i < 3; i++) {
-            for(size_t j = i + 1; j < 3; j++) {
-                remove_edge(Edge(separator[i], separator[j]));
-            }
-        }
         // now readd appropriate edges
         // first half, unweighted
         for(size_t i = 0; i < 3; i++) {
@@ -1151,12 +1147,7 @@ Vertex Graph::preprocess_three_separator() {
         }
         // second half, weighted
         for(size_t i = 0; i < 3; i++) {
-            if(counts[(i + 1) % 3][1][1] > 0) {
-                add_edge(
-                    Edge(separator[i], separator[(i + 2) % 3]),
-                    Weight(1, counts[(i + 1) % 3][1][1])
-                );
-            }
+            assert(!counts[i][1][1]);
         }
         for(Edge_length length = 2; length <= max_length_; length++) {
             for(size_t i = 0; i < 3; i++) {
