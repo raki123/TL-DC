@@ -1,9 +1,10 @@
 
-use articulation points:
+articulation points:
     * for preprocessing
-    * for inprocessing
-    -> split if articulation point is between start and goal
-if that doesnt help: prune single out vertices fast (via neighborhood)
+    * but only if its not the first edge (do that separately)
+    * figure out what to do with exclusion constraints during inprocessing
+
+try using a fibonacci heap for dijkstra like one is supposed to
 
 improve handling for exclusion constraints in preprocessing:
     * when are they actually a problem w.r.t. separating again?

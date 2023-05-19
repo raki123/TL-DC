@@ -41,15 +41,25 @@ class Search {
 
     std::vector<bool> visited_;
 
-    std::vector<std::unordered_map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>>> cache_; 
+    std::vector<std::vector<std::unordered_map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>>>> cache_; 
 
-
+    // recursive search
     std::vector<Edge_weight> search(Vertex start, Edge_length budget);
+    // more efficient search if budget is equal to length of shortest path
     std::vector<Edge_weight> dag_search(Vertex start, Edge_length budget);
+
+
 
     void prune_articulation(Vertex start);
     bool ap_util(Vertex u, std::vector<char>& visited, std::vector<Vertex>& disc, std::vector<Vertex>& low, int& time, int parent, Vertex start);
     void prune_util(Vertex u);
+    void component_util(Vertex u, std::vector<Vertex>& disc);
+
+    // for splitting based on articulation points between start and goal
+    Vertex last_ap_;
+    std::vector<std::pair<Vertex, Vertex>> ap_start_goal_; 
+    std::vector<std::vector<Vertex>> ap_components_;
+
     // helper functions
     std::vector<Vertex> neighbors(Vertex v) { assert(v >= 0 && v < neighbors_.size()); return neighbors_[v]; };
     void dijkstra(Vertex start, std::vector<Edge_length>& distance, Edge_length budget);
@@ -58,6 +68,8 @@ class Search {
     // stats
     size_t pos_hits = 0;
     size_t neg_hits = 0;
+
+    size_t splits = 0;
 
     size_t edges = 0;
     size_t propagations = 0;
