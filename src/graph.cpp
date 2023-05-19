@@ -110,7 +110,12 @@ void Graph::preprocess() {
             found |= cur_three_sep_removed > 0;
             three_sep_removed += cur_three_sep_removed;
         }
-    } 
+        if(!found) {
+            Vertex cur_max_length_decrease = limit_max_length();
+            found |= cur_max_length_decrease > 0;
+            max_length_decrease += cur_max_length_decrease;
+        }
+    }
 }
 
 void Graph::print_stats() {
@@ -129,6 +134,7 @@ void Graph::print_stats() {
     if(unusable_edge_removed)       std::cerr << "Removed unusable edge: " << unusable_edge_removed << std::endl;
     if(two_sep_removed)             std::cerr << "Removed due to 2-separation: " << two_sep_removed << std::endl;
     if(three_sep_removed)           std::cerr << "Removed due to 3-separation: " << three_sep_removed << std::endl;
+    if(max_length_decrease)         std::cerr << "Max length decreased by: " << max_length_decrease << std::endl;
     std::cerr << "#vertices " << adjacency_.size() << " #edges " << nr_edges;
     std::cerr << " max. length " << max_length_ << " min. length " << distance_to_goal[terminals_[0]] << std::endl;
 }
@@ -1166,4 +1172,69 @@ Vertex Graph::preprocess_three_separator() {
         }
     }
     return found;
+}
+
+Vertex Graph::limit_max_length() {
+    // build the program
+    std::stringstream prog_str;
+    prog_str << "reach(X, 0) :- start(X).\n";
+    prog_str << ":~ goal(X), reach(X,Y). [-Y]\n";
+    prog_str << "start(" << terminals_[0] << ").\n";
+    prog_str << "goal(" << terminals_[1] << ").\n";
+    prog_str << ":- reach(X, L), reach(X, L'), L != L'.\n";
+    std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[0], distance_from_start, {});
+
+    std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[1], distance_to_goal, {});
+    if(distance_to_goal[terminals_[0]] > max_length_) {
+        return 0;
+    }
+
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(v == terminals_[1] || adjacency_[v].empty()) {
+            continue;
+        }
+        std::vector<std::pair<Vertex,Edge_length>> edges;
+        for(auto &w : neighbors(v)) {
+            if(w == terminals_[0]) {
+                continue;
+            }
+            for(auto &weight : adjacency_[v][w]) {
+                edges.push_back(std::make_pair(w, weight.first));
+            }
+        }
+        for(auto &[w, length] : edges) {
+            prog_str << "reach(" << w << ",L + L') :- reach(" << v << ", L), edge(" << v << "," << w << ",L'), L <= " << max_length_ - distance_to_goal[w] - length;
+            prog_str << ", L>= " << distance_from_start[v] << ".\n";
+            prog_str << "edge(" << v << "," << w << "," << length << ") :- reach(" << v << ", L), L <= " << max_length_ - distance_to_goal[w] - length;
+            prog_str << ", L>= " << distance_from_start[v];
+            for(auto &[wp, lengthp] : edges) {
+                if(w != wp || length != lengthp) {
+                    prog_str << ", not edge(" << v << "," << wp << "," << lengthp << ")";
+                }
+            }
+            prog_str << ".\n";
+        }
+    }
+    // std::cout << prog_str.str();
+    // return 0;
+    // prog_str << "#show sep/1.\n";
+    // initialize clingo
+    Clingo::Logger logger = [](Clingo::WarningCode, char const *) {
+    };
+    Clingo::Control ctl{{}, logger, 20};
+    ctl.add("base", {}, prog_str.str().c_str());
+    ctl.ground({{"base", {}}});
+    auto handle = ctl.solve();
+    std::vector<std::vector<std::string>> answer_sets;
+    int64_t best_cost = -max_length_;
+    for (auto const& m : handle) {
+        for(auto c : m.cost()) {
+            best_cost = c;
+        }
+    }
+    Edge_length prev_max = max_length_;
+    max_length_ = -best_cost;
+    return prev_max - max_length_;
 }

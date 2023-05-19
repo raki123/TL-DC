@@ -71,6 +71,7 @@ class Graph {
     Vertex preprocess_position_determined();
     Vertex preprocess_two_separator();
     Vertex preprocess_three_separator();
+    Vertex limit_max_length();
 
     // preprocessing stats
     Vertex isolated_removed = 0;
@@ -81,6 +82,7 @@ class Graph {
     Vertex unusable_edge_removed = 0;
     Vertex two_sep_removed = 0;
     Vertex three_sep_removed = 0;
+    Vertex max_length_decrease = 0;
 
 
 };

@@ -11,9 +11,7 @@ decide what to do with dag_search:
     * keep: fix in the presence of exclusion constraints (how?)
     * disable in general (if it just performs badly)
 
-dag_search can only trigger if the max_length_ can actually happen
--> e.g. for 002 we have max_length_ = 39 but the longest path thats shorter has length 38
--> check if/how we can adapt max_length_ efficiently
+use some clingo options to figure out the longest path
 
 use less memory:
     * cache visited instead of distance
