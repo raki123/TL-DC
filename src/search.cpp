@@ -7,8 +7,8 @@ clhasher hasher__(UINT64_C(0x23a23cf5033c3c81),UINT64_C(0xb3816f6a2c68e530));
 Search::Search(Graph& input) :  enable_dag_(true),
                                 max_length_(input.max_length_),
                                 terminals_(input.terminals_),
-                                neighbors_(input.neighbors_),
-                                adjacency_(input.adjacency_),
+                                neighbors_(input.neighbors_.size()),
+                                adjacency_(input.adjacency_.size(), std::vector<std::vector<std::pair<Edge_length, Edge_weight>>>(input.adjacency_.size())),
                                 invalid_(std::numeric_limits<Edge_length>::max() - max_length_ - 1),
                                 distance_to_goal_(adjacency_.size(), invalid_),
                                 distance_(adjacency_.size(), std::vector<Edge_length>(adjacency_.size(), invalid_)),
@@ -17,6 +17,11 @@ Search::Search(Graph& input) :  enable_dag_(true),
                                 cache_(adjacency_.size(), std::unordered_map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>>())  {
     assert(terminals_.size() == 2);
     for(Vertex v = 0; v < adjacency_.size();v++) {
+        // fill neighbors
+        neighbors_[v] = std::vector<Vertex>(input.neighbors_[v].begin(), input.neighbors_[v].end());
+        for(Vertex w : neighbors_[v]) {
+            adjacency_[v][w] = std::vector<std::pair<Edge_length, Edge_weight>>(input.adjacency_[v][w].begin(), input.adjacency_[v][w].end());
+        }
         for(Vertex w : input.exclusion_classes_[input.exclude_[v]]) {
             if(w != v) {
                 enable_dag_ = false;
