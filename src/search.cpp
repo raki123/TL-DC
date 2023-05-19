@@ -43,21 +43,101 @@ Search::Search(Graph& input) :  enable_dag_(true),
 
 std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
     edges++;
-    if(edges % 100000 == 0) {
+    if(edges % 1000000 == 0) {
         print_stats();
     }
     if(start == terminals_[1]) {
         // we have one path of length zero.
         return {1};
     }
+    // visit the current start
     assert(!visited_[start]);
     visited_[start] = true;
     for(Vertex excluded : exclude_[start]) {
         assert(!visited_[excluded]);
         visited_[excluded] = true;
     }
+    // update distance based on new budged
     distance_to_goal_ = std::vector<Edge_length>(adjacency_.size(), invalid_);
     pruning_dijkstra(terminals_[1], start, distance_to_goal_, budget);
+
+    // first check if there is something simple we can do
+    // only process articulation points and cache otherwise
+    // simple means: 
+    //      * there is no edge (can only happen when we have exclusion constraints)
+    //      * there are only dag edges
+    //      * there is only one edge
+    std::vector<Vertex> poss_non_dag, poss_dag;
+    for(auto v : neighbors(start)) {
+        if(budget > distance_to_goal_[v] + adjacency_[start][v].begin()->first) {
+            poss_non_dag.push_back(v);
+        }
+        if(budget == distance_to_goal_[v] + adjacency_[start][v].begin()->first) {
+            poss_dag.push_back(v);
+        }
+    }
+    // there is no edge
+    if(poss_non_dag.size() + poss_dag.size() == 0) {
+        visited_[start] = false;
+        for(Vertex excluded : exclude_[start]) {
+            visited_[excluded] = false;
+        }
+        return {};
+    }
+    // there are only dag edges
+    if(poss_non_dag.size() == 0 && enable_dag_) {
+        // dont cache and do everything here
+        std::vector<Edge_weight> ret(budget + 1, 0);
+        for(auto v : poss_dag) {
+            dags++;
+            std::vector<Edge_weight> tmp = dag_search(v, budget - adjacency_[start][v].begin()->first);
+            for(size_t i = 0; i < tmp.size(); i++) {
+                for(auto &[length, weight] : adjacency_[start][v]) {
+                    if(length + i > budget) {
+                        break;
+                    }
+                    ret[length + i] += weight*tmp[i];
+                }
+            }
+        }
+        visited_[start] = false;
+        for(Vertex excluded : exclude_[start]) {
+            visited_[excluded] = false;
+        }
+        return ret;
+    }
+    // there is only one edge
+    if(poss_dag.size() + poss_non_dag.size() == 1) {
+        propagations++;
+        std::vector<Edge_weight> tmp;
+        Vertex v;
+        if(poss_dag.size() > 0) {
+            v = poss_dag[0];
+        } else {
+            v = poss_non_dag[0];
+        }
+        tmp = search(v, budget - adjacency_[start][v].begin()->first);
+        std::vector<Edge_weight> ret(budget + 1, 0);
+        for(size_t i = 0; i < tmp.size(); i++) {
+            for(auto &[length, weight] : adjacency_[start][v]) {
+                if(length + i > budget) {
+                    break;
+                }
+                ret[length + i] += weight*tmp[i];
+            }
+        }
+        visited_[start] = false;
+        for(Vertex excluded : exclude_[start]) {
+            visited_[excluded] = false;
+        }
+        return ret;
+    }
+    // now do more complicated stuff 
+    // based on articulaiton points we:
+    //      * prune unreachable parts of the graph
+    //      * can split "start - G_1 - ap - G_2 - t_1"
+    //        into "start - G_1 - ap" and "ap - G_2 - t_1"
+    //        and solve independently
     prune_articulation(start);
     if(!ap_components_.empty() && enable_dag_) {
         splits += ap_components_.size() - 1;
@@ -108,69 +188,7 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
         // only makes sense if we also check the cache before going in here
         return result;
     }
-    // only cache if there is more than one edge we can take
-    std::vector<Vertex> poss_non_dag, poss_dag;
-    for(auto v : neighbors(start)) {
-        if(budget > distance_to_goal_[v] + adjacency_[start][v].begin()->first) {
-            poss_non_dag.push_back(v);
-        }
-        if(budget == distance_to_goal_[v] + adjacency_[start][v].begin()->first) {
-            poss_dag.push_back(v);
-        }
-    }
-    if(poss_non_dag.size() + poss_dag.size() == 0) {
-        visited_[start] = false;
-        for(Vertex excluded : exclude_[start]) {
-            visited_[excluded] = false;
-        }
-        return {};
-    }
-    if(poss_non_dag.size() == 0 && enable_dag_) {
-        // dont cache and do everything here
-        std::vector<Edge_weight> ret(budget + 1, 0);
-        for(auto v : poss_dag) {
-            dags++;
-            std::vector<Edge_weight> tmp = dag_search(v, budget - adjacency_[start][v].begin()->first);
-            for(size_t i = 0; i < tmp.size(); i++) {
-                for(auto &[length, weight] : adjacency_[start][v]) {
-                    if(length + i > budget) {
-                        break;
-                    }
-                    ret[length + i] += weight*tmp[i];
-                }
-            }
-        }
-        visited_[start] = false;
-        for(Vertex excluded : exclude_[start]) {
-            visited_[excluded] = false;
-        }
-        return ret;
-    }
-    if(poss_dag.size() + poss_non_dag.size() == 1) {
-        propagations++;
-        std::vector<Edge_weight> tmp;
-        Vertex v;
-        if(poss_dag.size() > 0) {
-            v = poss_dag[0];
-        } else {
-            v = poss_non_dag[0];
-        }
-        tmp = search(v, budget - adjacency_[start][v].begin()->first);
-        std::vector<Edge_weight> ret(budget + 1, 0);
-        for(size_t i = 0; i < tmp.size(); i++) {
-            for(auto &[length, weight] : adjacency_[start][v]) {
-                if(length + i > budget) {
-                    break;
-                }
-                ret[length + i] += weight*tmp[i];
-            }
-        }
-        visited_[start] = false;
-        for(Vertex excluded : exclude_[start]) {
-            visited_[excluded] = false;
-        }
-        return ret;
-    }
+    
     auto cached_result = cache_[start][terminals_[1]].find(distance_to_goal_);
     if(cached_result != cache_[start][terminals_[1]].end()) {
         if(cached_result->second.first >= budget) {
