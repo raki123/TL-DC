@@ -1,7 +1,5 @@
 
 
-try using a fibonacci heap for dijkstra like one is supposed to
-
 improve handling for exclusion constraints in preprocessing:
     * when are they actually a problem w.r.t. separating again?
     * allow more preprocessing/propagate the constraints
@@ -22,6 +20,7 @@ use less memory:
     * clear cache?
     * more succinct representation of results?
 
+order neighbors by edge-length (shortest first) to slightly improve pruning dijkstra performance
 
 articulation points:
     * for preprocessing (doesnt actually seem to happen)

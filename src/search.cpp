@@ -392,15 +392,13 @@ void Search::dijkstra(Vertex start, std::vector<Edge_length>& distance, Edge_len
     }
 }
 void Search::pruning_dijkstra(Vertex start, Vertex prune, std::vector<Edge_length>& distance, Edge_length budget) {
-    DijkstraQueue queue;
-    queue.push(std::make_pair(0, start));
+    std::deque<Vertex> queue;
+    queue.push_back(start);
     distance[start] = 0;
     while(!queue.empty()) {
-        auto [cur_cost, cur_vertex] = queue.top();
-        queue.pop();
-        if(cur_cost > distance[cur_vertex]) {
-            continue;
-        }
+        auto cur_vertex = queue.front();
+        auto cur_cost = distance[cur_vertex];
+        queue.pop_front();
         for(auto &w : neighbors(cur_vertex)) {
             if(cur_cost + 1 >= distance[w] || visited_[w]) {
                 continue;
@@ -408,7 +406,7 @@ void Search::pruning_dijkstra(Vertex start, Vertex prune, std::vector<Edge_lengt
             Edge_length min_cost = adjacency_[cur_vertex][w].begin()->first;
             if(cur_cost + min_cost < distance[w] && cur_cost + min_cost + distance_[prune][w] <= budget) {
                 distance[w] = min_cost + cur_cost;
-                queue.push(std::make_pair(cur_cost + min_cost, w));
+                queue.push_back(w);
             }
         }
     }
