@@ -31,6 +31,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Clingo REQUIRED)
 
+set(Boost_USE_STATIC_LIBS OFF) 
+set(Boost_USE_MULTITHREADED ON)  
+set(Boost_USE_STATIC_RUNTIME OFF) 
+
+find_package(Boost REQUIRED) 
+
+
 SET(SOURCES 
     src/graph.cpp
     src/search.cpp
@@ -40,4 +47,4 @@ add_executable (read src/main.cpp ${SOURCES})
 if(STATIC)
 SET_TARGET_PROPERTIES (read PROPERTIES LINK_SEARCH_START_STATIC 1)
 endif(STATIC)
-target_link_libraries (read libclingo)
+target_link_libraries (read libclingo Boost::headers)

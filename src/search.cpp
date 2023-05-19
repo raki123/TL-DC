@@ -1,6 +1,7 @@
 #include "search.h"
 #include <queue>
 #include <limits>
+#include <boost/heap/fibonacci_heap.hpp>
 
 clhasher hasher__(UINT64_C(0x23a23cf5033c3c81),UINT64_C(0xb3816f6a2c68e530));
 
@@ -391,12 +392,32 @@ void Search::dijkstra(Vertex start, std::vector<Edge_length>& distance, Edge_len
         }
     }
 }
+
+struct heap_data;
+using Heap = boost::heap::fibonacci_heap<heap_data, boost::heap::mutable_<true>>;
+struct heap_data
+{
+    Edge_length cost;
+    Vertex vertex;
+    Heap::handle_type handle;
+
+    heap_data(std::pair<Edge_length, Vertex> data) : cost(data.first), vertex(data.second), handle() {}
+
+    bool operator<(heap_data const & rhs) const {
+        return cost > rhs.cost;
+    }
+};
+
 void Search::pruning_dijkstra(Vertex start, Vertex prune, std::vector<Edge_length>& distance, Edge_length budget) {
-    DijkstraQueue queue;
-    queue.push(std::make_pair(0, start));
+    Heap queue;
+    std::vector<Heap::handle_type> handles(adjacency_.size());
+    Heap::handle_type h = queue.push(std::make_pair(Edge_length(0), start));
+    handles[start] = h;
+    (*h).handle = h;
     distance[start] = 0;
     while(!queue.empty()) {
-        auto [cur_cost, cur_vertex] = queue.top();
+        auto cur_cost = queue.top().cost;
+        auto cur_vertex = queue.top().vertex;
         queue.pop();
         if(cur_cost > distance[cur_vertex]) {
             continue;
@@ -407,8 +428,15 @@ void Search::pruning_dijkstra(Vertex start, Vertex prune, std::vector<Edge_lengt
             }
             Edge_length min_cost = adjacency_[cur_vertex][w].begin()->first;
             if(cur_cost + min_cost < distance[w] && cur_cost + min_cost + distance_[prune][w] <= budget) {
+                if(distance[w] == invalid_) {
+                    Heap::handle_type hp = queue.push(std::make_pair(Edge_length(min_cost + cur_cost), w));
+                    handles[w] = hp;
+                    (*hp).handle = hp;
+                } else {
+                    (*handles[w]).cost = min_cost + cur_cost;
+                    queue.decrease(handles[w]);
+                }
                 distance[w] = min_cost + cur_cost;
-                queue.push(std::make_pair(cur_cost + min_cost, w));
             }
         }
     }
