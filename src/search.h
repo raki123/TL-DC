@@ -38,7 +38,7 @@ class Search {
     // if vertex v is included, then all vertices in exclude_[v] must be excluded
     std::vector<std::vector<Vertex>> exclude_;
 
-    std::vector<bool> visited_;
+    std::vector<char> visited_;
 
     std::vector<std::vector<std::unordered_map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>, vector_hash>>> cache_; 
 

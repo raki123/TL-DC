@@ -59,6 +59,8 @@ Graph::Graph(std::istream &input) {
     }
     assert(max_length_ + 1 == extra_paths_.size());
     assert(adjacency_.size() > 0);
+    max_length_ = std::min(Edge_length(nr_vertices - 1), max_length_);
+    extra_paths_ = std::vector<Edge_weight>(max_length_ + 1, 0);
     if(terminals_.empty()) {
         terminals_ = {nr_vertices, Vertex(nr_vertices + 1)};
         max_length_ += 2;
@@ -110,7 +112,7 @@ void Graph::preprocess() {
             found |= cur_three_sep_removed > 0;
             three_sep_removed += cur_three_sep_removed;
         }
-        if(!found) {
+        if(!found && max_length_decrease == 0) {
             Vertex cur_max_length_decrease = limit_max_length();
             found |= cur_max_length_decrease > 0;
             max_length_decrease += cur_max_length_decrease;
@@ -1178,7 +1180,7 @@ Vertex Graph::limit_max_length() {
     // build the program
     std::stringstream prog_str;
     prog_str << "reach(X, 0) :- start(X).\n";
-    prog_str << ":~ goal(X), reach(X,Y). [-Y]\n";
+    // prog_str << ":~ goal(X), reach(X,Y). [-Y]\n";
     prog_str << "start(" << terminals_[0] << ").\n";
     prog_str << "goal(" << terminals_[1] << ").\n";
     prog_str << ":- reach(X, L), reach(X, L'), L != L'.\n";
@@ -1226,15 +1228,27 @@ Vertex Graph::limit_max_length() {
     Clingo::Control ctl{{}, logger, 20};
     ctl.add("base", {}, prog_str.str().c_str());
     ctl.ground({{"base", {}}});
-    auto handle = ctl.solve();
-    std::vector<std::vector<std::string>> answer_sets;
-    int64_t best_cost = -max_length_;
-    for (auto const& m : handle) {
-        for(auto c : m.cost()) {
-            best_cost = c;
+    ctl.configuration()["solve"]["solve_limit"] = "100000";
+    int64_t best_cost = max_length_;
+    bool impossible = true;
+    while(impossible) {
+        impossible = false;
+        auto atom = Clingo::Function("reach", {Clingo::Number(terminals_[1]), Clingo::Number(best_cost)});
+        auto atom_it = ctl.symbolic_atoms().find(atom);
+        if(atom_it == ctl.symbolic_atoms().end()) {
+            impossible = true;
+            assert(best_cost > 0);
+            best_cost--;
+            continue;
+        }
+        auto handle = ctl.solve(Clingo::LiteralSpan{(*atom_it).literal()});
+        if(handle.get().is_unsatisfiable()) {
+            impossible = true;
+            assert(best_cost > 0);
+            best_cost--;
         }
     }
     Edge_length prev_max = max_length_;
-    max_length_ = -best_cost;
+    max_length_ = best_cost;
     return prev_max - max_length_;
 }

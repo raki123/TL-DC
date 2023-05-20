@@ -11,8 +11,6 @@ decide what to do with dag_search:
     * keep: fix in the presence of exclusion constraints (how?)
     * disable in general (if it just performs badly)
 
-use some clingo options to figure out the longest path
-
 use less memory:
     * clear cache?
     * more succinct representation of results?

@@ -164,7 +164,7 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
         Edge_weight used_budget = 0;
         for(int i = cur_ap_components.size() - 1; i >= 0; i--) {
             terminals_[1] = cur_ap_start_goal[i].second;
-            std::fill(visited_.begin(), visited_.end(), 1);
+            std::fill(visited_.begin(), visited_.end(), true);
             for(Vertex v : cur_ap_components[i]) {
                 visited_[v] = false;
             }
