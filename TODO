@@ -1,9 +1,4 @@
 
-use articulation points:
-    * for preprocessing
-    * for inprocessing
-    -> split if articulation point is between start and goal
-if that doesnt help: prune single out vertices fast (via neighborhood)
 
 improve handling for exclusion constraints in preprocessing:
     * when are they actually a problem w.r.t. separating again?
@@ -13,14 +8,20 @@ incorporate paralellism
 
 decide what to do with dag_search:
     * currently: disable only in the presence of exclusion constraints
-    * keep:
-        - fix in the presence of exclusion constraints (how?)
+    * keep: fix in the presence of exclusion constraints (how?)
     * disable in general (if it just performs badly)
 
-dag_search can only trigger if the max_length_ can actually happen
--> e.g. for 002 we have max_length_ = 39 but the longest path thats shorter has length 38
--> check if/how we can adapt max_length_ efficiently
+use some clingo options to figure out the longest path
 
-cache visited instead of distance
+use less memory:
+    * cache visited instead of distance
+    * clear cache?
+    * more succinct representation of results?
 
-dynamic dijkstra
+order neighbors by edge-length (shortest first) to slightly improve pruning dijkstra performance
+
+articulation points:
+    * for preprocessing (doesnt actually seem to happen)
+    * figure out what to do with exclusion constraints during inprocessing
+
+dynamic dijkstra/articulation points
