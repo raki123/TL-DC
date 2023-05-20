@@ -4,19 +4,18 @@
 #include <unordered_map>
 #include <utility>
 
-typedef std::vector<Edge_length> CacheKey;
+typedef std::vector<char> CacheKey;
 
 extern clhasher hasher__;
 
-namespace std {
-    template<>
-    class hash<CacheKey> {
-    public:
-        size_t operator()(const CacheKey &key) const {
-            return hasher__(key);
-        }  
-    };
-}
+
+struct vector_hash {
+public:
+    size_t operator()(const CacheKey &key) const {
+        return hasher__(key);
+    }  
+};
+
 
 class Search {
     public:
@@ -41,7 +40,7 @@ class Search {
 
     std::vector<bool> visited_;
 
-    std::vector<std::vector<std::unordered_map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>>>> cache_; 
+    std::vector<std::vector<std::unordered_map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>, vector_hash>>> cache_; 
 
     // recursive search
     std::vector<Edge_weight> search(Vertex start, Edge_length budget);
@@ -54,6 +53,11 @@ class Search {
     bool ap_util(Vertex u, std::vector<char>& visited, std::vector<Vertex>& disc, std::vector<Vertex>& low, int& time, int parent, Vertex start);
     void prune_util(Vertex u);
     void component_util(Vertex u, std::vector<Vertex>& disc);
+
+    // ap datastructures
+    std::vector<Vertex> ap_disc_;
+    std::vector<Vertex> ap_low_;
+    std::vector<char> ap_visited_;
 
     // for splitting based on articulation points between start and goal
     Vertex last_ap_;

@@ -16,11 +16,14 @@ Search::Search(Graph& input) :  enable_dag_(true),
                                 visited_(adjacency_.size(), false),
                                 cache_( 
                                     adjacency_.size(), 
-                                    std::vector<std::unordered_map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>>>(
+                                    std::vector<std::unordered_map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>, vector_hash>>(
                                         adjacency_.size(), 
-                                        std::unordered_map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>>()
+                                        std::unordered_map<CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>, vector_hash>()
                                     )
-                                )  {
+                                ),
+                                ap_disc_(adjacency_.size()),
+                                ap_low_(adjacency_.size()),
+                                ap_visited_(adjacency_.size())  {
     assert(terminals_.size() == 2);
     for(Vertex v = 0; v < adjacency_.size();v++) {
         // fill neighbors
@@ -189,7 +192,7 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
         return result;
     }
     
-    auto cached_result = cache_[start][terminals_[1]].find(distance_to_goal_);
+    auto cached_result = cache_[start][terminals_[1]].find(ap_visited_);
     if(cached_result != cache_[start][terminals_[1]].end()) {
         if(cached_result->second.first >= budget) {
             pos_hits++;
@@ -202,7 +205,7 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
         }
     }
     neg_hits++;
-    auto cached_position = cache_[start][terminals_[1]].insert(std::make_pair(distance_to_goal_, std::make_pair(budget, std::vector<Edge_weight>())));
+    auto cached_position = cache_[start][terminals_[1]].insert(std::make_pair(ap_visited_, std::make_pair(budget, std::vector<Edge_weight>())));
     std::vector<Edge_weight> ret(budget + 1, 0);
     for(auto v : poss_dag) {
         std::vector<Edge_weight> tmp;
@@ -275,16 +278,16 @@ std::vector<Edge_weight> Search::dag_search(Vertex start, Edge_length budget) {
 void Search::prune_articulation(Vertex start) {
     ap_start_goal_.clear();
     ap_components_.clear();
+    std::fill(ap_visited_.begin(), ap_visited_.end(), false);
+    std::fill(ap_disc_.begin(), ap_disc_.end(), 0);
+    std::fill(ap_low_.begin(), ap_low_.end(), 0);
     last_ap_ = terminals_[1];
-    std::vector<Vertex> disc(adjacency_.size(), 0);
-    std::vector<Vertex> low(adjacency_.size(), 0);
-    std::vector<char> visited(adjacency_.size(), false);
     int time = 0;
-    ap_util(start, visited, disc, low, time, -1, start);
+    ap_util(start, ap_visited_, ap_disc_, ap_low_, time, -1, start);
     if(last_ap_ != terminals_[1]) {
         ap_start_goal_.push_back(std::make_pair(start, last_ap_));
         ap_components_.push_back({start});
-        component_util(start, disc);
+        component_util(start, ap_disc_);
     }
 }
 
@@ -326,6 +329,7 @@ bool Search::ap_util(Vertex u, std::vector<char>& visited, std::vector<Vertex>& 
                     distance_to_goal_[u] = invalid_;
                     // prune the rest
                     distance_to_goal_[v] = invalid_;
+                    ap_visited_[v] = false;
                     prune_util(v);
                     distance_to_goal_[u] = tmp;
                 } else {
@@ -352,6 +356,7 @@ void Search::prune_util(Vertex u) {
         // in DFS tree and recur for it
         if (distance_to_goal_[v] != invalid_ && !visited_[v]) {
             distance_to_goal_[v] = invalid_;
+            ap_visited_[v] = false;
             prune_util(v);
         }
     }
