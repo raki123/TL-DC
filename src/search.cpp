@@ -278,7 +278,7 @@ std::vector<Edge_weight> Search::dag_search(Vertex start, Edge_length budget) {
 void Search::prune_articulation(Vertex start) {
     ap_start_goal_.clear();
     ap_components_.clear();
-    std::fill(ap_visited_.begin(), ap_visited_.end(), false);
+    std::fill(ap_visited_.data_, ap_visited_.data_ + ap_visited_.chunks_, 0);
     std::fill(ap_disc_.begin(), ap_disc_.end(), 0);
     std::fill(ap_low_.begin(), ap_low_.end(), 0);
     last_ap_ = terminals_[1];
@@ -291,14 +291,14 @@ void Search::prune_articulation(Vertex start) {
     }
 }
 
-bool Search::ap_util(Vertex u, std::vector<char>& visited, std::vector<Vertex>& disc, std::vector<Vertex>& low, int& time, int parent, Vertex start) {
+bool Search::ap_util(Vertex u, Bitset& visited, std::vector<Vertex>& disc, std::vector<Vertex>& low, int& time, int parent, Vertex start) {
     // We do not need to check whether the root is an articulation point
     // since if it is, then the goal can only be in one of the induced components
     // for all the other components we cannot enter them since we cannot reach the goal from them
     // but this means that we have already pruned them using dijkstra
     
     // Mark the current node as visited
-    visited[u] = true;
+    visited.SetTrue(u);
 
     bool found_elsewhere = false;
  
@@ -312,7 +312,7 @@ bool Search::ap_util(Vertex u, std::vector<char>& visited, std::vector<Vertex>& 
         if(v != start && (distance_to_goal_[v] == invalid_ || visited_[v])) {
             continue;
         }
-        if (!visited[v]) {
+        if (!visited.Get(v)) {
             bool found_here = ap_util(v, visited, disc, low, time, u, start);
             found_elsewhere |= found_here;
  
@@ -329,7 +329,7 @@ bool Search::ap_util(Vertex u, std::vector<char>& visited, std::vector<Vertex>& 
                     distance_to_goal_[u] = invalid_;
                     // prune the rest
                     distance_to_goal_[v] = invalid_;
-                    ap_visited_[v] = false;
+                    visited.SetFalse(v);
                     prune_util(v);
                     distance_to_goal_[u] = tmp;
                 } else {
@@ -356,7 +356,7 @@ void Search::prune_util(Vertex u) {
         // in DFS tree and recur for it
         if (distance_to_goal_[v] != invalid_ && !visited_[v]) {
             distance_to_goal_[v] = invalid_;
-            ap_visited_[v] = false;
+            ap_visited_.SetFalse(v);
             prune_util(v);
         }
     }

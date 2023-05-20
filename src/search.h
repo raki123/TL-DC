@@ -1,10 +1,11 @@
 #pragma once
 #include "graph.h"
+#include "bitset.h"
 #include "clhash/clhash.h"
 #include <unordered_map>
 #include <utility>
 
-typedef std::vector<char> CacheKey;
+typedef Bitset CacheKey;
 
 extern clhasher hasher__;
 
@@ -12,7 +13,7 @@ extern clhasher hasher__;
 struct vector_hash {
 public:
     size_t operator()(const CacheKey &key) const {
-        return hasher__(key);
+        return hasher__(key.data_, key.chunks_);
     }  
 };
 
@@ -50,14 +51,14 @@ class Search {
 
 
     void prune_articulation(Vertex start);
-    bool ap_util(Vertex u, std::vector<char>& visited, std::vector<Vertex>& disc, std::vector<Vertex>& low, int& time, int parent, Vertex start);
+    bool ap_util(Vertex u, Bitset& visited, std::vector<Vertex>& disc, std::vector<Vertex>& low, int& time, int parent, Vertex start);
     void prune_util(Vertex u);
     void component_util(Vertex u, std::vector<Vertex>& disc);
 
     // ap datastructures
     std::vector<Vertex> ap_disc_;
     std::vector<Vertex> ap_low_;
-    std::vector<char> ap_visited_;
+    Bitset ap_visited_;
 
     // for splitting based on articulation points between start and goal
     Vertex last_ap_;
