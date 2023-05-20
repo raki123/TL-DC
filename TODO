@@ -14,9 +14,9 @@ decide what to do with dag_search:
 use some clingo options to figure out the longest path
 
 use less memory:
-    * cache visited instead of distance
     * clear cache?
     * more succinct representation of results?
+    * bitset for caching: slightly hurts performance but improves memory. see branch bitset.
 
 order neighbors by edge-length (shortest first) to slightly improve pruning dijkstra performance
 
