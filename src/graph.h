@@ -20,6 +20,7 @@ class Graph {
 
     public:
     friend class Search;
+    friend class ParallelSearch;
     Graph(std::istream &input);
 
     void preprocess();

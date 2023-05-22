@@ -37,6 +37,7 @@ find_package(Clingo REQUIRED)
 SET(SOURCES 
     src/graph.cpp
     src/search.cpp
+    src/parallel_search.cpp
 	src/clhash/clhash.c
 )
 add_executable (read src/main.cpp ${SOURCES})
