@@ -47,6 +47,7 @@ ParallelSearch::ParallelSearch(Graph& input) :
     for(Vertex v = 0; v < adjacency_.size(); v++) {
         dijkstra(v, distance_[v]);
     }
+    omp_set_num_threads(nthreads_);
 }
 
 std::vector<Edge_weight> ParallelSearch::search() {
