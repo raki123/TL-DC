@@ -6,7 +6,7 @@
 int main() {
     Graph graph(std::cin);
     graph.print_stats();
-    graph.preprocess();
+    // graph.preprocess();
     graph.normalize();
     graph.print_stats();
     ParallelSearch search(graph);

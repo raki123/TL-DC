@@ -15,9 +15,9 @@ ParallelSearch::ParallelSearch(Graph& input) :
                                 visited_(adjacency_.size(), false),
                                 cache_( 
                                     max_length_, 
-                                    std::vector<std::unordered_map<CacheKey, std::vector<Edge_weight>, vector_hash>>(
+                                    std::vector<std::unordered_map<PCacheKey, std::vector<Edge_weight>, pvector_hash>>(
                                         adjacency_.size(), 
-                                        std::unordered_map<CacheKey, std::vector<Edge_weight>, vector_hash>()
+                                        std::unordered_map<PCacheKey, std::vector<Edge_weight>, pvector_hash>()
                                     )
                                 ),
                                 result_(max_length_ + 1, 0),
@@ -50,8 +50,9 @@ ParallelSearch::ParallelSearch(Graph& input) :
 }
 
 std::vector<Edge_weight> ParallelSearch::search() {
-    std::vector<char> first_key(adjacency_.size(), false);
-    first_key[terminals_[0]] = true;
+    std::vector<Edge_length> first_key(adjacency_.size(), invalid_);
+    dijkstra(terminals_[1], first_key);
+    first_key[terminals_[0]] = invalid_;
     cache_[0][terminals_[0]][first_key] = {1};
     Vertex nr_vertices = adjacency_.size();
     // omp_set_num_threads(1);
@@ -62,10 +63,10 @@ std::vector<Edge_weight> ParallelSearch::search() {
                 Edge_length budget = max_length_ - length;
                 size_t thread_id = omp_get_thread_num();
                 for(auto task_it = cache_[length][start].begin(bucket); task_it != cache_[length][start].end(bucket); ++task_it) {
-                    auto const& visited = task_it->first;
+                    auto const& old_distance_to_goal = task_it->first;
                     auto const& result = task_it->second;
                     for(auto v : neighbors(start)) {
-                        if(visited[v]) {
+                        if(old_distance_to_goal[v] == invalid_) {
                             continue;
                         }
                         edges_[thread_id]++;
@@ -87,7 +88,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         std::vector<Edge_length> distance_to_goal(adjacency_.size(), invalid_);
                         // make sure we disable paths going through v
                         distance_to_goal[v] = 0;
-                        pruning_dijkstra(terminals_[1], v, distance_to_goal, visited, v_budget);
+                        pruning_dijkstra(terminals_[1], v, distance_to_goal, old_distance_to_goal, v_budget);
                         // unset the hack value for v
                         distance_to_goal[v] = invalid_;
                         std::vector<Vertex> poss_non_dag, poss_dag;
@@ -159,12 +160,12 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         // for(size_t i = 0; i < adjacency_.size(); i++) {
                         //     new_visited[i] = distance_to_goal[i] == invalid_;
                         // }
-                        prune_articulation(v, new_visited, distance_to_goal);
+                        prune_articulation(v, distance_to_goal);
                         new_visited[v] = true;
                         #pragma omp critical
                         {
                             auto ins = cache_[length + adjacency_[start][v][0].first][v].insert(
-                                std::make_pair(new_visited, new_result)
+                                std::make_pair(distance_to_goal, new_result)
                             );
                             if(!ins.second) {
                                 pos_hits_[thread_id]++;
@@ -197,21 +198,22 @@ std::vector<Edge_weight> ParallelSearch::search() {
 }
 
 
-void ParallelSearch::prune_articulation(Vertex start, std::vector<char>& visited, std::vector<Edge_length>& distance) {
-    std::vector<Edge_length> ap_disc(adjacency_.size(), 0);
-    std::vector<Edge_length> ap_low(adjacency_.size(), 0);
+void ParallelSearch::prune_articulation(Vertex start, std::vector<Edge_length>& distance) {
+    std::vector<Vertex> ap_disc(adjacency_.size(), 0);
+    std::vector<Vertex> ap_low(adjacency_.size(), 0);
+    std::vector<char> ap_visited(adjacency_.size(), false);
     int time = 0;
-    ap_util(start, visited, ap_disc, ap_low, time, -1, start, distance);
+    ap_util(start, ap_visited, ap_disc, ap_low, time, -1, start, distance);
 }
 
-bool ParallelSearch::ap_util(Vertex u, std::vector<char>& unvisited, std::vector<Vertex>& disc, std::vector<Vertex>& low, int& time, int parent, Vertex start, std::vector<Edge_length>& distance) {
+bool ParallelSearch::ap_util(Vertex u, std::vector<char>& visited, std::vector<Vertex>& disc, std::vector<Vertex>& low, int& time, int parent, Vertex start, std::vector<Edge_length>& distance) {
     // We do not need to check whether the root is an articulation point
     // since if it is, then the goal can only be in one of the induced components
     // for all the other components we cannot enter them since we cannot reach the goal from them
     // but this means that we have already pruned them using dijkstra
     
     // Mark the current node as visited
-    unvisited[u] = false;
+    visited[u] = true;
 
     bool found_elsewhere = false;
  
@@ -225,8 +227,8 @@ bool ParallelSearch::ap_util(Vertex u, std::vector<char>& unvisited, std::vector
         if(v != start && distance[v] == invalid_) {
             continue;
         }
-        if (unvisited[v]) {
-            bool found_here = ap_util(v, unvisited, disc, low, time, u, start, distance);
+        if (!visited[v]) {
+            bool found_here = ap_util(v, visited, disc, low, time, u, start, distance);
             found_elsewhere |= found_here;
  
             // Check if the subtree rooted with v has
@@ -238,9 +240,10 @@ bool ParallelSearch::ap_util(Vertex u, std::vector<char>& unvisited, std::vector
             if (parent != -1 && low[v] >= disc[u]) {
                 // AP
                 if(!found_here) {
-                    unvisited[u] = true;
-                    prune_util(v, unvisited);
-                    unvisited[u] = false;
+                    auto tmp = distance[u];
+                    distance[u] = invalid_;
+                    prune_util(v, distance);
+                    distance[u] = tmp;
                 }
             }
         } else if (v != parent) {
@@ -250,11 +253,11 @@ bool ParallelSearch::ap_util(Vertex u, std::vector<char>& unvisited, std::vector
     return found_elsewhere || u == terminals_[1];
 }
 
-void ParallelSearch::prune_util(Vertex u, std::vector<char>& unvisited) {
+void ParallelSearch::prune_util(Vertex u, std::vector<Edge_length>& distance) {
     for (auto v : neighbors(u)) {
-        if (!unvisited[v]) {
-            unvisited[v] = true;
-            prune_util(v, unvisited);
+        if (distance[v] != invalid_) {
+            distance[v] = invalid_;
+            prune_util(v, distance);
         }
     }
 }
@@ -281,7 +284,7 @@ void ParallelSearch::dijkstra(Vertex start, std::vector<Edge_length>& distance) 
         }
     }
 }
-void ParallelSearch::pruning_dijkstra(Vertex start, Vertex prune, std::vector<Edge_length>& distance, std::vector<char> const& visited, Edge_length budget) {
+void ParallelSearch::pruning_dijkstra(Vertex start, Vertex prune, std::vector<Edge_length>& distance, std::vector<Edge_length> const& old_distance, Edge_length budget) {
     std::deque<Vertex> queue;
     queue.push_back(start);
     distance[start] = 0;
@@ -290,7 +293,7 @@ void ParallelSearch::pruning_dijkstra(Vertex start, Vertex prune, std::vector<Ed
         auto cur_cost = distance[cur_vertex];
         queue.pop_front();
         for(auto &w : neighbors(cur_vertex)) {
-            if(cur_cost + 1 >= distance[w] || visited[w]) {
+            if(cur_cost + 1 >= distance[w] || old_distance[w] == invalid_) {
                 continue;
             }
             Edge_length min_cost = adjacency_[cur_vertex][w].begin()->first;

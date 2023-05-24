@@ -42,7 +42,10 @@ Graph::Graph(std::istream &input) {
             add_edge(Edge(v - 1,w - 1), Weight(1,1));
             break;
         case 'l':
-            input >> max_length_;
+            size_t tmp;
+            input >> tmp;
+            assert(tmp <= 127);
+            max_length_ = Edge_length(tmp);
             extra_paths_ = std::vector<Edge_weight>(max_length_ + 1, 0);
             break;
         case 't':
@@ -138,7 +141,7 @@ void Graph::print_stats() {
     if(three_sep_removed)           std::cerr << "Removed due to 3-separation: " << three_sep_removed << std::endl;
     if(max_length_decrease)         std::cerr << "Max length decreased by: " << max_length_decrease << std::endl;
     std::cerr << "#vertices " << adjacency_.size() << " #edges " << nr_edges;
-    std::cerr << " max. length " << max_length_ << " min. length " << distance_to_goal[terminals_[0]] << std::endl;
+    std::cerr << " max. length " << (size_t)max_length_ << " min. length " << (size_t)distance_to_goal[terminals_[0]] << std::endl;
 }
 
 void Graph::normalize() {

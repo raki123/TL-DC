@@ -5,7 +5,14 @@
 #include <utility>
 #include <omp.h>
 
-typedef std::vector<char> CacheKey;
+typedef std::vector<Edge_length> PCacheKey;
+
+struct pvector_hash {
+public:
+    size_t operator()(const PCacheKey &key) const {
+        return hasher__(key);
+    }  
+};
 
 class ParallelSearch {
     public:
@@ -30,7 +37,7 @@ class ParallelSearch {
 
     std::vector<char> visited_;
 
-    std::vector<std::vector<std::unordered_map<CacheKey, std::vector<Edge_weight>, vector_hash>>> cache_; 
+    std::vector<std::vector<std::unordered_map<PCacheKey, std::vector<Edge_weight>, pvector_hash>>> cache_; 
 
     std::vector<Edge_weight> result_;
     std::vector<std::vector<Edge_weight>> thread_local_result_;
@@ -42,9 +49,9 @@ class ParallelSearch {
 
 
 
-    void prune_articulation(Vertex start, std::vector<char>& visited, std::vector<Edge_length>& distance);
+    void prune_articulation(Vertex start, std::vector<Edge_length>& distance);
     bool ap_util(Vertex u, std::vector<char>& visited, std::vector<Vertex>& disc, std::vector<Vertex>& low, int& time, int parent, Vertex start, std::vector<Edge_length>& distance);
-    void prune_util(Vertex u, std::vector<char>& visited);
+    void prune_util(Vertex u, std::vector<Edge_length>& distance);
     // void component_util(Vertex u, std::vector<Vertex>& disc);
 
     // // ap datastructures
@@ -60,7 +67,7 @@ class ParallelSearch {
     // helper functions
     std::vector<Vertex> neighbors(Vertex v) { assert(v >= 0 && v < neighbors_.size()); return neighbors_[v]; };
     void dijkstra(Vertex start, std::vector<Edge_length>& distance);
-    void pruning_dijkstra(Vertex start, Vertex prune, std::vector<Edge_length>& distance, std::vector<char> const& visited, Edge_length budget);
+    void pruning_dijkstra(Vertex start, Vertex prune, std::vector<Edge_length>& distance, std::vector<Edge_length> const& old_distance, Edge_length budget);
 
     // stats
     std::vector<size_t> pos_hits_;

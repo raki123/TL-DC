@@ -11,7 +11,7 @@
 
 typedef uint16_t Vertex;
 typedef std::pair<Vertex,Vertex> Edge;
-typedef uint16_t Edge_length;
+typedef uint8_t Edge_length;
 typedef uint64_t Edge_weight;
 typedef std::pair<Edge_length, Edge_weight> Weight;
 typedef std::priority_queue<std::pair<Edge_length, Vertex>, std::vector<std::pair<Edge_length, Vertex>>, std::greater<std::pair<Edge_length, Vertex>>> DijkstraQueue;
