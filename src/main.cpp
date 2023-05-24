@@ -1,5 +1,6 @@
 #include "graph.h"
 #include "search.h"
+#include "parallel_search.h"
 
 #include <iostream>
 
@@ -9,7 +10,7 @@ int main() {
     graph.preprocess();
     graph.normalize();
     graph.print_stats();
-    Search search(graph);
+    ParallelSearch search(graph);
     auto res = search.search();
     Edge_weight final_result = 0;
     Edge_length min_idx = graph.is_all_pair() ? 3 : 0;
@@ -30,6 +31,5 @@ int main() {
         final_result /= 2;  
     }
     std::cout << final_result << std::endl;
-    search.print_stats();
     return 0;
 }
