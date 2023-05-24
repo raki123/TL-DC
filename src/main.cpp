@@ -1,5 +1,4 @@
 #include "graph.h"
-#include "search.h"
 #include "parallel_search.h"
 
 #include <iostream>
@@ -31,5 +30,6 @@ int main() {
         final_result /= 2;  
     }
     std::cout << final_result << std::endl;
+    search.print_stats();
     return 0;
 }

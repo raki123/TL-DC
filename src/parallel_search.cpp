@@ -1,7 +1,6 @@
 #include "parallel_search.h"
 #include <queue>
 #include <limits>
-#include <omp.h>
 
 
 ParallelSearch::ParallelSearch(Graph& input) :  
@@ -15,7 +14,7 @@ ParallelSearch::ParallelSearch(Graph& input) :
                                 distance_(adjacency_.size(), std::vector<Edge_length>(adjacency_.size(), invalid_)),
                                 visited_(adjacency_.size(), false),
                                 cache_( 
-                                    max_length_ + 1, 
+                                    max_length_, 
                                     std::vector<std::unordered_map<CacheKey, std::vector<Edge_weight>, vector_hash>>(
                                         adjacency_.size(), 
                                         std::unordered_map<CacheKey, std::vector<Edge_weight>, vector_hash>()
@@ -25,7 +24,12 @@ ParallelSearch::ParallelSearch(Graph& input) :
                                 thread_local_result_(
                                     nthreads_,
                                     std::vector<Edge_weight>(max_length_ + 1, 0)
-                                )  {
+                                ),
+                                pos_hits_(OMP_NUM_THREADS, 0),
+                                neg_hits_(OMP_NUM_THREADS, 0),
+                                edges_(OMP_NUM_THREADS, 0),
+                                propagations_(OMP_NUM_THREADS, 0),
+                                dags_(OMP_NUM_THREADS, 0)  {
     assert(terminals_.size() == 2);
     for(Vertex v = 0; v < adjacency_.size();v++) {
         // fill neighbors
@@ -51,7 +55,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
     cache_[0][terminals_[0]][first_key] = {1};
     Vertex nr_vertices = adjacency_.size();
     // omp_set_num_threads(1);
-    for(Edge_length length = 0; length <= max_length_; length++) {
+    for(Edge_length length = 0; length < max_length_; length++) {
         for(Vertex start = 0; start < nr_vertices; start++) {
             #pragma omp parallel for default(none) shared(std::cerr) shared(length) shared(start) shared(adjacency_) shared(cache_) shared(distance_) shared(invalid_) shared(thread_local_result_) shared(terminals_)
             for(size_t bucket = 0; bucket < cache_[length][start].bucket_count(); bucket++) {
@@ -64,6 +68,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         if(visited[v]) {
                             continue;
                         }
+                        edges_[thread_id]++;
                         // update the partial result
                         std::vector<Edge_weight> new_result(result.size() + adjacency_[start][v].back().first, 0);
                         for(Edge_length res_length = 0; res_length < result.size(); res_length++) {
@@ -151,17 +156,18 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         //     return ret;
                         // }
                         std::vector<char> new_visited(adjacency_.size(), true);
-                        for(size_t i = 0; i < new_visited.size(); i++) {
-                            new_visited[i] = distance_to_goal[i] == invalid_;
-                        }
-                        // prune_articulation(v, new_visited, distance_to_goal);
-                        // new_visited[v] = true;
+                        // for(size_t i = 0; i < adjacency_.size(); i++) {
+                        //     new_visited[i] = distance_to_goal[i] == invalid_;
+                        // }
+                        prune_articulation(v, new_visited, distance_to_goal);
+                        new_visited[v] = true;
                         #pragma omp critical
                         {
                             auto ins = cache_[length + adjacency_[start][v][0].first][v].insert(
                                 std::make_pair(new_visited, new_result)
                             );
                             if(!ins.second) {
+                                pos_hits_[thread_id]++;
                                 // there is already an element with that key
                                 // instead increase the partial result for that key
                                 if(ins.first->second.size() < new_result.size()) {
@@ -170,13 +176,17 @@ std::vector<Edge_weight> ParallelSearch::search() {
                                 for(Edge_length res_length = 0; res_length < new_result.size(); res_length++) {
                                     ins.first->second[res_length] += new_result[res_length];
                                 }
+                            } else {
+                                neg_hits_[thread_id]++;
                             }
                         }
                     }
                 }
             }
         }
-        cache_[length].clear();
+        cache_[length].resize(0);
+        // std::cerr << length << std::endl;
+        // print_stats();
     }
     for(Edge_length length = 0; length <= max_length_; length++) {
         for(size_t id = 0; id < nthreads_; id++) {
@@ -228,13 +238,9 @@ bool ParallelSearch::ap_util(Vertex u, std::vector<char>& unvisited, std::vector
             if (parent != -1 && low[v] >= disc[u]) {
                 // AP
                 if(!found_here) {
-                    auto tmp = distance[u];
-                    distance[u] = invalid_;
-                    // prune the rest
-                    distance[v] = invalid_;
-                    unvisited[v] = true;
-                    prune_util(v, unvisited, distance);
-                    distance[u] = tmp;
+                    unvisited[u] = true;
+                    prune_util(v, unvisited);
+                    unvisited[u] = false;
                 }
             }
         } else if (v != parent) {
@@ -244,12 +250,11 @@ bool ParallelSearch::ap_util(Vertex u, std::vector<char>& unvisited, std::vector
     return found_elsewhere || u == terminals_[1];
 }
 
-void ParallelSearch::prune_util(Vertex u, std::vector<char>& unvisited, std::vector<Edge_length>& distance) {
+void ParallelSearch::prune_util(Vertex u, std::vector<char>& unvisited) {
     for (auto v : neighbors(u)) {
         if (!unvisited[v]) {
             unvisited[v] = true;
-            distance[v] = invalid_;
-            prune_util(v, unvisited, distance);
+            prune_util(v, unvisited);
         }
     }
 }
@@ -295,4 +300,25 @@ void ParallelSearch::pruning_dijkstra(Vertex start, Vertex prune, std::vector<Ed
             }
         }
     }
+}
+
+void ParallelSearch::print_stats() {
+    size_t pos_hits = 0, neg_hits = 0;
+    for(size_t i = 0; i < OMP_NUM_THREADS; i++) {
+        pos_hits += pos_hits_[i];
+        neg_hits += neg_hits_[i];
+    }
+    size_t dags = 0, splits = 0;
+    for(size_t i = 0; i < OMP_NUM_THREADS; i++) {
+        dags += dags_[i];
+        // splits += neg_hits_[i];
+    }
+    size_t edges = 0, propagations = 0;
+    for(size_t i = 0; i < OMP_NUM_THREADS; i++) {
+        edges += edges_[i];
+        propagations += propagations_[i];
+    }
+    std::cerr << "Cache hit rate: " << 100*pos_hits/(double)(pos_hits + neg_hits) << "% (" << pos_hits << "/" << pos_hits + neg_hits << ")" << std::endl;
+    std::cerr << "#DAG searches: " << dags << " #Splits: " << splits << std::endl;
+    std::cerr << "#Edges: " << edges << " #Propagations: " << propagations << std::endl;
 }

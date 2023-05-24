@@ -3,6 +3,7 @@
 #include "search.h"
 #include <unordered_map>
 #include <utility>
+#include <omp.h>
 
 typedef std::vector<char> CacheKey;
 
@@ -12,7 +13,7 @@ class ParallelSearch {
 
     std::vector<Edge_weight> search();
 
-    // void print_stats();
+    void print_stats();
     private:
     size_t nthreads_;
     bool enable_dag_;
@@ -43,7 +44,7 @@ class ParallelSearch {
 
     void prune_articulation(Vertex start, std::vector<char>& visited, std::vector<Edge_length>& distance);
     bool ap_util(Vertex u, std::vector<char>& visited, std::vector<Vertex>& disc, std::vector<Vertex>& low, int& time, int parent, Vertex start, std::vector<Edge_length>& distance);
-    void prune_util(Vertex u, std::vector<char>& visited, std::vector<Edge_length>& distance);
+    void prune_util(Vertex u, std::vector<char>& visited);
     // void component_util(Vertex u, std::vector<Vertex>& disc);
 
     // // ap datastructures
@@ -61,15 +62,14 @@ class ParallelSearch {
     void dijkstra(Vertex start, std::vector<Edge_length>& distance);
     void pruning_dijkstra(Vertex start, Vertex prune, std::vector<Edge_length>& distance, std::vector<char> const& visited, Edge_length budget);
 
-    // // stats
-    // size_t pos_hits = 0;
-    // size_t neg_hits = 0;
+    // stats
+    std::vector<size_t> pos_hits_;
+    std::vector<size_t> neg_hits_;
 
     // size_t splits = 0;
 
-    // size_t edges = 0;
-    // size_t propagations = 0;
-    // size_t dags = 0;
-
+    std::vector<size_t> edges_;
+    std::vector<size_t> propagations_;
+    std::vector<size_t> dags_;
 
 };
