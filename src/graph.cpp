@@ -1,5 +1,5 @@
 #include "graph.h"
-#include "search.h"
+#include "parallel_search.h"
 #include <clingo.hh>
 #include <algorithm>
 #include <map>
@@ -42,7 +42,10 @@ Graph::Graph(std::istream &input) {
             add_edge(Edge(v - 1,w - 1), Weight(1,1));
             break;
         case 'l':
-            input >> max_length_;
+            size_t tmp;
+            input >> tmp;
+            assert(tmp <= 127);
+            max_length_ = Edge_length(tmp);
             extra_paths_ = std::vector<Edge_weight>(max_length_ + 1, 0);
             break;
         case 't':
@@ -107,11 +110,11 @@ void Graph::preprocess() {
             found |= cur_two_sep_removed > 0;
             two_sep_removed += cur_two_sep_removed;
         }
-        if(!found) {
-            Vertex cur_three_sep_removed = preprocess_three_separator();
-            found |= cur_three_sep_removed > 0;
-            three_sep_removed += cur_three_sep_removed;
-        }
+        // if(!found) {
+        //     Vertex cur_three_sep_removed = preprocess_three_separator();
+        //     found |= cur_three_sep_removed > 0;
+        //     three_sep_removed += cur_three_sep_removed;
+        // }
         if(!found && max_length_decrease == 0) {
             Vertex cur_max_length_decrease = limit_max_length();
             found |= cur_max_length_decrease > 0;
@@ -138,7 +141,7 @@ void Graph::print_stats() {
     if(three_sep_removed)           std::cerr << "Removed due to 3-separation: " << three_sep_removed << std::endl;
     if(max_length_decrease)         std::cerr << "Max length decreased by: " << max_length_decrease << std::endl;
     std::cerr << "#vertices " << adjacency_.size() << " #edges " << nr_edges;
-    std::cerr << " max. length " << max_length_ << " min. length " << distance_to_goal[terminals_[0]] << std::endl;
+    std::cerr << " max. length " << (size_t)max_length_ << " min. length " << (size_t)distance_to_goal[terminals_[0]] << std::endl;
 }
 
 void Graph::normalize() {
@@ -699,9 +702,9 @@ Vertex Graph::preprocess_two_separator() {
     // if the separator can split start and goal it should have a minimum size
     // otherwise we can separate if the start or the goal have less than two neighbors
     std::vector<Vertex> separator = find_separator(2, 1, true);
-    if(separator.size() == 0) {
-        separator = find_separator(2, 4, false);
-    }
+    // if(separator.size() == 0) {
+    //     separator = find_separator(2, 4, false);
+    // }
     if(separator.size() == 0) {
         return 0;
     }
@@ -724,7 +727,7 @@ Vertex Graph::preprocess_two_separator() {
         // different cases depending on whether there 0/1/2 of the terminals in the component
         bool found_start = std::find(comp.begin(), comp.end(), terminals_[0]) != comp.end();
         bool found_goal = std::find(comp.begin(), comp.end(), terminals_[1]) != comp.end();
-        if(found_goal && found_start) {
+        if(found_goal || found_start) {
             // nothing we can do
             continue;
         } 
@@ -794,7 +797,7 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph.terminals_ = {0, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
-            Search search(comp_graph);
+            ParallelSearch search(comp_graph);
             auto res = search.search();
             auto res_extra = comp_graph.extra_paths();
             res.resize(max_length_ + 1);
@@ -815,7 +818,7 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph.terminals_ = {0, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
-            search = Search(comp_graph);
+            search = ParallelSearch(comp_graph);
             res = search.search();
             res_extra = comp_graph.extra_paths();
             res.resize(max_length_ + 1);
@@ -841,7 +844,7 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph.terminals_ = {1, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
-            search = Search(comp_graph);
+            search = ParallelSearch(comp_graph);
             res = search.search();
             res_extra = comp_graph.extra_paths();
             res.resize(max_length_ + 1);
@@ -862,7 +865,7 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph.terminals_ = {0, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
-            search = Search(comp_graph);
+            search = ParallelSearch(comp_graph);
             res = search.search();
             res_extra = comp_graph.extra_paths();
             res.resize(max_length_ + 1);
@@ -947,7 +950,7 @@ Vertex Graph::preprocess_two_separator() {
         comp_graph.preprocess();
         comp_graph.normalize();
         // comp_graph.print_stats();
-        Search search(comp_graph);
+        ParallelSearch search(comp_graph);
         auto res = search.search();
         // search.print_stats();
         auto res_extra = comp_graph.extra_paths();
@@ -1087,7 +1090,7 @@ Vertex Graph::preprocess_three_separator() {
                 comp_graph.terminals_ = {0, 1};
                 comp_graph.preprocess();
                 comp_graph.normalize();
-                Search search(comp_graph);
+                ParallelSearch search(comp_graph);
                 auto res = search.search();
                 auto res_extra = comp_graph.extra_paths();
                 res.resize(max_length_ + 1);

@@ -1,15 +1,15 @@
 #include "graph.h"
-#include "search.h"
+#include "parallel_search.h"
 
 #include <iostream>
 
 int main() {
     Graph graph(std::cin);
     graph.print_stats();
-    graph.preprocess();
+    // graph.preprocess();
     graph.normalize();
     graph.print_stats();
-    Search search(graph);
+    ParallelSearch search(graph);
     auto res = search.search();
     Edge_weight final_result = 0;
     Edge_length min_idx = graph.is_all_pair() ? 3 : 0;
