@@ -5,7 +5,7 @@
 
 
 ParallelSearch::ParallelSearch(Graph& input) :  
-                                nthreads_(omp_get_num_threads()),
+                                nthreads_(OMP_NUM_THREADS),
                                 enable_dag_(true),
                                 max_length_(input.max_length_),
                                 terminals_(input.terminals_),
@@ -50,7 +50,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
     first_key[terminals_[0]] = true;
     cache_[0][terminals_[0]][first_key] = {1};
     Vertex nr_vertices = adjacency_.size();
-    omp_set_num_threads(1);
+    // omp_set_num_threads(1);
     for(Edge_length length = 0; length <= max_length_; length++) {
         for(Vertex start = 0; start < nr_vertices; start++) {
             #pragma omp parallel for default(none) shared(std::cerr) shared(length) shared(start) shared(adjacency_) shared(cache_) shared(distance_) shared(invalid_) shared(thread_local_result_) shared(terminals_)
@@ -151,8 +151,11 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         //     return ret;
                         // }
                         std::vector<char> new_visited(adjacency_.size(), true);
-                        prune_articulation(v, new_visited, distance_to_goal);
-                        new_visited[v] = true;
+                        for(size_t i = 0; i < new_visited.size(); i++) {
+                            new_visited[i] = distance_to_goal[i] == invalid_;
+                        }
+                        // prune_articulation(v, new_visited, distance_to_goal);
+                        // new_visited[v] = true;
                         #pragma omp critical
                         {
                             auto ins = cache_[length + adjacency_[start][v][0].first][v].insert(
@@ -173,6 +176,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
                 }
             }
         }
+        cache_[length].clear();
     }
     for(Edge_length length = 0; length <= max_length_; length++) {
         for(size_t id = 0; id < nthreads_; id++) {
