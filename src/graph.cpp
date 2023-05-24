@@ -141,7 +141,7 @@ void Graph::print_stats() {
     if(three_sep_removed)           std::cerr << "Removed due to 3-separation: " << three_sep_removed << std::endl;
     if(max_length_decrease)         std::cerr << "Max length decreased by: " << max_length_decrease << std::endl;
     std::cerr << "#vertices " << adjacency_.size() << " #edges " << nr_edges;
-    std::cerr << " max. length " << (size_t)max_length_ << " min. length " << (size_t)distance_to_goal[terminals_[0]] << std::endl;
+    std::cerr << " max. length " << static_cast<size_t>(max_length_) << " min. length " << static_cast<size_t>(distance_to_goal[terminals_[0]]) << std::endl;
 }
 
 void Graph::normalize() {
@@ -1210,13 +1210,13 @@ Vertex Graph::limit_max_length() {
             }
         }
         for(auto &[w, length] : edges) {
-            prog_str << "reach(" << w << ",L + L') :- reach(" << v << ", L), edge(" << v << "," << w << ",L'), L <= " << max_length_ - distance_to_goal[w] - length;
-            prog_str << ", L>= " << distance_from_start[v] << ".\n";
-            prog_str << "edge(" << v << "," << w << "," << length << ") :- reach(" << v << ", L), L <= " << max_length_ - distance_to_goal[w] - length;
-            prog_str << ", L>= " << distance_from_start[v];
+            prog_str << "reach(" << w << ",L + L') :- reach(" << v << ", L), edge(" << v << "," << w << ",L'), L <= " << static_cast<size_t>(max_length_ - distance_to_goal[w] - length);
+            prog_str << ", L>= " << static_cast<size_t>(distance_from_start[v]) << ".\n";
+            prog_str << "edge(" << v << "," << w << "," << static_cast<size_t>(length) << ") :- reach(" << v << ", L), L <= " << static_cast<size_t>(max_length_ - distance_to_goal[w] - length);
+            prog_str << ", L>= " << static_cast<size_t>(distance_from_start[v]);
             for(auto &[wp, lengthp] : edges) {
                 if(w != wp || length != lengthp) {
-                    prog_str << ", not edge(" << v << "," << wp << "," << lengthp << ")";
+                    prog_str << ", not edge(" << v << "," << wp << "," << static_cast<size_t>(lengthp) << ")";
                 }
             }
             prog_str << ".\n";

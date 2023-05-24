@@ -242,6 +242,7 @@ bool ParallelSearch::ap_util(Vertex u, std::vector<char>& visited, std::vector<V
                 if(!found_here) {
                     auto tmp = distance[u];
                     distance[u] = invalid_;
+                    distance[v] = invalid_;
                     prune_util(v, distance);
                     distance[u] = tmp;
                 }
