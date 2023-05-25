@@ -66,11 +66,46 @@ std::vector<Edge_weight> ParallelSearch::search() {
                 for(auto task_it = cache_[length][start].begin(bucket); task_it != cache_[length][start].end(bucket); ++task_it) {
                     auto const& old_distance_to_goal = task_it->first;
                     auto const& result = task_it->second;
+                    std::vector<Vertex> poss_non_dag, poss_dag;
                     for(auto v : neighbors(start)) {
-                        if(old_distance_to_goal[v] == invalid_) {
+                        if(v == terminals_[1]) {
+                            edges_[thread_id]++;
+                            // update the partial result
+                            std::vector<Edge_weight> new_result(result.size() + adjacency_[start][v].back().first, 0);
+                            for(Edge_length res_length = 0; res_length < result.size(); res_length++) {
+                                for(auto [e_length, e_weight] : adjacency_[start][v]) {
+                                    new_result[res_length + e_length] += result[res_length] * e_weight;
+                                }
+                            }
+                            new_result.resize(std::min(Edge_length(new_result.size()), Edge_length(max_length_ + 1)));
+                            if(v == terminals_[1]) {
+                                for(Edge_length res_length = 0; res_length < new_result.size(); res_length++) {
+                                    thread_local_result_[thread_id][res_length] += new_result[res_length];
+                                }
+                                continue;
+                            }
+                        }
+                        if(budget > old_distance_to_goal[v] + adjacency_[start][v].begin()->first) {
+                            edges_[thread_id]++;
+                            poss_non_dag.push_back(v);
+                        }
+                        if(budget == old_distance_to_goal[v] + adjacency_[start][v].begin()->first) {
+                            edges_[thread_id]++;
+                            dags_[thread_id]++;
+                            // update the partial result
+                            std::vector<Edge_weight> new_result(result.size() + adjacency_[start][v].back().first, 0);
+                            for(Edge_length res_length = 0; res_length < result.size(); res_length++) {
+                                for(auto [e_length, e_weight] : adjacency_[start][v]) {
+                                    new_result[res_length + e_length] += result[res_length] * e_weight;
+                                }
+                            }
+                            new_result.resize(std::min(Edge_length(new_result.size()), Edge_length(max_length_ + 1)));
+                            Edge_weight remaining_result = dag_search(v, old_distance_to_goal);
+                            thread_local_result_[thread_id][max_length_] += new_result[max_length_ - old_distance_to_goal[v]]*remaining_result;
                             continue;
                         }
-                        edges_[thread_id]++;
+                    }
+                    for(auto v : poss_non_dag) {
                         // update the partial result
                         std::vector<Edge_weight> new_result(result.size() + adjacency_[start][v].back().first, 0);
                         for(Edge_length res_length = 0; res_length < result.size(); res_length++) {
@@ -79,12 +114,6 @@ std::vector<Edge_weight> ParallelSearch::search() {
                             }
                         }
                         new_result.resize(std::min(Edge_length(new_result.size()), Edge_length(max_length_ + 1)));
-                        if(v == terminals_[1]) {
-                            for(Edge_length res_length = 0; res_length < new_result.size(); res_length++) {
-                                thread_local_result_[thread_id][res_length] += new_result[res_length];
-                            }
-                            continue;
-                        }
                         Edge_length v_budget = budget - adjacency_[start][v][0].first;
                         std::vector<Edge_length> distance_to_goal(adjacency_.size(), invalid_);
                         // make sure we disable paths going through v
@@ -92,15 +121,6 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         pruning_dijkstra(terminals_[1], v, distance_to_goal, old_distance_to_goal, v_budget);
                         // unset the hack value for v
                         distance_to_goal[v] = invalid_;
-                        std::vector<Vertex> poss_non_dag, poss_dag;
-                        for(auto w : neighbors(v)) {
-                            if(v_budget > distance_to_goal[w] + adjacency_[v][w].begin()->first) {
-                                poss_non_dag.push_back(w);
-                            }
-                            if(v_budget == distance_to_goal[w] + adjacency_[v][w].begin()->first) {
-                                poss_dag.push_back(w);
-                            }
-                        }
                         // // there is no edge
                         // if(poss_non_dag.size() + poss_dag.size() == 0) {
                         //     visited_[start] = false;
@@ -157,12 +177,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         //     }
                         //     return ret;
                         // }
-                        std::vector<char> new_visited(adjacency_.size(), true);
-                        // for(size_t i = 0; i < adjacency_.size(); i++) {
-                        //     new_visited[i] = distance_to_goal[i] == invalid_;
-                        // }
                         prune_articulation(v, distance_to_goal);
-                        new_visited[v] = true;
                         #pragma omp critical
                         {
                             auto ins = cache_[length + adjacency_[start][v][0].first][v].insert(
@@ -198,6 +213,36 @@ std::vector<Edge_weight> ParallelSearch::search() {
     return result_;
 }
 
+Edge_weight ParallelSearch::dag_search(Vertex start, std::vector<Edge_length> const& distance_to_goal) {
+    std::priority_queue<std::pair<Edge_length, Vertex>> biggest_first_queue;
+    std::vector<Edge_weight> dp(adjacency_.size(), 0);
+    std::vector<char> in_queue(adjacency_.size(), false);
+    dp[start] = 1;
+    biggest_first_queue.push(std::make_pair(distance_to_goal[start], start));
+    while(!biggest_first_queue.empty()) {
+        auto [cur_cost, cur_vertex] = biggest_first_queue.top();
+        biggest_first_queue.pop();
+        for(auto &w : neighbors(cur_vertex)) {
+            if(distance_to_goal[w] == invalid_) {
+                continue;
+            }
+            auto edge_cost = adjacency_[w][cur_vertex].begin()->first;
+            // this edge can be part of a shorted path in direction w -> cur_vertex
+            if(distance_to_goal[w] == distance_to_goal[cur_vertex] + edge_cost) {
+                auto factor = adjacency_[w][cur_vertex].begin()->second;
+                dp[cur_vertex] += factor*dp[w];
+            // this edge can be part of a shorted path in direction cur_vertex -> w
+            } else if(distance_to_goal[w] + edge_cost == distance_to_goal[cur_vertex]) {
+                if(!in_queue[w]) {
+                    biggest_first_queue.push(std::make_pair(distance_to_goal[w], w));
+                    in_queue[w] = true;
+                }
+            }
+        }
+    }
+    assert(dp[terminals_[1]] >= 1);
+    return dp[terminals_[1]];
+}
 
 void ParallelSearch::prune_articulation(Vertex start, std::vector<Edge_length>& distance) {
     std::vector<Vertex> ap_disc(adjacency_.size(), 0);

@@ -44,8 +44,8 @@ class ParallelSearch {
 
     // // recursive search
     // std::vector<Edge_weight> search(Vertex start, Edge_length budget);
-    // // more efficient search if budget is equal to length of shortest path
-    // std::vector<Edge_weight> dag_search(Vertex start, Edge_length budget);
+    // more efficient search if budget is equal to length of shortest path
+    Edge_weight dag_search(Vertex start, std::vector<Edge_length> const& distance_to_goal);
 
 
 
