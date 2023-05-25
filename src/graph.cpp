@@ -62,7 +62,7 @@ Graph::Graph(std::istream &input) {
     }
     assert(max_length_ + 1 == extra_paths_.size());
     assert(adjacency_.size() > 0);
-    max_length_ = std::min(Edge_length(nr_vertices - 1), max_length_);
+    max_length_ = Edge_length(std::min(nr_vertices - 1, int(max_length_)));
     extra_paths_ = std::vector<Edge_weight>(max_length_ + 1, 0);
     if(terminals_.empty()) {
         terminals_ = {nr_vertices, Vertex(nr_vertices + 1)};
