@@ -71,19 +71,15 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         if(v == terminals_[1]) {
                             edges_[thread_id]++;
                             // update the partial result
-                            std::vector<Edge_weight> new_result(result.size() + adjacency_[start][v].back().first, 0);
                             for(Edge_length res_length = 0; res_length < result.size(); res_length++) {
                                 for(auto [e_length, e_weight] : adjacency_[start][v]) {
-                                    new_result[res_length + e_length] += result[res_length] * e_weight;
+                                    if(res_length + e_length > max_length_) {
+                                        break;
+                                    }
+                                    thread_local_result_[thread_id][res_length + e_length] += result[res_length] * e_weight;
                                 }
                             }
-                            new_result.resize(std::min(Edge_length(new_result.size()), Edge_length(max_length_ + 1)));
-                            if(v == terminals_[1]) {
-                                for(Edge_length res_length = 0; res_length < new_result.size(); res_length++) {
-                                    thread_local_result_[thread_id][res_length] += new_result[res_length];
-                                }
-                                continue;
-                            }
+                            continue;
                         }
                         if(budget > old_distance_to_goal[v] + adjacency_[start][v].begin()->first) {
                             edges_[thread_id]++;
@@ -92,16 +88,9 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         if(budget == old_distance_to_goal[v] + adjacency_[start][v].begin()->first) {
                             edges_[thread_id]++;
                             dags_[thread_id]++;
-                            // update the partial result
-                            std::vector<Edge_weight> new_result(result.size() + adjacency_[start][v].back().first, 0);
-                            for(Edge_length res_length = 0; res_length < result.size(); res_length++) {
-                                for(auto [e_length, e_weight] : adjacency_[start][v]) {
-                                    new_result[res_length + e_length] += result[res_length] * e_weight;
-                                }
-                            }
-                            new_result.resize(std::min(Edge_length(new_result.size()), Edge_length(max_length_ + 1)));
+                            Edge_weight result_until = result[max_length_ - budget] * adjacency_[start][v][0].second;
                             Edge_weight remaining_result = dag_search(v, old_distance_to_goal);
-                            thread_local_result_[thread_id][max_length_] += new_result[max_length_ - old_distance_to_goal[v]]*remaining_result;
+                            thread_local_result_[thread_id][max_length_] += result_until*remaining_result;
                             continue;
                         }
                     }
@@ -113,7 +102,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
                                 new_result[res_length + e_length] += result[res_length] * e_weight;
                             }
                         }
-                        new_result.resize(std::min(Edge_length(new_result.size()), Edge_length(max_length_ + 1)));
+                        new_result.resize(std::min(Edge_length(new_result.size()), Edge_length(max_length_)));
                         Edge_length v_budget = budget - adjacency_[start][v][0].first;
                         std::vector<Edge_length> distance_to_goal(adjacency_.size(), invalid_);
                         // make sure we disable paths going through v
