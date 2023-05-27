@@ -14,7 +14,7 @@ ParallelSearch::ParallelSearch(Graph& input) :
                                 distance_(adjacency_.size(), std::vector<Edge_length>(adjacency_.size(), invalid_)),
                                 visited_(adjacency_.size(), false),
                                 cache_( 
-                                    max_length_, 
+                                    adjacency_.size() + 1,
                                     std::vector<std::unordered_map<PCacheKey, std::vector<Edge_weight>, pvector_hash>>(
                                         adjacency_.size(), 
                                         std::unordered_map<PCacheKey, std::vector<Edge_weight>, pvector_hash>()
@@ -54,18 +54,22 @@ std::vector<Edge_weight> ParallelSearch::search() {
     std::vector<Edge_length> first_key(adjacency_.size(), invalid_);
     dijkstra(terminals_[1], first_key);
     first_key[terminals_[0]] = invalid_;
-    cache_[0][terminals_[0]][first_key] = {1};
+    cache_[adjacency_.size() - 1][terminals_[0]][first_key] = {1};
     Vertex nr_vertices = adjacency_.size();
     // omp_set_num_threads(1);
-    for(Edge_length length = 0; length < max_length_; length++) {
+    for(Vertex remaining_size = adjacency_.size(); remaining_size-- > 0; ) {
         for(Vertex start = 0; start < nr_vertices; start++) {
-            #pragma omp parallel for default(none) shared(max_length_) shared(length) shared(start) shared(adjacency_) shared(cache_) shared(distance_) shared(invalid_) shared(thread_local_result_) shared(terminals_)
-            for(size_t bucket = 0; bucket < cache_[length][start].bucket_count(); bucket++) {
-                Edge_length budget = max_length_ - length;
+            #pragma omp parallel for default(none) shared(max_length_) shared(remaining_size) shared(start) shared(adjacency_) shared(cache_) shared(distance_) shared(invalid_) shared(thread_local_result_) shared(terminals_)
+            for(size_t bucket = 0; bucket < cache_[remaining_size][start].bucket_count(); bucket++) {
+
                 size_t thread_id = omp_get_thread_num();
-                for(auto task_it = cache_[length][start].begin(bucket); task_it != cache_[length][start].end(bucket); ++task_it) {
+                for(auto task_it = cache_[remaining_size][start].begin(bucket); task_it != cache_[remaining_size][start].end(bucket); ++task_it) {
                     auto const& old_distance_to_goal = task_it->first;
                     auto const& result = task_it->second;
+                    Edge_length budget = max_length_;
+                    while(result[max_length_ - budget] == 0) {
+                        budget--;
+                    }
                     std::vector<Vertex> poss;
                     for(auto v : neighbors(start)) {
                         if(v == terminals_[1]) {
@@ -213,11 +217,16 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         prune_articulation(last, distance_to_goal);
                         assert(last != terminals_[1]);
                         assert(last < adjacency_.size());
-                        assert(length + extra_length < max_length_);
                         assert(new_result.size() <= max_length_ + 1);
+                        Vertex new_remaining_size = 0;
+                        for(Vertex i = 0; i < adjacency_.size(); i++) {
+                            if(distance_to_goal[i] != invalid_) {
+                                new_remaining_size++;
+                            }
+                        }
                         #pragma omp critical
                         {
-                            auto ins = cache_[length + extra_length][last].insert(
+                            auto ins = cache_[new_remaining_size][last].insert(
                                 std::make_pair(distance_to_goal, new_result)
                             );
                             if(!ins.second) {
@@ -238,7 +247,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
                 }
             }
         }
-        cache_[length].resize(0);
+        cache_[remaining_size].resize(0);
         // std::cerr << length << std::endl;
         // print_stats();
     }
