@@ -1,5 +1,3 @@
-incorporate paralellism
-
 improve handling for exclusion constraints in preprocessing:
     * when are they actually a problem w.r.t. separating again?
     * allow more preprocessing/propagate the constraints
