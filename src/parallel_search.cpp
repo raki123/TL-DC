@@ -153,8 +153,11 @@ std::vector<Edge_weight> ParallelSearch::search() {
                             new_result.resize(new_result.size() + adjacency_[last][cur].back().first);
                             for(Edge_length res_length = new_result.size() - 1; res_length >= adjacency_[last][cur][0].first; res_length--) {
                                 new_result[res_length] = 0;
-                                for(auto it = adjacency_[last][cur].rbegin(); res_length >= it->first && it != adjacency_[last][cur].rend(); ++it) {
-                                    new_result[res_length] += new_result[res_length - it->first] * it->second;
+                                for(auto [e_length, e_weight] : adjacency_[last][cur]) {
+                                    if(e_length > res_length) {
+                                        break;
+                                    }
+                                    new_result[res_length] += new_result[res_length - e_length] * e_weight;
                                 }
                             }
                             for(Edge_length res_length = 0 ; res_length < adjacency_[last][cur][0].first; res_length++) {
