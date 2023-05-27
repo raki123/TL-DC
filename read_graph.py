@@ -67,6 +67,7 @@ def plot(graph):
     plt.show()
 
 plot(graph)
+exit(0)
 
 # plot(graph)
 # preprocess(graph, terminals)
