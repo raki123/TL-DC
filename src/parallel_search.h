@@ -7,7 +7,7 @@
 
 namespace fpc {
 
-typedef std::vector<Edge_length> PCacheKey;
+typedef sparsegraph PCacheKey;
 
 struct pvector_hash {
 public:
@@ -18,28 +18,19 @@ public:
 
 class ParallelSearch {
     public:
-    ParallelSearch(Graph& input);
+    ParallelSearch(sparsegraph input);
 
-    std::vector<Edge_weight> search();
+    std::vector<Edge_weight> search(Edge_length max_length);
 
     void print_stats();
     private:
     size_t nthreads_;
-    bool enable_dag_;
     Edge_length max_length_;
-    std::vector<Vertex> terminals_;
-    std::vector<std::vector<Vertex>> neighbors_;
-    std::vector<std::vector<std::vector<std::pair<Edge_length, Edge_weight>>>> adjacency_; 
-
     Edge_length invalid_;
-    std::vector<std::vector<Edge_length>> distance_;
 
-    // // if vertex v is included, then all vertices in exclude_[v] must be excluded
-    // std::vector<std::vector<Vertex>> exclude_;
+    sparsegraph initial_;
 
-    std::vector<char> visited_;
-
-    std::vector<std::vector<std::unordered_map<PCacheKey, std::vector<Edge_weight>, pvector_hash>>> cache_; 
+    std::vector<std::unordered_map<PCacheKey, std::vector<Edge_weight>, pvector_hash>> cache_; 
 
     std::vector<Edge_weight> result_;
     std::vector<std::vector<Edge_weight>> thread_local_result_;
@@ -47,13 +38,13 @@ class ParallelSearch {
     // // recursive search
     // std::vector<Edge_weight> search(Vertex start, Edge_length budget);
     // more efficient search if budget is equal to length of shortest path
-    Edge_weight dag_search(Vertex start, std::vector<Edge_length> const& distance_to_goal);
+    Edge_weight dag_search(sparsegraph const& sg, Vertex start, std::vector<Edge_length> const& distance_to_goal);
 
 
 
-    void prune_articulation(Vertex start, std::vector<Edge_length>& distance);
-    bool ap_util(Vertex u, std::vector<char>& visited, std::vector<Vertex>& disc, std::vector<Vertex>& low, int& time, int parent, Vertex start, std::vector<Edge_length>& distance);
-    void prune_util(Vertex u, std::vector<Edge_length>& distance);
+    void prune_articulation(sparsegraph const& sg, Vertex start, std::vector<Edge_length>& distance);
+    bool ap_util(sparsegraph const& sg, Vertex u, std::vector<char>& visited, std::vector<Vertex>& disc, std::vector<Vertex>& low, int& time, int parent, Vertex start, std::vector<Edge_length>& distance);
+    void prune_util(sparsegraph const& sg, Vertex u, std::vector<Edge_length>& distance);
     // void component_util(Vertex u, std::vector<Vertex>& disc);
 
     // // ap datastructures
@@ -67,9 +58,7 @@ class ParallelSearch {
     // std::vector<std::vector<Vertex>> ap_components_;
 
     // helper functions
-    std::vector<Vertex> neighbors(Vertex v) { assert(v >= 0 && v < neighbors_.size()); return neighbors_[v]; };
-    void dijkstra(Vertex start, std::vector<Edge_length>& distance);
-    void pruning_dijkstra(Vertex start, Vertex prune, std::vector<Edge_length>& distance, std::vector<Edge_length> const& old_distance, Edge_length budget);
+    void pruning_dijkstra(sparsegraph const& sg, Vertex prune, std::vector<Edge_length>& distance, Edge_length budget);
 
     // stats
     std::vector<size_t> pos_hits_;
