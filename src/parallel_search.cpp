@@ -2,6 +2,7 @@
 #include <queue>
 #include <limits>
 
+namespace fpc {
 
 ParallelSearch::ParallelSearch(Graph& input) :  
                                 nthreads_(OMP_NUM_THREADS),
@@ -248,7 +249,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
             }
         }
         cache_[remaining_size].resize(0);
-        // std::cerr << length << std::endl;
+        // std::cerr << remaining_size << std::endl;
         // print_stats();
     }
     for(Edge_length length = 0; length <= max_length_; length++) {
@@ -418,3 +419,5 @@ void ParallelSearch::print_stats() {
     std::cerr << "#DAG searches: " << dags << " #Splits: " << splits << std::endl;
     std::cerr << "#Edges: " << edges << " #Propagations: " << propagations << std::endl;
 }
+
+} // namespace fpc

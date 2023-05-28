@@ -5,6 +5,8 @@
 #include <utility>
 #include <omp.h>
 
+namespace fpc {
+
 typedef std::vector<Edge_length> PCacheKey;
 
 struct pvector_hash {
@@ -80,3 +82,5 @@ class ParallelSearch {
     std::vector<size_t> dags_;
 
 };
+
+} // namespace fpc

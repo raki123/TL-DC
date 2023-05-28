@@ -36,6 +36,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Clingo REQUIRED)
 
+add_library(nauty STATIC IMPORTED)
+set_target_properties(nauty PROPERTIES
+    IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/src/nauty2_8_6/nauty.a
+)
+
 SET(SOURCES 
     src/graph.cpp
     src/search.cpp
@@ -46,4 +51,4 @@ add_executable (read src/main.cpp ${SOURCES})
 if(STATIC)
 SET_TARGET_PROPERTIES (read PROPERTIES LINK_SEARCH_START_STATIC 1)
 endif(STATIC)
-target_link_libraries (read libclingo)
+target_link_libraries (read libclingo nauty)

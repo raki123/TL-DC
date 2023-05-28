@@ -2,3 +2,5 @@
 build/*
 sample/*
 unary/*
+*.a
+*.o

@@ -4,6 +4,8 @@
 #include <unordered_map>
 #include <utility>
 
+namespace fpc {
+
 typedef std::vector<char> CacheKey;
 
 extern clhasher hasher__;
@@ -81,3 +83,5 @@ class Search {
 
 
 };
+
+}

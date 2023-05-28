@@ -1,5 +1,7 @@
 #pragma once
 
+#include "nauty2_8_6/nausparse.h"
+
 #include <assert.h>
 
 #include <iostream>
@@ -8,6 +10,8 @@
 #include <set>
 #include <unordered_set>
 #include <queue>
+
+namespace fpc {
 
 typedef uint16_t Vertex;
 typedef std::pair<Vertex,Vertex> Edge;
@@ -32,6 +36,8 @@ class Graph {
     void normalize();
 
     bool is_all_pair() { return all_pair_; }
+
+    sparsegraph to_canon_nauty();
     private:
     Edge_length max_length_;
     std::vector<std::set<Vertex>> neighbors_;
@@ -87,3 +93,5 @@ class Graph {
 
 
 };
+
+} // namespace fpc

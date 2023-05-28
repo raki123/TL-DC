@@ -5,6 +5,9 @@
 #include <map>
 #include <limits>
 #include <sstream>
+#include "nauty2_8_6/gtools.h"
+
+namespace fpc {
 
 Graph::Graph(std::istream &input) {
     char dec;
@@ -147,7 +150,9 @@ void Graph::print_stats() {
 void Graph::normalize() {
     Vertex unnamed = std::numeric_limits<Vertex>::max();
     std::vector<Vertex> new_name(adjacency_.size(), unnamed);
-    Vertex cur_name = 0;
+    new_name[terminals_[0]] = 0;
+    new_name[terminals_[1]] = 1;
+    Vertex cur_name = 2;
     for(Vertex v = 0; v < adjacency_.size(); v++) {
         if(adjacency_[v].empty() && v != terminals_[0] && v != terminals_[1]) {
             continue;
@@ -189,6 +194,54 @@ void Graph::normalize() {
     exclude_ = new_exclude;
     terminals_[0] = new_name[terminals_[0]];
     terminals_[1] = new_name[terminals_[1]];
+}
+
+sparsegraph Graph::to_canon_nauty() {
+    normalize();
+    DEFAULTOPTIONS_SPARSEGRAPH(options);
+    options.getcanon = true;
+    options.defaultptn = false;
+    SG_DECL(sg);
+    int m = SETWORDSNEEDED(adjacency_.size());
+    nauty_check(WORDSIZE,m,adjacency_.size(),NAUTYVERSIONID);
+    size_t nr_edges = 0;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        nr_edges += neighbors(v).size();
+    }
+    SG_ALLOC(sg, adjacency_.size(), nr_edges, "SG_ALLOC");
+    sg.nv = adjacency_.size();
+    sg.nde = nr_edges;
+    nr_edges = 0;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        sg.v[v] = nr_edges;
+        for(Vertex w : neighbors(v)) {
+            sg.e[nr_edges++] = w;
+        }
+        sg.d[v] = neighbors(v).size();
+    }
+    int *lab = (int *)malloc(sg.nv*sizeof(int));
+    int *ptn = (int *)malloc(sg.nv*sizeof(int));
+    int *orbits = (int *)malloc(sg.nv*sizeof(int));
+    ptn[0] = 1;
+    ptn[1] = 0;
+    lab[0] = 0;
+    lab[1] = 1;
+    for(Vertex v = 2; v < adjacency_.size(); v++) {
+        ptn[v] = 1;
+        lab[v] = v;
+    }
+    statsblk stats;
+    SG_DECL(canon_sg);
+    SG_ALLOC(canon_sg, adjacency_.size(), nr_edges, "SG_ALLOC");
+    sg.nv = adjacency_.size();
+    sg.nde = nr_edges;
+    sparsenauty(&sg,lab,ptn,orbits,&options,&stats,&canon_sg);
+    sortlists_sg(&canon_sg);
+    SG_FREE(sg);
+    free(lab);
+    free(ptn);
+    free(orbits);
+    return canon_sg;
 }
 
 void Graph::add_edge(Edge edge, Weight weight) {
@@ -1255,3 +1308,5 @@ Vertex Graph::limit_max_length() {
     max_length_ = best_cost;
     return prev_max - max_length_;
 }
+
+} // namespace fpc

@@ -2,6 +2,8 @@
 #include <queue>
 #include <limits>
 
+namespace fpc {
+
 clhasher hasher__(UINT64_C(0x23a23cf5033c3c81),UINT64_C(0xb3816f6a2c68e530));
 
 Search::Search(Graph& input) :  enable_dag_(true),
@@ -421,4 +423,6 @@ void Search::print_stats() {
     std::cerr << "Cache hit rate: " << 100*pos_hits/(double)(pos_hits + neg_hits) << "% (" << pos_hits << "/" << pos_hits + neg_hits << ")" << std::endl;
     std::cerr << "#DAG searches: " << dags << " #Splits: " << splits << std::endl;
     std::cerr << "#Edges: " << edges << " #Propagations: " << propagations << std::endl;
+}
+
 }
