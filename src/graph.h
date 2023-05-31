@@ -37,6 +37,8 @@ class Graph {
 
     bool is_all_pair() { return all_pair_; }
 
+    Edge_length max_length() { return max_length_; }
+
     sparsegraph to_canon_nauty();
     private:
     Edge_length max_length_;

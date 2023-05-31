@@ -6,9 +6,10 @@ namespace fpc {
 
 ParallelSearch::ParallelSearch(sparsegraph input) :  
                                 nthreads_(OMP_NUM_THREADS),
+                                initial_(input),
                                 cache_( 
                                     input.nv + 1,
-                                    std::unordered_map<PCacheKey, std::vector<Edge_weight>, pvector_hash>()
+                                    std::unordered_map<PCacheKey, std::vector<Edge_weight>, sg_hash, sg_equal>()
                                 ),
                                 result_(max_length_ + 1, 0),
                                 thread_local_result_(
@@ -19,7 +20,7 @@ ParallelSearch::ParallelSearch(sparsegraph input) :
                                 neg_hits_(OMP_NUM_THREADS, 0),
                                 edges_(OMP_NUM_THREADS, 0),
                                 propagations_(OMP_NUM_THREADS, 0),
-                                dags_(OMP_NUM_THREADS, 0)  {
+                                dags_(OMP_NUM_THREADS, 0) {
     omp_set_num_threads(nthreads_);
 }
 
@@ -28,9 +29,8 @@ std::vector<Edge_weight> ParallelSearch::search(Edge_length max_length) {
     invalid_ = std::numeric_limits<Edge_length>::max() - max_length_ - 1;
     cache_[initial_.nv][initial_] = {1};
     Vertex nr_vertices = initial_.nv;
-    // omp_set_num_threads(1);
     for(Vertex remaining_size = nr_vertices + 1; remaining_size-- > 0; ) {
-        #pragma omp parallel for default(none) shared(max_length_) shared(remaining_size) shared(start) shared(adjacency_) shared(cache_) shared(distance_) shared(invalid_) shared(thread_local_result_) shared(terminals_)
+        //#pragma omp parallel for default(none) shared(max_length_) shared(remaining_size) shared(cache_) shared(invalid_) shared(thread_local_result_) shared(dispatch_sparse)
         for(size_t bucket = 0; bucket < cache_[remaining_size].bucket_count(); bucket++) {
 
             size_t thread_id = omp_get_thread_num();
@@ -170,19 +170,76 @@ std::vector<Edge_weight> ParallelSearch::search(Edge_length max_length) {
                         continue;
                     }
                     prune_articulation(old_sg, last, distance_to_goal);
-                    assert(last != terminals_[1]);
-                    assert(last < adjacency_.size());
+                    assert(last != 1);
+                    assert(last < old_sg.nv);
                     assert(new_result.size() <= max_length_ + 1);
-                    Vertex new_remaining_size = 0;
-                    for(Vertex i = 0; i < adjacency_.size(); i++) {
-                        if(distance_to_goal[i] != invalid_) {
-                            new_remaining_size++;
+                    // construct the new canonical graph
+                    DEFAULTOPTIONS_SPARSEGRAPH(options);
+                    options.getcanon = true;
+                    options.defaultptn = false;
+                    SG_DECL(sg);
+                    sg.v = (size_t *)malloc(sizeof(size_t)*old_sg.nv + sizeof(int)*(old_sg.nv + old_sg.nde));
+                    sg.d = (int *)(sg.v + old_sg.nv);
+                    sg.e = (int *)(sg.d + old_sg.nv);
+                    sg.nv = old_sg.nv;
+                    sg.nde = old_sg.nde;
+                    size_t nr_edges = 0;
+                    int skipped = -1;
+                    sg.v[0] = 0;
+                    for(size_t j = 0; j < old_sg.d[last]; j++) {
+                        Vertex w = old_sg.e[old_sg.v[last] + j];
+                        if(distance_to_goal[w] != invalid_) {
+                            sg.e[nr_edges++] = w;
                         }
                     }
+                    sg.d[0] = nr_edges;
+                    for(size_t i = 0; i < old_sg.nv; i++) {
+                        if(distance_to_goal[i] == invalid_ ) {
+                            skipped++;
+                            continue;
+                        }
+                        assert(i != last);
+                        sg.v[i - skipped] = nr_edges;
+                        for(size_t j = 0; j < old_sg.d[i]; j++) {
+                            Vertex w = old_sg.e[old_sg.v[i] + j];
+                            if(distance_to_goal[w] != invalid_) {
+                                sg.e[nr_edges++] = old_sg.e[old_sg.v[i] + j];
+                            }
+                            if(w == last) {
+                                sg.e[nr_edges++] = 0;
+                            }
+                        }
+                        sg.d[i - skipped] = nr_edges - sg.v[i - skipped];
+                    }
+                    sg.nv = old_sg.nv - skipped;
+                    sg.nde = nr_edges;
+                    int *lab = (int *)malloc(sg.nv*sizeof(int));
+                    int *ptn = (int *)malloc(sg.nv*sizeof(int));
+                    int *orbits = (int *)malloc(sg.nv*sizeof(int));
+                    ptn[0] = 0;
+                    ptn[1] = 0;
+                    lab[0] = 0;
+                    lab[1] = 1;
+                    for(size_t i = 2; i < sg.nv; i++) {
+                        ptn[i] = 1;
+                        lab[i] = i;
+                    }
+                    statsblk stats;
+                    SG_DECL(canon_sg);
+                    canon_sg.v = (size_t *)malloc(sizeof(size_t)*sg.nv + sizeof(int)*(sg.nv + sg.nde));
+                    canon_sg.d = (int *)(canon_sg.v + sg.nv);
+                    canon_sg.e = (int *)(canon_sg.d + sg.nv);
+                    canon_sg.nv = sg.nv;
+                    canon_sg.nde = sg.nde;
+                    sparsenauty(&sg,lab,ptn,orbits,&options,&stats,&canon_sg);
+                    sortlists_sg(&canon_sg);
+                    free(lab);
+                    free(ptn);
+                    free(orbits);
                     #pragma omp critical
                     {
-                        auto ins = cache_[new_remaining_size].insert(
-                            std::make_pair(distance_to_goal, new_result)
+                        auto ins = cache_[canon_sg.nv].insert(
+                            std::make_pair(canon_sg, new_result)
                         );
                         if(!ins.second) {
                             pos_hits_[thread_id]++;
@@ -199,6 +256,7 @@ std::vector<Edge_weight> ParallelSearch::search(Edge_length max_length) {
                         }
                     }
                 }
+                free(old_sg.v);
             }
         }
         cache_[remaining_size].clear();

@@ -9,11 +9,17 @@ namespace fpc {
 
 typedef sparsegraph PCacheKey;
 
-struct pvector_hash {
+struct sg_hash {
 public:
-    size_t operator()(const PCacheKey &key) const {
-        return hasher__(key);
+    size_t operator()(PCacheKey const& key) const {
+        return hasher__(key.v, 2*key.nv + key.nde);
     }  
+};
+struct sg_equal {
+public:
+    bool operator()(PCacheKey const& lhs, PCacheKey const& rhs) const {
+        return lhs.nv == rhs.nv && lhs.nde == rhs.nde && std::memcmp(lhs.v, rhs.v, sizeof(size_t)*(2*lhs.nv + lhs.nde)) == 0;
+    }
 };
 
 class ParallelSearch {
@@ -30,7 +36,7 @@ class ParallelSearch {
 
     sparsegraph initial_;
 
-    std::vector<std::unordered_map<PCacheKey, std::vector<Edge_weight>, pvector_hash>> cache_; 
+    std::vector<std::unordered_map<PCacheKey, std::vector<Edge_weight>, sg_hash, sg_equal>> cache_; 
 
     std::vector<Edge_weight> result_;
     std::vector<std::vector<Edge_weight>> thread_local_result_;

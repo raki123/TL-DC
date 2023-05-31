@@ -7,11 +7,10 @@ int main() {
     fpc::Graph initial_graph(std::cin);
     // initial_graph.print_stats();
     // initial_graph.preprocess();
-    initial_graph.to_canon_nauty();
     // initial_graph.normalize();
     // initial_graph.print_stats();
-    fpc::ParallelSearch search(initial_graph);
-    auto res = search.search();
+    fpc::ParallelSearch search(initial_graph.to_canon_nauty());
+    auto res = search.search(initial_graph.max_length());
     fpc::Edge_weight final_result = 0;
     fpc::Edge_length min_idx = initial_graph.is_all_pair() ? 3 : 0;
     for(fpc::Edge_length l = min_idx; l < res.size(); l++) {
