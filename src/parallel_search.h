@@ -12,13 +12,13 @@ typedef sparsegraph PCacheKey;
 struct sg_hash {
 public:
     size_t operator()(PCacheKey const& key) const {
-        return hasher__(key.v, 2*key.nv + key.nde);
+        return hasher__((const char *)key.v, sizeof(size_t)*key.nv + sizeof(int)*(key.nv + key.nde));
     }  
 };
 struct sg_equal {
 public:
     bool operator()(PCacheKey const& lhs, PCacheKey const& rhs) const {
-        return lhs.nv == rhs.nv && lhs.nde == rhs.nde && std::memcmp(lhs.v, rhs.v, sizeof(size_t)*(2*lhs.nv + lhs.nde)) == 0;
+        return lhs.nv == rhs.nv && lhs.nde == rhs.nde && std::memcmp(lhs.v, rhs.v, sizeof(size_t)*lhs.nv + sizeof(int)*(lhs.nv + lhs.nde)) == 0;
     }
 };
 

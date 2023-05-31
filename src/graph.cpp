@@ -154,7 +154,7 @@ void Graph::normalize() {
     new_name[terminals_[1]] = 1;
     Vertex cur_name = 2;
     for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(adjacency_[v].empty() && v != terminals_[0] && v != terminals_[1]) {
+        if(neighbors(v).empty() || v == terminals_[0] || v == terminals_[1]) {
             continue;
         }
         if(new_name[v] == unnamed) {
@@ -165,12 +165,8 @@ void Graph::normalize() {
                             std::vector<std::map<Edge_length,Edge_weight>>(cur_name, 
                                                     std::map<Edge_length,Edge_weight>()));
     auto new_neighbors = std::vector<std::set<Vertex>>(cur_name, std::set<Vertex>());
-    auto new_exclusion_classes = std::vector<std::set<Vertex>>();
-    auto new_exclude = std::vector<size_t>(cur_name, -1);
-    Vertex cur_exclude = 0;
-    std::vector<Vertex> new_exclude_name(exclusion_classes_.size(), unnamed);
     for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(adjacency_[v].empty() && v != terminals_[0] && v != terminals_[1]) {
+        if(neighbors(v).empty()) {
             continue;
         }
         for(auto neigh : neighbors(v)) {
@@ -178,20 +174,9 @@ void Graph::normalize() {
             new_neighbors[new_name[v]].insert(new_name[neigh]);
             new_adjacency[new_name[v]][new_name[neigh]] = adjacency_[v][neigh];
         }
-        if(new_exclude_name[exclude_[v]] == unnamed) {
-            new_exclusion_classes.push_back({});
-            new_exclude_name[exclude_[v]] = cur_exclude++;
-            for(auto excluded : exclusion_classes_[exclude_[v]]) {
-                assert(new_name[excluded] != unnamed);
-                new_exclusion_classes[new_exclude_name[exclude_[v]]].insert(new_name[excluded]);
-            }
-        }
-        new_exclude[new_name[v]] = new_exclude_name[exclude_[v]];
     }
     adjacency_ = new_adjacency;
     neighbors_ = new_neighbors;
-    exclusion_classes_ = new_exclusion_classes;
-    exclude_ = new_exclude;
     terminals_[0] = new_name[terminals_[0]];
     terminals_[1] = new_name[terminals_[1]];
 }
