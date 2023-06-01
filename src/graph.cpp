@@ -193,7 +193,9 @@ sparsegraph Graph::to_canon_nauty() {
     for(Vertex v = 0; v < adjacency_.size(); v++) {
         nr_edges += neighbors(v).size();
     }
-    SG_ALLOC(sg, adjacency_.size(), nr_edges, "SG_ALLOC");
+    sg.v = (size_t *)malloc(sizeof(size_t)*adjacency_.size() + sizeof(int)*(adjacency_.size() + nr_edges) + 100);
+    sg.d = (int *)(sg.v + adjacency_.size());
+    sg.e = sg.d + adjacency_.size();
     sg.nv = adjacency_.size();
     sg.nde = nr_edges;
     nr_edges = 0;
@@ -217,12 +219,14 @@ sparsegraph Graph::to_canon_nauty() {
     }
     statsblk stats;
     SG_DECL(canon_sg);
-    SG_ALLOC(canon_sg, adjacency_.size(), nr_edges, "SG_ALLOC");
+    canon_sg.v = (size_t *)malloc(sizeof(size_t)*adjacency_.size() + sizeof(int)*(adjacency_.size() + nr_edges) + 100);
+    canon_sg.d = (int *)(canon_sg.v + adjacency_.size());
+    canon_sg.e = canon_sg.d + adjacency_.size();
     canon_sg.nv = adjacency_.size();
     canon_sg.nde = nr_edges;
     sparsenauty(&sg,lab,ptn,orbits,&options,&stats,&canon_sg);
     sortlists_sg(&canon_sg);
-    SG_FREE(sg);
+    free(sg.v);
     free(lab);
     free(ptn);
     free(orbits);
@@ -835,8 +839,8 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph.terminals_ = {0, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
-            ParallelSearch search(comp_graph.to_canon_nauty());
-            auto res = search.search(c_one_length);
+            ParallelSearch search(comp_graph.to_canon_nauty(), c_one_length);
+            auto res = search.search();
             auto res_extra = comp_graph.extra_paths();
             res.resize(max_length_ + 1);
             res_extra.resize(max_length_ + 1);
@@ -856,8 +860,8 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph.terminals_ = {0, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
-            search = ParallelSearch(comp_graph.to_canon_nauty());
-            res = search.search(c_one_length);
+            search = ParallelSearch(comp_graph.to_canon_nauty(), c_one_length);
+            res = search.search();
             res_extra = comp_graph.extra_paths();
             res.resize(max_length_ + 1);
             res_extra.resize(max_length_ + 1);
@@ -882,8 +886,8 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph.terminals_ = {1, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
-            search = ParallelSearch(comp_graph.to_canon_nauty());
-            res = search.search(c_two_length);
+            search = ParallelSearch(comp_graph.to_canon_nauty(), c_two_length);
+            res = search.search();
             res_extra = comp_graph.extra_paths();
             res.resize(max_length_ + 1);
             res_extra.resize(max_length_ + 1);
@@ -903,8 +907,8 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph.terminals_ = {0, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
-            search = ParallelSearch(comp_graph.to_canon_nauty());
-            res = search.search(c_two_length);
+            search = ParallelSearch(comp_graph.to_canon_nauty(), c_two_length);
+            res = search.search();
             res_extra = comp_graph.extra_paths();
             res.resize(max_length_ + 1);
             res_extra.resize(max_length_ + 1);
@@ -988,8 +992,8 @@ Vertex Graph::preprocess_two_separator() {
         comp_graph.preprocess();
         comp_graph.normalize();
         // comp_graph.print_stats();
-        ParallelSearch search(comp_graph.to_canon_nauty());
-        auto res = search.search(comp_graph.max_length_);
+        ParallelSearch search(comp_graph.to_canon_nauty(), comp_graph.max_length_);
+        auto res = search.search();
         // search.print_stats();
         auto res_extra = comp_graph.extra_paths();
         res.resize(std::max(res.size(), res_extra.size()));
@@ -1128,8 +1132,8 @@ Vertex Graph::preprocess_three_separator() {
                 comp_graph.terminals_ = {0, 1};
                 comp_graph.preprocess();
                 comp_graph.normalize();
-                ParallelSearch search(comp_graph.to_canon_nauty());
-                auto res = search.search(comp_graph.max_length_);
+                ParallelSearch search(comp_graph.to_canon_nauty(), comp_graph.max_length_);
+                auto res = search.search();
                 auto res_extra = comp_graph.extra_paths();
                 res.resize(max_length_ + 1);
                 res_extra.resize(max_length_ + 1);

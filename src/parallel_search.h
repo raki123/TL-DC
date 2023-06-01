@@ -12,6 +12,7 @@ typedef sparsegraph PCacheKey;
 struct sg_hash {
 public:
     size_t operator()(PCacheKey const& key) const {
+        assert(key.v != NULL);
         return hasher__((const char *)key.v, sizeof(size_t)*key.nv + sizeof(int)*(key.nv + key.nde));
     }  
 };
@@ -24,9 +25,9 @@ public:
 
 class ParallelSearch {
     public:
-    ParallelSearch(sparsegraph input);
+    ParallelSearch(sparsegraph input, Edge_length max_length);
 
-    std::vector<Edge_weight> search(Edge_length max_length);
+    std::vector<Edge_weight> search();
 
     void print_stats();
     private:

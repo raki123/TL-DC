@@ -4,8 +4,10 @@
 
 namespace fpc {
 
-ParallelSearch::ParallelSearch(sparsegraph input) :  
+ParallelSearch::ParallelSearch(sparsegraph input, Edge_length max_length) :  
                                 nthreads_(OMP_NUM_THREADS),
+                                max_length_(max_length),
+                                invalid_(std::numeric_limits<Edge_length>::max() - max_length_ - 1),
                                 initial_(input),
                                 cache_( 
                                     input.nv + 1,
@@ -24,9 +26,7 @@ ParallelSearch::ParallelSearch(sparsegraph input) :
     omp_set_num_threads(nthreads_);
 }
 
-std::vector<Edge_weight> ParallelSearch::search(Edge_length max_length) {
-    max_length_ = max_length;
-    invalid_ = std::numeric_limits<Edge_length>::max() - max_length_ - 1;
+std::vector<Edge_weight> ParallelSearch::search() {
     cache_[initial_.nv][initial_] = {1};
     Vertex nr_vertices = initial_.nv;
     for(Vertex remaining_size = nr_vertices + 1; remaining_size-- > 0; ) {
@@ -179,7 +179,7 @@ std::vector<Edge_weight> ParallelSearch::search(Edge_length max_length) {
                     options.getcanon = true;
                     options.defaultptn = false;
                     SG_DECL(sg);
-                    sg.v = (size_t *)malloc(sizeof(size_t)*old_sg.nv + sizeof(int)*(old_sg.nv + old_sg.nde));
+                    sg.v = (size_t *)malloc(sizeof(size_t)*old_sg.nv + sizeof(int)*(old_sg.nv + old_sg.nde) + 100);
                     sg.d = (int *)(sg.v + old_sg.nv);
                     sg.e = sg.d + old_sg.nv;
                     size_t nr_edges = 0;
@@ -239,7 +239,7 @@ std::vector<Edge_weight> ParallelSearch::search(Edge_length max_length) {
                     }
                     statsblk stats;
                     SG_DECL(canon_sg);
-                    canon_sg.v = (size_t *)malloc(sizeof(size_t)*sg.nv + sizeof(int)*(sg.nv + sg.nde));
+                    canon_sg.v = (size_t *)malloc(sizeof(size_t)*sg.nv + sizeof(int)*(sg.nv + sg.nde) + 100);
                     canon_sg.d = (int *)(canon_sg.v + sg.nv);
                     canon_sg.e = canon_sg.d + sg.nv;
                     canon_sg.nv = sg.nv;
