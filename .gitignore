@@ -2,4 +2,4 @@
 build/*
 sample/*
 unary/*
-src/nauty_2_8_6/*
+src/nauty2_8_6/*
