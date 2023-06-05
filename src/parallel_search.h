@@ -12,7 +12,6 @@ typedef sparsegraph PCacheKey;
 struct sg_hash {
 public:
     size_t operator()(PCacheKey const& key) const {
-        assert(key.v != NULL);
         return hasher__((const char *)key.v, sizeof(size_t)*key.nv + sizeof(int)*(key.nv + key.nde));
     }  
 };

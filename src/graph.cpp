@@ -198,6 +198,9 @@ sparsegraph Graph::to_canon_nauty() {
     sg.e = sg.d + adjacency_.size();
     sg.nv = adjacency_.size();
     sg.nde = nr_edges;
+    sg.vlen = adjacency_.size();
+    sg.dlen = adjacency_.size();
+    sg.elen = nr_edges;
     nr_edges = 0;
     for(Vertex v = 0; v < adjacency_.size(); v++) {
         sg.v[v] = nr_edges;
@@ -224,6 +227,9 @@ sparsegraph Graph::to_canon_nauty() {
     canon_sg.e = canon_sg.d + adjacency_.size();
     canon_sg.nv = adjacency_.size();
     canon_sg.nde = nr_edges;
+    canon_sg.vlen = sg.vlen;
+    canon_sg.dlen = sg.dlen;
+    canon_sg.elen = sg.elen;
     sparsenauty(&sg,lab,ptn,orbits,&options,&stats,&canon_sg);
     sortlists_sg(&canon_sg);
     free(sg.v);

@@ -182,6 +182,9 @@ std::vector<Edge_weight> ParallelSearch::search() {
                     sg.v = (size_t *)malloc(sizeof(size_t)*old_sg.nv + sizeof(int)*(old_sg.nv + old_sg.nde) + 100);
                     sg.d = (int *)(sg.v + old_sg.nv);
                     sg.e = sg.d + old_sg.nv;
+                    sg.vlen = old_sg.nv;
+                    sg.dlen = old_sg.nv;
+                    sg.elen = old_sg.nde;
                     size_t nr_edges = 0;
                     int skipped = -1;
                     std::vector<int> mapping(old_sg.nv, -1);
@@ -244,11 +247,15 @@ std::vector<Edge_weight> ParallelSearch::search() {
                     canon_sg.e = canon_sg.d + sg.nv;
                     canon_sg.nv = sg.nv;
                     canon_sg.nde = sg.nde;
+                    canon_sg.vlen = sg.nv;
+                    canon_sg.dlen = sg.nv;
+                    canon_sg.elen = sg.nde;
                     sparsenauty(&sg,lab,ptn,orbits,&options,&stats,&canon_sg);
                     sortlists_sg(&canon_sg);
                     free(lab);
                     free(ptn);
                     free(orbits);
+                    free(sg.v);
                     #pragma omp critical
                     {
                         auto ins = cache_[canon_sg.nv].insert(
@@ -412,7 +419,6 @@ void ParallelSearch::print_stats() {
     size_t dags = 0, splits = 0;
     for(size_t i = 0; i < OMP_NUM_THREADS; i++) {
         dags += dags_[i];
-        // splits += neg_hits_[i];
     }
     size_t edges = 0, propagations = 0;
     for(size_t i = 0; i < OMP_NUM_THREADS; i++) {
