@@ -2,5 +2,4 @@
 build/*
 sample/*
 unary/*
-*.a
-*.o
+src/nauty_2_8_6/*
