@@ -87,37 +87,14 @@ void Graph::preprocess() {
         Vertex cur_isolated_removed = preprocess_isolated();
         found |= cur_isolated_removed > 0;
         isolated_removed += cur_isolated_removed;
-        Vertex cur_forwarder_removed = preprocess_forwarder();
-        found |= cur_forwarder_removed > 0;
-        forwarder_removed += cur_forwarder_removed;
-        Vertex cur_twin_edges_removed = preprocess_twins();
-        found |= cur_twin_edges_removed > 0;
-        twin_edges_removed += cur_twin_edges_removed;
-        if(terminals_.size() > 0) {
-            Vertex cur_unreachable_removed = preprocess_unreachable();
-            found |= cur_unreachable_removed > 0;
-            unreachable_removed += cur_unreachable_removed;
-            if(!found) {
-                Vertex cur_unusable_edge_removed = preprocess_unusable_edge();
-                found |= cur_unusable_edge_removed > 0;
-                unusable_edge_removed += cur_unusable_edge_removed;
-            }
-        }
+        Vertex cur_unreachable_removed = preprocess_unreachable();
+        found |= cur_unreachable_removed > 0;
+        unreachable_removed += cur_unreachable_removed;
         if(!found) {
-            Vertex cur_position_determined_removed = preprocess_position_determined();
-            found |= cur_position_determined_removed > 0;
-            position_determined_removed += cur_position_determined_removed;
+            Vertex cur_unusable_edge_removed = preprocess_unusable_edge();
+            found |= cur_unusable_edge_removed > 0;
+            unusable_edge_removed += cur_unusable_edge_removed;
         }
-        if(!found) {
-            Vertex cur_two_sep_removed = preprocess_two_separator();
-            found |= cur_two_sep_removed > 0;
-            two_sep_removed += cur_two_sep_removed;
-        }
-        // if(!found) {
-        //     Vertex cur_three_sep_removed = preprocess_three_separator();
-        //     found |= cur_three_sep_removed > 0;
-        //     three_sep_removed += cur_three_sep_removed;
-        // }
         if(!found && max_length_decrease == 0) {
             Vertex cur_max_length_decrease = limit_max_length();
             found |= cur_max_length_decrease > 0;
@@ -482,34 +459,12 @@ Vertex Graph::preprocess_isolated() {
         auto cur_neighbors = neighbors(v);
         if(cur_neighbors.size() == 1) {
             Vertex neighbor = *cur_neighbors.begin();
-            found++;
-            if(terminals_.size() > 0 && (terminals_[0] == v || terminals_[1] == v)) {
-                if(terminals_.size() > 0 && (terminals_[0] == neighbor || terminals_[1] == neighbor)) {
-                    // if the graph consists only of v -- neighbor, we have a solution
-                    return preprocess_start_goal_edges() + found;
-                }
-                // we will remove a terminal -> use a different terminal instead
-                if(terminals_[0] == v) {
-                    terminals_[0] = neighbor;
-                } else {
-                    terminals_[1] = neighbor; 
-                }
-                // in this case we use the edge(s) of the removed vertex and need to adapt the edges of the neighbor accordingly.
-                for(auto w : neighbors(neighbor)) {
-                    if(w == v) {
-                        continue;
-                    }
-                    std::map<Edge_length, Edge_weight> new_weights;
-                    for(auto old_weight : adjacency_[neighbor][w]) {
-                        for(auto weight : adjacency_[v][neighbor]) {
-                            new_weights[old_weight.first + weight.first] += old_weight.second * weight.second;
-                        }
-                    }
-                    adjacency_[neighbor][w] = new_weights;
-                    adjacency_[w][neighbor] = new_weights;
-                }
+            if(terminals_.size() > 0 && (terminals_[0] == v || terminals_[1] == v || terminals_[0] == neighbor || terminals_[1] == neighbor) ) {
+                continue;
+            } else {
+                found++;
+                remove_vertex(v);
             }
-            remove_vertex(v);
         }
     }
     return found;

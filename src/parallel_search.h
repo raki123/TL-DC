@@ -65,6 +65,7 @@ class ParallelSearch {
 
     // helper functions
     void pruning_dijkstra(sparsegraph const& sg, Vertex prune, std::vector<Edge_length>& distance, Edge_length budget);
+    void reverse_pruning_dijkstra(sparsegraph const& sg, Vertex prune, std::vector<Edge_length>& distance, std::vector<Edge_length> const& forward_distance, Edge_length budget);
 
     // stats
     std::vector<size_t> pos_hits_;
