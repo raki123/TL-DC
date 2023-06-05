@@ -1,4 +1,5 @@
 cmake_minimum_required (VERSION 3.1)
+
 project (icgca) 
 
 # set(CMAKE_BUILD_TYPE Release)
@@ -20,7 +21,7 @@ endif(STATIC)
 
 add_subdirectory("src/clingo")
 
-add_definitions(-DOMP_NUM_THREADS=1)
+add_definitions(-DOMP_NUM_THREADS=8)
 
 set(CMAKE_CXX_FLAGS "-std=c++17 -O3 -fopenmp -Wall -Wextra -Wshadow -Wfatal-errors -Wno-sign-compare -Wno-literal-suffix")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mpclmul -march=native -funroll-loops -Wstrict-overflow -Wstrict-aliasing -pedantic")

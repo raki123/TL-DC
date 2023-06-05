@@ -863,12 +863,12 @@ Traces(sparsegraph *g_arg, int *lab, int *ptn,
     
     Allocate_Traces_Structures(n);
     
-    struct TracesVars *tv = malloc(sizeof(struct TracesVars));
+    struct TracesVars *tv = (TracesVars *)malloc(sizeof(struct TracesVars));
     if (tv == NULL) {
         fprintf(ERRFILE, "\nError, memory not allocated.\n");
         exit(1);
     }
-    struct TracesInfo *ti = malloc(sizeof(struct TracesInfo));
+    struct TracesInfo *ti = (TracesInfo *)malloc(sizeof(struct TracesInfo));
     if (ti == NULL) {
         fprintf(ERRFILE, "\nError, memory not allocated.\n");
         exit(1);
@@ -4617,7 +4617,7 @@ void refine_tr(sparsegraph *sg, int *lab, int *ptn, int *numcells, int *code, Tr
     
     tv->graph = &redgraph;
     if (tv->options->weighted) {
-        tv->graph->w = malloc(tv->graph->wlen*sizeof(int));
+        tv->graph->w = (int *)malloc(tv->graph->wlen*sizeof(int));
         if (tv->graph->w == NULL) {
             fprintf(ERRFILE, "\nError, memory not allocated.\n");
             exit(1);
@@ -5482,17 +5482,17 @@ struct Candidate *NewCandidate(int n, Candidate **GarbList, int Mrk) {
         *GarbList = (*GarbList)->next;
     }
     else {
-        Cand = malloc(sizeof(*Cand));
+        Cand = (Candidate *)malloc(sizeof(*Cand));
         if (Cand == NULL) {
             fprintf(ERRFILE, "\nError, memory not allocated.\n");
             exit(1);
         }
-        Cand->lab = malloc(n*sizeof(*Cand->lab));
+        Cand->lab = (int *)malloc(n*sizeof(*Cand->lab));
         if (Cand->lab == NULL) {
             fprintf(ERRFILE, "\nError, memory not allocated.\n");
             exit(1);
         }
-        Cand->invlab = malloc(n*sizeof(*Cand->invlab));
+        Cand->invlab = (int *)malloc(n*sizeof(*Cand->invlab));
         if (Cand->invlab == NULL) {
             fprintf(ERRFILE, "\nError, memory not allocated.\n");
             exit(1);
@@ -8978,17 +8978,17 @@ void orbjoin_sp_perm(int *orbits, int *map, int *list, int n, int *numorbs) {
 struct Partition *NewPartition(int n) {
     struct Partition *P;
     
-    P = malloc(sizeof(*(P)));
+    P = (Partition *)malloc(sizeof(*(P)));
     if (P == NULL) {
         fprintf(ERRFILE, "\nError, memory not allocated.\n");
         exit(1);
     }
-    P->cls = malloc(n*sizeof(int));
+    P->cls = (int *)malloc(n*sizeof(int));
     if (P->cls == NULL) {
         fprintf(ERRFILE, "\nError, memory not allocated.\n");
         exit(1);
     }
-    P->inv = malloc(n*sizeof(int));
+    P->inv = (int *)malloc(n*sizeof(int));
     if (P->inv == NULL) {
         fprintf(ERRFILE, "\nError, memory not allocated.\n");
         exit(1);
@@ -9001,7 +9001,7 @@ struct Partition *NewPartition(int n) {
 void NewPartSpine(int Lev, int n) {
     
     if (Lev > 3) {
-        Spine[Lev].part = malloc(sizeof(*(Spine[Lev].part)));
+        Spine[Lev].part = (Partition *)malloc(sizeof(*(Spine[Lev].part)));
         if (Spine[Lev].part == NULL) {
             fprintf(ERRFILE, "\nError, memory not allocated.\n");
             exit(1);
@@ -9481,7 +9481,7 @@ searchtrie *searchtrie_make(Candidate *CurrCand, Candidate *NextCand, int n, str
     searchtrie *st;
     if (tv->strienext == n) {
         tv->strienext = 0;
-        tv->strielist->next = malloc(sizeof(struct trielist));
+        tv->strielist->next = (trielist *)malloc(sizeof(struct trielist));
         if (tv->strielist->next == NULL) {
             fprintf(ERRFILE, "\nError, memory not allocated.\n");
             exit(1);
@@ -9489,7 +9489,7 @@ searchtrie *searchtrie_make(Candidate *CurrCand, Candidate *NextCand, int n, str
         tv->strielist->next->prev = tv->strielist;
         tv->strielist = tv->strielist->next;
         tv->strielist->next = NULL;
-        tv->strielist->triearray = malloc(n*sizeof(searchtrie));
+        tv->strielist->triearray = (searchtrie *)malloc(n*sizeof(searchtrie));
         if (tv->strielist->triearray == NULL) {
             fprintf(ERRFILE, "\nError, memory not allocated.\n");
             exit(1);
@@ -9525,13 +9525,13 @@ searchtrie *searchtrie_make(Candidate *CurrCand, Candidate *NextCand, int n, str
 
 trielist *searchtrie_new(int n, struct TracesVars *tv) {
     
-    tv->strielist = malloc(sizeof(struct trielist));
+    tv->strielist = (trielist *)malloc(sizeof(struct trielist));
     if (tv->strielist == NULL) {
         fprintf(ERRFILE, "\nError, memory not allocated.\n");
         exit(1);
     }
     tv->strielist->prev = tv->strielist->next = NULL;
-    tv->strielist->triearray = malloc(n*sizeof(searchtrie));
+    tv->strielist->triearray = (searchtrie *)malloc(n*sizeof(searchtrie));
     if (tv->strielist->triearray == NULL) {
         fprintf(ERRFILE, "\nError, memory not allocated.\n");
         exit(1);
@@ -10129,7 +10129,7 @@ struct trie *trie_make(trie *t, int value, int n, struct TracesVars* tv) {
     if (tv->trienext == n) {
         tv->trienext = 0;
         tv->triepos++;
-        TrieArray[tv->triepos] = malloc(n*sizeof(trie));
+        TrieArray[tv->triepos] = (trie *)malloc(n*sizeof(trie));
         if (TrieArray[tv->triepos] == NULL) {
             fprintf(ERRFILE, "\nError, memory not allocated.\n");
             exit(1);
@@ -10173,7 +10173,7 @@ struct trie *trie_make(trie *t, int value, int n, struct TracesVars* tv) {
 
 struct trie *trie_new(int n, struct TracesVars* tv) {
     
-    TrieArray[0] = malloc(n*sizeof(trie));
+    TrieArray[0] = (trie *)malloc(n*sizeof(trie));
     if (TrieArray[0] == NULL) {
         fprintf(ERRFILE, "\nError, memory not allocated.\n");
         exit(1);

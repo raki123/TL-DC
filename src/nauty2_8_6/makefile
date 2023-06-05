@@ -2,7 +2,7 @@
 # makefile.  Generated from makefile.in by configure.
 
 SHELL=/bin/bash
-CC=gcc
+CC=g++
 CFLAGS= -O4  -mpopcnt -march=native
 SAFECFLAGS= -O4
 LDFLAGS= 

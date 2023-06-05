@@ -1,7 +1,7 @@
 #pragma once
-
+extern "C" {
 #include "nauty2_8_6/nausparse.h"
-
+}
 #include <assert.h>
 
 #include <iostream>

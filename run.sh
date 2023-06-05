@@ -1,5 +1,5 @@
 FILES=(`ls one_pair/`)
-NR_THREADS=8
+NR_THREADS=1
 for j in $( seq 1 $NR_THREADS )
 do
     for (( i = $j-1; i < ${#FILES[@]}; i += $NR_THREADS )); do
