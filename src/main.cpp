@@ -7,7 +7,7 @@ int main() {
     fpc::Graph initial_graph(std::cin);
     initial_graph.print_stats();
     initial_graph.preprocess();
-    // initial_graph.normalize();
+    initial_graph.normalize();
     initial_graph.print_stats();
     fpc::ParallelSearch search(initial_graph.to_canon_nauty(), initial_graph.max_length());
     auto res = search.search();
