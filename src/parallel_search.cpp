@@ -59,19 +59,16 @@ std::vector<Edge_weight> ParallelSearch::search() {
                 while(result[max_length_ - budget] == 0) {
                     budget--;
                 }
-                std::vector<Vertex> poss;
-                for(int i = 0; i < old_sg.d[0]; i++) {
-                    Vertex v = old_sg.e[i];
+                for(int o = 0; o < old_sg.d[0]; o++) {
+                    Vertex v = old_sg.e[o];
                     assert(v != 1);
                     edges_[thread_id]++;
-                    poss.push_back(v);
-                }
-                for(Vertex v : poss) {
                     // update the partial result
                     std::vector<Edge_weight> new_result(std::min(result.size() + 1, size_t(max_length_)));
                     for(Edge_length res_length = new_result.size() - 1; res_length >= 1; res_length--) {
                         new_result[res_length] = result[res_length - 1];
                     }
+                    new_result[0] = 0;
                     Edge_length v_budget = budget - 1;
                     std::vector<Edge_length> distance_to_goal(old_sg.nv, invalid_);
                     // make sure we disable paths going through v
@@ -92,9 +89,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
                             for(Edge_length res_length = 0; res_length < new_result.size(); res_length++) {
                                 thread_local_result_[thread_id][res_length + 1] += new_result[res_length];
                             }
-                            continue;
-                        }
-                        if(v_budget == distance_to_goal[w] + 1) {
+                        } else if(v_budget == distance_to_goal[w] + 1) {
                             extra.push_back(w);
                             edges_[thread_id]++;
                             dags_[thread_id]++;
@@ -134,9 +129,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
                                 for(Edge_length res_length = 0; res_length < new_result.size(); res_length++) {
                                     thread_local_result_[thread_id][res_length + 1] += new_result[res_length];
                                 }
-                                continue;
-                            }
-                            if(v_budget == distance_to_goal[w] + 1) {
+                            } else if(v_budget == distance_to_goal[w] + 1) {
                                 extra.push_back(w);
                                 edges_[thread_id]++;
                                 dags_[thread_id]++;
