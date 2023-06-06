@@ -34,9 +34,6 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-
-# find_package(Clingo REQUIRED PATHS ${PROJECT_SOURCE_DIR}/src/clingo)
-
 add_library(nauty STATIC IMPORTED)
 set_target_properties(nauty PROPERTIES
     IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/src/nauty2_8_6/nauty.a

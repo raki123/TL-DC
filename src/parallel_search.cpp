@@ -43,26 +43,9 @@ std::vector<Edge_weight> ParallelSearch::search() {
                 std::vector<Vertex> poss;
                 for(int i = 0; i < old_sg.d[0]; i++) {
                     Vertex v = old_sg.e[i];
-                    if(v == 1) {
-                        edges_[thread_id]++;
-                        // update the partial result
-                        for(Edge_length res_length = 0; res_length < result.size(); res_length++) {
-                            thread_local_result_[thread_id][res_length + 1] += result[res_length];
-                        }
-                        continue;
-                    }
-                    // if(budget > old_distance_to_goal[v] + adjacency_[start][v][0].first) {
+                    assert(v != 1);
                     edges_[thread_id]++;
                     poss.push_back(v);
-                    // }
-                    // if(budget == old_distance_to_goal[v] + adjacency_[start][v][0].first) {
-                    //     edges_[thread_id]++;
-                    //     dags_[thread_id]++;
-                    //     Edge_weight result_until = result[max_length_ - budget] * adjacency_[start][v][0].second;
-                    //     Edge_weight remaining_result = dag_search(v, old_distance_to_goal);
-                    //     thread_local_result_[thread_id][max_length_] += result_until*remaining_result;
-                    //     continue;
-                    // }
                 }
                 for(Vertex v : poss) {
                     // update the partial result
@@ -71,52 +54,42 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         new_result[res_length] = result[res_length - 1];
                     }
                     Edge_length v_budget = budget - 1;
-                    Edge_length extra_length = 1;
                     std::vector<Edge_length> distance_to_goal(old_sg.nv, invalid_);
                     // make sure we disable paths going through v
                     distance_to_goal[0] = 0;
                     distance_to_goal[v] = 0;
-                    pruning_dijkstra(old_sg, v, distance_to_goal, v_budget);
+                    pruning_dijkstra(old_sg, distance_to_goal, v_budget);
                     // unset the hack value for v
                     distance_to_goal[0] = invalid_;
                     distance_to_goal[v] = invalid_;
-                    std::vector<Vertex> poss_non_dag, poss_dag;
+                    std::vector<Vertex> poss_non_dag;
+                    std::vector<Vertex> extra = {0,v};
+                    Vertex last = v;
                     for(int i = 0; i < old_sg.d[v]; i++) {
                         Vertex w = old_sg.e[old_sg.v[v] + i];
                         if(w == 1) {
+                            edges_[thread_id]++;
+                            // update the partial result
+                            for(Edge_length res_length = 0; res_length < new_result.size(); res_length++) {
+                                thread_local_result_[thread_id][res_length + 1] += new_result[res_length];
+                            }
                             continue;
                         }
                         if(v_budget == distance_to_goal[w] + 1) {
-                            poss_dag.push_back(w);
+                            extra.push_back(w);
+                            edges_[thread_id]++;
+                            dags_[thread_id]++;
+                            Edge_weight result_until = new_result[max_length_ - v_budget];
+                            Edge_weight remaining_result = dag_search(old_sg, w, distance_to_goal);
+                            thread_local_result_[thread_id][max_length_] += result_until*remaining_result;
                         } else if(v_budget > distance_to_goal[w] + 1) {
                             poss_non_dag.push_back(w);
                         }
                     }
                     // there is only one non_dag edge
-                    std::vector<Vertex> extra = {0,v};
-                    Vertex last = v;
                     while(poss_non_dag.size() == 1) {
                         edges_[thread_id]++;
                         propagations_[thread_id]++;
-                        // first check if the goal is a neighbor
-                        for(int i = 0; i < old_sg.d[last]; i++) {
-                            Vertex w = old_sg.e[old_sg.v[last] + i];
-                            if(w == 1) {
-                                edges_[thread_id]++;
-                                // update the partial result
-                                for(Edge_length res_length = 0; res_length < new_result.size(); res_length++) {
-                                    thread_local_result_[thread_id][res_length + 1] += new_result[res_length];
-                                }
-                            }
-                        }
-
-                        for(Vertex dag_v : poss_dag) {
-                            edges_[thread_id]++;
-                            dags_[thread_id]++;
-                            Edge_weight result_until = new_result[max_length_ - v_budget];
-                            Edge_weight remaining_result = dag_search(old_sg, dag_v, distance_to_goal);
-                            thread_local_result_[thread_id][max_length_] += result_until*remaining_result;
-                        }
                         Vertex cur = poss_non_dag[0];
                         extra.push_back(cur);
                         new_result.resize(std::min(new_result.size() + 1, size_t(max_length_)));
@@ -125,24 +98,32 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         }
                         new_result[0] = 0;
                         v_budget -= 1;
-                        extra_length += 1;
                         std::fill(distance_to_goal.begin(), distance_to_goal.end(), invalid_);
                         for(Vertex extra_v : extra) {
                             distance_to_goal[extra_v] = 0;
                         }
-                        pruning_dijkstra(old_sg, cur, distance_to_goal, v_budget);
+                        pruning_dijkstra(old_sg, distance_to_goal, v_budget);
                         for(Vertex extra_v : extra) {
                             distance_to_goal[extra_v] = invalid_;
                         }
-                        poss_dag.clear();
                         poss_non_dag.clear();
                         for(int i = 0; i < old_sg.d[cur]; i++) {
                             Vertex w = old_sg.e[old_sg.v[cur] + i];
                             if(w == 1) {
+                                edges_[thread_id]++;
+                                // update the partial result
+                                for(Edge_length res_length = 0; res_length < new_result.size(); res_length++) {
+                                    thread_local_result_[thread_id][res_length + 1] += new_result[res_length];
+                                }
                                 continue;
                             }
                             if(v_budget == distance_to_goal[w] + 1) {
-                                poss_dag.push_back(w);
+                                extra.push_back(w);
+                                edges_[thread_id]++;
+                                dags_[thread_id]++;
+                                Edge_weight result_until = new_result[max_length_ - v_budget];
+                                Edge_weight remaining_result = dag_search(old_sg, w, distance_to_goal);
+                                thread_local_result_[thread_id][max_length_] += result_until*remaining_result;
                             } else if(v_budget > distance_to_goal[w] + 1) {
                                 poss_non_dag.push_back(w);
                             }
@@ -150,24 +131,6 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         last = cur;
                     }
                     if(poss_non_dag.size() == 0) {
-                        // first check if the goal is a neighbor
-                        for(int i = 0; i < old_sg.d[last]; i++) {
-                            Vertex w = old_sg.e[old_sg.v[last] + i];
-                            if(w == 1) {
-                                edges_[thread_id]++;
-                                // update the partial result
-                                for(Edge_length res_length = 0; res_length < new_result.size(); res_length++) {
-                                    thread_local_result_[thread_id][res_length + 1] += new_result[res_length];
-                                }
-                            }
-                        }
-                        for(Vertex dag_v : poss_dag) {
-                            edges_[thread_id]++;
-                            dags_[thread_id]++;
-                            Edge_weight result_until = new_result[max_length_ - v_budget];
-                            Edge_weight remaining_result = dag_search(old_sg, dag_v, distance_to_goal);
-                            thread_local_result_[thread_id][max_length_] += result_until*remaining_result;
-                        }
                         continue;
                     }
                     std::vector<Edge_length> distance_to_start(old_sg.nv, invalid_);
@@ -193,7 +156,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
                     sg.dlen = old_sg.nv;
                     sg.elen = old_sg.nde;
                     size_t nr_edges = 0;
-                    int skipped = -1;
+                    int skipped = 0;
                     std::vector<int> mapping(old_sg.nv, -1);
                     mapping[last] = 0;
                     mapping[1] = 1;
@@ -208,12 +171,23 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         assert(old_sg.v[last] + j < old_sg.nde);
                         Vertex w = old_sg.e[old_sg.v[last] + j];
                         assert(w < old_sg.nv);
-                        if(distance_to_start[w] != invalid_) {
+                        if(distance_to_start[w] != invalid_ && w != 1) {
                             sg.e[nr_edges++] = mapping[w];
                         }
                     }
                     sg.d[0] = nr_edges;
-                    for(size_t i = 0; i < old_sg.nv; i++) {
+                    assert(distance_to_start[1] != invalid_);
+                    sg.v[1] = nr_edges;
+                    for(size_t j = 0; j < old_sg.d[1]; j++) {
+                        assert(old_sg.v[1] + j < old_sg.nde);
+                        Vertex w = old_sg.e[old_sg.v[1] + j];
+                        assert(w < old_sg.nv);
+                        if(distance_to_start[w] != invalid_ && w != last) {
+                            sg.e[nr_edges++] = mapping[w];
+                        }
+                    }
+                    sg.d[1] = nr_edges - sg.v[1];
+                    for(size_t i = 2; i < old_sg.nv; i++) {
                         if(distance_to_start[i] == invalid_ ) {
                             skipped++;
                             continue;
@@ -306,12 +280,12 @@ std::vector<Edge_weight> ParallelSearch::search() {
 }
 
 Edge_weight ParallelSearch::dag_search(sparsegraph const& sg, Vertex start, std::vector<Edge_length> const& distance_to_goal) {
-    std::deque<std::pair<Edge_length, Vertex>> biggest_first_queue;
+    std::deque<Vertex> biggest_first_queue;
     std::vector<Edge_weight> dp(sg.nv, 0);
     dp[start] = 1;
-    biggest_first_queue.push_back(std::make_pair(distance_to_goal[start], start));
-    while(biggest_first_queue.front().first != 0) {
-        auto [cur_cost, cur_vertex] = biggest_first_queue.front();
+    biggest_first_queue.push_back(start);
+    while(biggest_first_queue.front() != 1) {
+        auto cur_vertex = biggest_first_queue.front();
         biggest_first_queue.pop_front();
         for(int i = 0; i < sg.d[cur_vertex]; i++) {
             Vertex w = sg.e[sg.v[cur_vertex] + i];
@@ -320,7 +294,7 @@ Edge_weight ParallelSearch::dag_search(sparsegraph const& sg, Vertex start, std:
             }
             if(distance_to_goal[w] + 1 == distance_to_goal[cur_vertex]) {
                 dp[w] += dp[cur_vertex];
-                biggest_first_queue.push_back(std::make_pair(distance_to_goal[w], w));
+                biggest_first_queue.push_back(w);
             }
         }
         dp[cur_vertex] = 0;
@@ -396,7 +370,7 @@ void ParallelSearch::prune_util(sparsegraph const& sg, Vertex u, std::vector<Edg
     }
 }
 
-void ParallelSearch::pruning_dijkstra(sparsegraph const& sg, Vertex prune, std::vector<Edge_length>& distance, Edge_length budget) {
+void ParallelSearch::pruning_dijkstra(sparsegraph const& sg, std::vector<Edge_length>& distance, Edge_length budget) {
     std::deque<Vertex> queue;
     queue.push_back(1);
     distance[1] = 0;

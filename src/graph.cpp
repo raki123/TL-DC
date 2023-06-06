@@ -100,6 +100,7 @@ void Graph::preprocess() {
             found |= cur_max_length_decrease > 0;
             max_length_decrease += cur_max_length_decrease;
         }
+        preprocess_start_goal_edges();
     }
 }
 
