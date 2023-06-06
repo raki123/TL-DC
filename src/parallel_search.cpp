@@ -18,19 +18,38 @@ ParallelSearch::ParallelSearch(sparsegraph input, Edge_length max_length) :
                                     nthreads_,
                                     std::vector<Edge_weight>(max_length_ + 1, 0)
                                 ),
+                                thread_local_sg_(OMP_NUM_THREADS),
+                                thread_local_lab_(OMP_NUM_THREADS),
+                                thread_local_ptn_(OMP_NUM_THREADS),
+                                thread_local_orbits_(OMP_NUM_THREADS),
                                 pos_hits_(OMP_NUM_THREADS, 0),
                                 neg_hits_(OMP_NUM_THREADS, 0),
                                 edges_(OMP_NUM_THREADS, 0),
                                 propagations_(OMP_NUM_THREADS, 0),
                                 dags_(OMP_NUM_THREADS, 0) {
     omp_set_num_threads(nthreads_);
+    for(size_t i = 0; i < OMP_NUM_THREADS; i++) {
+        SG_INIT(thread_local_sg_[i]);
+        thread_local_sg_[i].v = (size_t *)malloc(sizeof(size_t)*input.nv + sizeof(int)*(input.nv + input.nde));
+        thread_local_lab_[i] = (int *)malloc(3*input.nv*sizeof(int));
+        thread_local_ptn_[i] = thread_local_lab_[i] + input.nv;
+        thread_local_orbits_[i] = thread_local_ptn_[i] + input.nv;
+        thread_local_ptn_[i][0] = 0;
+        thread_local_ptn_[i][1] = 0;
+        thread_local_lab_[i][0] = 0;
+        thread_local_lab_[i][1] = 1;
+        for(size_t j = 2; j < input.nv; j++) {
+            thread_local_ptn_[i][j] = 1;
+            thread_local_lab_[i][j] = j;
+        }
+    }
 }
 
 std::vector<Edge_weight> ParallelSearch::search() {
     cache_[initial_.nv][initial_] = {1};
     Vertex nr_vertices = initial_.nv;
     for(Vertex remaining_size = nr_vertices + 1; remaining_size-- > 0; ) {
-        #pragma omp parallel for default(none) shared(max_length_) shared(remaining_size) shared(cache_) shared(invalid_) shared(thread_local_result_) shared(dispatch_sparse)
+        #pragma omp parallel for default(none) shared(max_length_) shared(remaining_size) shared(cache_) shared(invalid_) shared(thread_local_result_) shared(thread_local_sg_) shared(thread_local_ptn_) shared(thread_local_lab_) shared(thread_local_orbits_) shared(dispatch_sparse)
         for(size_t bucket = 0; bucket < cache_[remaining_size].bucket_count(); bucket++) {
             size_t thread_id = omp_get_thread_num();
             for(auto task_it = cache_[remaining_size].begin(bucket); task_it != cache_[remaining_size].end(bucket); ++task_it) {
@@ -148,8 +167,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
                     DEFAULTOPTIONS_SPARSEGRAPH(options);
                     options.getcanon = true;
                     options.defaultptn = false;
-                    SG_DECL(sg);
-                    sg.v = (size_t *)malloc(sizeof(size_t)*old_sg.nv + sizeof(int)*(old_sg.nv + old_sg.nde));
+                    sparsegraph sg = thread_local_sg_[thread_id];
                     sg.d = (int *)(sg.v + old_sg.nv);
                     sg.e = sg.d + old_sg.nv;
                     sg.vlen = old_sg.nv;
@@ -210,17 +228,6 @@ std::vector<Edge_weight> ParallelSearch::search() {
                     sg.nv = old_sg.nv - skipped;
                     sg.nde = nr_edges;
                     assert(nr_edges < old_sg.nde);
-                    int *lab = (int *)malloc(sg.nv*sizeof(int));
-                    int *ptn = (int *)malloc(sg.nv*sizeof(int));
-                    int *orbits = (int *)malloc(sg.nv*sizeof(int));
-                    ptn[0] = 0;
-                    ptn[1] = 0;
-                    lab[0] = 0;
-                    lab[1] = 1;
-                    for(size_t i = 2; i < sg.nv; i++) {
-                        ptn[i] = 1;
-                        lab[i] = i;
-                    }
                     statsblk stats;
                     SG_DECL(canon_sg);
                     canon_sg.v = (size_t *)malloc(sizeof(size_t)*sg.nv + sizeof(int)*(sg.nv + sg.nde));
@@ -234,15 +241,28 @@ std::vector<Edge_weight> ParallelSearch::search() {
                     auto old_v = canon_sg.v;
                     auto old_d = canon_sg.d;
                     auto old_e = canon_sg.e;
+                    int *lab = thread_local_lab_[thread_id];
+                    int *ptn = thread_local_ptn_[thread_id];
+                    int *orbits = thread_local_orbits_[thread_id];
+                    ptn[0] = 0;
+                    ptn[1] = 0;
+                    std::fill(ptn + 2, ptn + sg.nv, 1);
+                    for(size_t j = 0; j < sg.nv; j++) {
+                        lab[j] = j;
+                    }
                     sparsenauty(&sg,lab,ptn,orbits,&options,&stats,&canon_sg);
+                    // We could apply some additional check to see if every neighbor is in the same orbit to save some time
+                    // int least = orbits[sg.e[0]];
+                    // for(size_t i = 1; i < sg.d[0]; i++) {
+                    //     if(least != orbits[sg.e[i]]) {
+                    //         least = -1;
+                    //         break;
+                    //     }
+                    // }
                     sortlists_sg(&canon_sg);
                     assert(canon_sg.v == old_v);
                     assert(canon_sg.d == old_d);
                     assert(canon_sg.e == old_e);
-                    free(lab);
-                    free(ptn);
-                    free(orbits);
-                    free(sg.v);
                     #pragma omp critical
                     {
                         auto ins = cache_[canon_sg.nv].insert(
