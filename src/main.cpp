@@ -9,7 +9,7 @@ int main() {
     initial_graph.preprocess();
     initial_graph.normalize();
     initial_graph.print_stats();
-    fpc::ParallelSearch search(initial_graph.to_canon_nauty(), initial_graph.max_length());
+    fpc::ParallelSearch search(initial_graph.to_canon_nauty(), initial_graph.max_length(), OMP_NUM_THREADS);
     auto res = search.search();
     fpc::Edge_weight final_result = 0;
     fpc::Edge_length min_idx = initial_graph.is_all_pair() ? 3 : 0;

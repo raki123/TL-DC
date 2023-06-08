@@ -24,7 +24,7 @@ public:
 
 class ParallelSearch {
     public:
-    ParallelSearch(sparsegraph input, Edge_length max_length);
+    ParallelSearch(sparsegraph input, Edge_length max_length, size_t nthreads);
     ~ParallelSearch() { for(size_t i = 0; i < OMP_NUM_THREADS; i++) { free(thread_local_lab_[i]); free(thread_local_sg_[i].v); }}
 
     std::vector<Edge_weight> search();

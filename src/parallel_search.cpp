@@ -4,8 +4,8 @@
 
 namespace fpc {
 
-ParallelSearch::ParallelSearch(sparsegraph input, Edge_length max_length) :  
-                                nthreads_(OMP_NUM_THREADS),
+ParallelSearch::ParallelSearch(sparsegraph input, Edge_length max_length, size_t nthreads) :  
+                                nthreads_(nthreads),
                                 max_length_(max_length),
                                 invalid_(std::numeric_limits<Edge_length>::max() - max_length_ - 1),
                                 initial_(input),
@@ -18,17 +18,17 @@ ParallelSearch::ParallelSearch(sparsegraph input, Edge_length max_length) :
                                     nthreads_,
                                     std::vector<Edge_weight>(max_length_ + 1, 0)
                                 ),
-                                thread_local_sg_(OMP_NUM_THREADS),
-                                thread_local_lab_(OMP_NUM_THREADS),
-                                thread_local_ptn_(OMP_NUM_THREADS),
-                                thread_local_orbits_(OMP_NUM_THREADS),
-                                pos_hits_(OMP_NUM_THREADS, 0),
-                                neg_hits_(OMP_NUM_THREADS, 0),
-                                edges_(OMP_NUM_THREADS, 0),
-                                propagations_(OMP_NUM_THREADS, 0),
-                                dags_(OMP_NUM_THREADS, 0) {
+                                thread_local_sg_(nthreads_),
+                                thread_local_lab_(nthreads_),
+                                thread_local_ptn_(nthreads_),
+                                thread_local_orbits_(nthreads_),
+                                pos_hits_(nthreads_, 0),
+                                neg_hits_(nthreads_, 0),
+                                edges_(nthreads_, 0),
+                                propagations_(nthreads_, 0),
+                                dags_(nthreads_, 0) {
     omp_set_num_threads(nthreads_);
-    for(size_t i = 0; i < OMP_NUM_THREADS; i++) {
+    for(size_t i = 0; i < nthreads_; i++) {
         SG_INIT(thread_local_sg_[i]);
         thread_local_sg_[i].v = (edge_t *)malloc(sizeof(edge_t)*(input.nv + input.nde) + sizeof(degree_t)*input.nv);
         thread_local_lab_[i] = (int *)malloc(3*input.nv*sizeof(int));
