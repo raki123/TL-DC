@@ -81,6 +81,7 @@ class ParallelSearch {
     std::vector<size_t> edges_;
     std::vector<size_t> propagations_;
     std::vector<size_t> dags_;
+    std::vector<size_t> bridges_;
 
 };
 

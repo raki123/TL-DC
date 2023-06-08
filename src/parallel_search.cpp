@@ -26,7 +26,8 @@ ParallelSearch::ParallelSearch(sparsegraph input, Edge_length max_length, size_t
                                 neg_hits_(nthreads_, 0),
                                 edges_(nthreads_, 0),
                                 propagations_(nthreads_, 0),
-                                dags_(nthreads_, 0) {
+                                dags_(nthreads_, 0),
+                                bridges_(nthreads_, 0) {
     omp_set_num_threads(nthreads_);
     for(size_t i = 0; i < nthreads_; i++) {
         SG_INIT(thread_local_sg_[i]);
@@ -88,7 +89,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
                             Vertex w = old_sg.e[old_sg.v[cur] + i];
                             if(w == 1) {
                                 // update the partial result
-                                for(Edge_length res_length = 1; res_length < new_result.size() && new_result[0] + res_length < max_length_; res_length++) {
+                                for(Edge_length res_length = 1; res_length < new_result.size() && new_result[0] + res_length <= max_length_; res_length++) {
                                     // current offset + 1 for the additional edge
                                     thread_local_result_[thread_id][new_result[0] + res_length] += new_result[res_length];
                                 }
@@ -344,6 +345,8 @@ bool ParallelSearch::ap_util(sparsegraph const& sg, Vertex u, std::vector<char>&
                     distance[v] = invalid_;
                     prune_util(sg, v, distance);
                     distance[u] = tmp;
+                } else if(low[v] > disc[u]) {
+                    bridges_[omp_get_thread_num()]++;
                 }
             }
         } else if (v != parent) {
@@ -408,16 +411,17 @@ void ParallelSearch::reverse_pruning_dijkstra(sparsegraph const& sg, Vertex prun
 
 void ParallelSearch::print_stats() {
     size_t pos_hits = 0, neg_hits = 0;
-    for(size_t i = 0; i < OMP_NUM_THREADS; i++) {
+    for(size_t i = 0; i < nthreads_; i++) {
         pos_hits += pos_hits_[i];
         neg_hits += neg_hits_[i];
     }
     size_t dags = 0, splits = 0;
-    for(size_t i = 0; i < OMP_NUM_THREADS; i++) {
+    for(size_t i = 0; i < nthreads_; i++) {
         dags += dags_[i];
+        splits += bridges_[i];
     }
     size_t edges = 0, propagations = 0;
-    for(size_t i = 0; i < OMP_NUM_THREADS; i++) {
+    for(size_t i = 0; i < nthreads_; i++) {
         edges += edges_[i];
         propagations += propagations_[i];
     }
