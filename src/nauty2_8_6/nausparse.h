@@ -31,6 +31,9 @@
 #define SG_MINWEIGHT (-NAUTY_INFINITY)
 #endif
 typedef SG_WEIGHT sg_weight;
+typedef uint8_t degree_t;
+typedef uint16_t vertex_t;
+typedef uint16_t edge_t;
 
 #define CHECK_SWG(sg,id) do { if ((sg)->w) { fprintf(stderr, \
  ">E procedure %s does not accept weighted graphs\n",id); exit(1); } } while (0)
@@ -38,10 +41,10 @@ typedef SG_WEIGHT sg_weight;
 typedef struct
 {
     size_t nde;  /* Number of directed edges (loops contribute only 1) */
-    size_t *v;   /* Array of indexes into e[*] */
-    int nv;      /* Number of vertices */
-    int *d;      /* Array with out-degree of each vertex */
-    int *e;      /* Array to hold lists of neighbours */
+    edge_t *v;   /* Array of indexes into e[*] */
+    vertex_t nv;      /* Number of vertices */
+    degree_t *d;      /* Array with out-degree of each vertex */
+    edge_t *e;      /* Array to hold lists of neighbours */
     sg_weight *w;      /* Not implemented, should be NULL. */
     size_t vlen,dlen,elen,wlen;  /* Sizes of arrays in units of type */
 } sparsegraph;
@@ -52,18 +55,18 @@ typedef struct
 #define SWG_VDE(sgp,vv,dd,ee,ww) do { vv = ((sparsegraph*)(sgp))->v; \
   dd = ((sparsegraph*)(sgp))->d; ee = ((sparsegraph*)(sgp))->e; \
   ww = ((sparsegraph*)(sgp))->w; } while(0)
-#define SG_INIT(sg) do { (sg).v = NULL; (sg).d = (sg).e = (sg).w = NULL; \
+#define SG_INIT(sg) do { (sg).v = NULL; (sg).d = NULL; (sg).e = NULL; (sg).w = NULL; \
    (sg).vlen = (sg).dlen = (sg).elen = (sg).wlen = 0; } while(0)
 #define SWG_INIT SG_INIT
 #define SG_ALLOC(sg,nlen,ndelen,msg) do { \
-   DYNALLOC1(size_t,(sg).v,(sg).vlen,nlen,msg); \
-   DYNALLOC1(int,(sg).d,(sg).dlen,nlen,msg); \
-   DYNALLOC1(int,(sg).e,(sg).elen,ndelen,msg); \
+   DYNALLOC1(edge_t,(sg).v,(sg).vlen,nlen,msg); \
+   DYNALLOC1(degree_t,(sg).d,(sg).dlen,nlen,msg); \
+   DYNALLOC1(edge_t,(sg).e,(sg).elen,ndelen,msg); \
 } while (0)
 #define SWG_ALLOC(sg,nlen,ndelen,msg) do { \
-   DYNALLOC1(size_t,(sg).v,(sg).vlen,nlen,msg); \
-   DYNALLOC1(int,(sg).d,(sg).dlen,nlen,msg); \
-   DYNALLOC1(int,(sg).e,(sg).elen,ndelen,msg); \
+   DYNALLOC1(edge_t,(sg).v,(sg).vlen,nlen,msg); \
+   DYNALLOC1(degree_t,(sg).d,(sg).dlen,nlen,msg); \
+   DYNALLOC1(edge_t,(sg).e,(sg).elen,ndelen,msg); \
    DYNALLOC1(sg_weight,(sg).w,(sg).wlen,ndelen,msg); \
 } while (0)
 #define SG_FREE(sg) do { \

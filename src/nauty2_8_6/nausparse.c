@@ -153,8 +153,9 @@ preparemarks2(size_t nn)
 boolean
 isautom_sg(graph *g, int *p, boolean digraph, int m, int n)
 {
-    int *d,*e;
-    size_t *v;
+    degree_t *d;
+    edge_t *e;
+    edge_t *v;
     int i,pi,di;
     size_t vi,vpi,j;
 
@@ -188,10 +189,11 @@ isautom_sg(graph *g, int *p, boolean digraph, int m, int n)
 boolean
 aresame_sg(sparsegraph *g1, sparsegraph *g2)
 {
-    int *d1,*e1;
-    int *d2,*e2;
+    degree_t *d1,*d2;
+    edge_t *e1,*e2;
     int n,i,di;
-    size_t vi,*v1,*v2,j;
+    edge_t *v1,*v2;
+    size_t vi,j;
 
     n = g1->nv;
     if (g2->nv != n || g2->nde != g1->nde) return FALSE;
@@ -228,10 +230,11 @@ aresame_sg(sparsegraph *g1, sparsegraph *g2)
 int
 testcanlab_sg(graph *g, graph *canong, int *lab, int *samerows, int m, int n)
 {
-    int *d,*e;
-    int *cd,*ce;
+    degree_t *d,*cd;
+    edge_t *e,*ce;
     int i,k,di,dli;
-    size_t j,vi,vli,*v,*cv;
+    edge_t *v,*cv;
+    size_t j,vi,vli;
     int mina;
 
     SG_VDE(g,v,d,e);
@@ -297,10 +300,11 @@ testcanlab_sg(graph *g, graph *canong, int *lab, int *samerows, int m, int n)
 void
 updatecan_sg(graph *g, graph *canong, int *lab, int samerows, int m, int n)
 {
-    int *d,*e;
-    int *cd,*ce;
+    degree_t *d,*cd;
+    edge_t *e,*ce;
     int i,dli;
-    size_t *v,*cv,vli,j,k;
+    edge_t *v,*cv;
+    size_t vli,j,k;
     sg_weight *wt,*cwt;
 
     SWG_VDE(g,v,d,e,wt);
@@ -350,7 +354,8 @@ int
 comparelab_tr(sparsegraph *g,
        int *lab1, int *invlab1, int *lab2, int *invlab2, int *cls, int *col)
 {
-    int d1,*e1,d2,*e2;
+    degree_t d1,d2;
+    edge_t *e1,*e2;
     int i,j,k,n,c,end;
     int mina;
     
@@ -420,11 +425,12 @@ int
 testcanlab_tr(sparsegraph *g, sparsegraph *canong,
                                   int *lab, int *invlab, int *samerows)
 {
-    int *d,*e;
-    int *cd,*ce;
+    degree_t *d,*cd;
+    edge_t *e,*ce;
     int i,di,dli;
     int k,n;
-    size_t *v,*cv,vi,vli,j;
+    edge_t *v,*cv;
+    size_t vi,vli,j;
     int mina;
     
     SG_VDE(g,v,d,e);
@@ -487,10 +493,11 @@ void
 updatecan_tr(sparsegraph *g, sparsegraph *canong,
                     int *lab, int *invlab, int samerows)
 {
-    int *d,*e;
-    int *cd,*ce;
+    degree_t *d,*cd;
+    edge_t *e,*ce;
     int i,dli,n;
-    size_t *v,*cv,vli,j,k;
+    edge_t *v,*cv;
+    size_t vli,j,k;
     
     SG_VDE(g,v,d,e);
     SG_VDE(canong,cv,cd,ce);
@@ -522,11 +529,18 @@ updatecan_tr(sparsegraph *g, sparsegraph *canong,
 #define SORT_OF_SORT 1
 #define SORT_NAME sortints
 #define SORT_TYPE1 int
+#define SORT_TYPE2 int
+#include "sorttemplates.c"
+
+#define SORT_OF_SORT 1
+#define SORT_NAME sortsgs
+#define SORT_TYPE1 edge_t
+#define SORT_TYPE2 degree_t
 #include "sorttemplates.c"
 
 #define SORT_OF_SORT 2
 #define SORT_NAME sortweights
-#define SORT_TYPE1 int
+#define SORT_TYPE1 edge_t
 #define SORT_TYPE2 sg_weight
 #include "sorttemplates.c"
 
@@ -593,10 +607,12 @@ cleanup_sg(graph *gin, graph **gout, graph *hin, graph **hout, int *lab,
 void
 distvals(sparsegraph *g, int v0, int *dist, int n)
 {
-    int *d,*e;
+    degree_t *d;
+    edge_t *e;
     int i,head,tail;
     int di,k;
-    size_t *v,vi,j;
+    edge_t *v;
+    size_t vi,j;
 
     SG_VDE(g,v,d,e);
 #if !MAXN
@@ -651,12 +667,14 @@ refine_sg(graph *g, int *lab, int *ptn, int level, int *numcells,
     int i,j,k,l,v1,v2,v3,isplit;
     int w1,w2,w3;
     long longcode;
-    int *d,*e;
+    degree_t *d;
+    edge_t *e;
     int size,bigsize,bigpos;
     int nactive,hitcells;
     int lj,di,splitv;
     boolean trivsplit;
-    size_t *v,vi,ii;
+    edge_t *v;
+    size_t vi,ii;
 
     SG_VDE(g,v,d,e);
 
@@ -1179,11 +1197,13 @@ bestcell_sg(graph *g, int *lab, int *ptn, int level,
                                           int tc_level, int m, int n)
 {
     int nnt;
-    int *d,*e;
+    degree_t *d;
+    edge_t *e;
     int i,k,di;
     int *work1b;
     int maxcnt;
-    size_t *v,vi,j;
+    edge_t *v;
+    size_t vi,j;
 
     SG_VDE(g,v,d,e);
 
@@ -1304,9 +1324,10 @@ targetcell_sg(graph *g, int *lab, int *ptn, int level, int tc_level,
 void
 sortlists_sg(sparsegraph *g)
 {
-    int *d,*e;
+    degree_t *d;
+    edge_t *e;
     int n,i;
-    size_t *v;
+    edge_t *v;
     sg_weight *wt;
 
     SWG_VDE(g,v,d,e,wt);
@@ -1320,7 +1341,7 @@ sortlists_sg(sparsegraph *g)
     else
     {
         for (i = 0; i < n; ++i)
-            if (d[i] > 1) sortints(e+v[i],d[i]);
+            if (d[i] > 1) sortsgs(e+v[i],d[i]);
     }
 }
 
@@ -1335,10 +1356,12 @@ sortlists_sg(sparsegraph *g)
 void
 put_sg(FILE *f, sparsegraph *sg, boolean digraph, int linelength)
 {
-    int *d,*e;
+    degree_t *d;
+    edge_t *e;
     int n,di;
     int i,curlen,slen;
-    size_t *v,vi,j;
+    edge_t *v;
+    size_t vi,j;
     char s[12];
 
     SG_VDE(sg,v,d,e);
@@ -1383,9 +1406,11 @@ put_sg(FILE *f, sparsegraph *sg, boolean digraph, int linelength)
 graph*
 sg_to_nauty(sparsegraph *sg, graph *g, int reqm, int *pm)
 {
-    int *d,*e;
+    degree_t *d;
+    edge_t *e;
     int m,n,i,di;
-    size_t *v,vi,j;
+    edge_t *v;
+    size_t vi,j;
     set *gi;
 
     SG_VDE(sg,v,d,e);
@@ -1435,9 +1460,11 @@ sg_to_nauty(sparsegraph *sg, graph *g, int reqm, int *pm)
 sparsegraph*
 copy_sg(sparsegraph *sg1, sparsegraph *sg2)
 {
-    int *d1,*e1,*d2,*e2;
+    degree_t *d1,*d2;
+    edge_t *e1, *e2;
     int i,n;
-    size_t *v1,*v2,k;
+    edge_t *v1,*v2;
+    size_t k;
     sg_weight *wt1,*wt2;
 
     if (!sg2)
@@ -1490,10 +1517,11 @@ copy_sg(sparsegraph *sg1, sparsegraph *sg2)
 sparsegraph*
 nauty_to_sg(graph *g, sparsegraph *sg, int m, int n)
 {
-    int *d,*e;
+    degree_t *d;
+    edge_t *e, *v;
     int i,k;
     set *gi;
-    size_t j,*v,nde;
+    size_t j,nde;
 
     if (!sg)
     {
@@ -1541,13 +1569,15 @@ void
 distances_sg(graph *g, int *lab, int *ptn, int level, int numcells, int tvpos,
          int *invar, int invararg, boolean digraph, int m, int n)
 {
-    int *d,*e;
+    degree_t *d;
+    edge_t *e;
     int i,k,dlim,wt;
     int di;
     int cell1,cell2,iv,liv,kcode;
     int head,tail;
     long longcode;
-    size_t *v,vi,j;
+    edge_t *v;
+    size_t vi,j;
     boolean success;
 
     SG_VDE(g,v,d,e);
@@ -1631,10 +1661,11 @@ adjacencies_sg(graph *g, int *lab, int *ptn, int level, int numcells,
                int tvpos, int *invar, int invararg, boolean digraph,
                int m, int n)
 {
-    int *d,*e;
+    degree_t *d;
+    edge_t *e, *v, *ei;
     int vwt,wwt;
-    int *ei,di,i;
-    size_t *v,j;
+    int di,i;
+    size_t j;
 
     SG_VDE(g,v,d,e);
 

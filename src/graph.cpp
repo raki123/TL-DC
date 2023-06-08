@@ -171,9 +171,9 @@ sparsegraph Graph::to_canon_nauty() {
     for(Vertex v = 0; v < adjacency_.size(); v++) {
         nr_edges += neighbors(v).size();
     }
-    sg.v = (size_t *)malloc(sizeof(size_t)*adjacency_.size() + sizeof(int)*(adjacency_.size() + nr_edges) + 100);
-    sg.d = (int *)(sg.v + adjacency_.size());
-    sg.e = sg.d + adjacency_.size();
+    sg.v = (edge_t *)malloc(sizeof(edge_t)*(adjacency_.size() + nr_edges) + sizeof(degree_t)*adjacency_.size());
+    sg.d = (degree_t *)(sg.v + adjacency_.size());
+    sg.e = (edge_t *)(sg.d + adjacency_.size());
     sg.nv = adjacency_.size();
     sg.nde = nr_edges;
     sg.vlen = adjacency_.size();
@@ -200,9 +200,9 @@ sparsegraph Graph::to_canon_nauty() {
     }
     statsblk stats;
     SG_DECL(canon_sg);
-    canon_sg.v = (size_t *)malloc(sizeof(size_t)*adjacency_.size() + sizeof(int)*(adjacency_.size() + nr_edges) + 100);
-    canon_sg.d = (int *)(canon_sg.v + adjacency_.size());
-    canon_sg.e = canon_sg.d + adjacency_.size();
+    canon_sg.v = (edge_t *)malloc(sizeof(edge_t)*(adjacency_.size() + nr_edges) + sizeof(degree_t)*adjacency_.size());
+    canon_sg.d = (degree_t *)(canon_sg.v + adjacency_.size());
+    canon_sg.e = (edge_t *)(canon_sg.d + adjacency_.size());
     canon_sg.nv = adjacency_.size();
     canon_sg.nde = nr_edges;
     canon_sg.vlen = sg.vlen;
@@ -1235,7 +1235,7 @@ Vertex Graph::limit_max_length() {
     Clingo::Control ctl{{}, logger, 20};
     ctl.add("base", {}, prog_str.str().c_str());
     ctl.ground({{"base", {}}});
-    ctl.configuration()["solve"]["solve_limit"] = "100000";
+    ctl.configuration()["solve"]["solve_limit"] = "1000";
     int64_t best_cost = max_length_;
     bool impossible = true;
     while(impossible) {

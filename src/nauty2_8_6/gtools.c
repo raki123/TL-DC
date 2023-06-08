@@ -2063,7 +2063,7 @@ sgtog6(sparsegraph *sg)
     size_t ii,*v,bodylen,org;
     static char g6bit[] = {32,16,8,4,2,1};
 
-    SG_VDE(sg,v,d,e);
+    mSG_VDE(sg,v,d,e);
     n = sg->nv;
 
     ii = G6LEN(n)+3;
@@ -2101,10 +2101,12 @@ sgtod6(sparsegraph *sg)
 /* Convert undirected sparse graph to digraph6 string including '\n','\0'.
   It is null-terminated and its address (static memory) is returned. */
 {
-    int *d,*e,*ei;
+    degree_t *d;
+    edge_t *e, *ei;
     int i,j,n;
     char *p;
-    size_t ii,*v,bodylen,org;
+    edge_t *v;
+    size_t ii,bodylen,org;
     static char g6bit[] = {32,16,8,4,2,1};
 
     SG_VDE(sg,v,d,e);
@@ -2229,9 +2231,14 @@ writepc_sg(FILE *f, sparsegraph *sg)
 */
 {
     int bytes;
-    size_t i,j,len,k,*v,vi;
+    size_t i,j,len,k;
+    edge_t *v;
+    int vi;
     unsigned int w;
-    int n,*d,*e,di;
+    int n;
+    degree_t *d;
+    edge_t *e;
+    int di;
 
 #define BEPUT1(x) buff[j++]=(unsigned char)(x);
 #define BEPUT2(x) w=(x); buff[j++]=(unsigned char)((w>>8)&0xFF); \
@@ -2316,8 +2323,12 @@ readpc_sg(FILE *f,sparsegraph *sg)
                  else x = (w1<<24) | (w2<<16) | (w3<<8) | w4; }
     int w1,w2,w3,w4;
     int bytes,n;
-    int i,j,*d,*e,di;
-    size_t *v,vi;
+    int i,j;
+    degree_t *d;
+    edge_t *e;
+    int di;
+    edge_t *v;
+    size_t vi;
 
     BEGET1(n);
     if (n == EOF || n < 0) return NULL;
@@ -2368,7 +2379,7 @@ readpc_sg(FILE *f,sparsegraph *sg)
             {
                 if (vi == sg->elen)
                 {
-                    DYNREALLOC(int,sg->e,sg->elen,2*sg->elen,"readpc_sg");
+                    DYNREALLOC(edge_t,sg->e,sg->elen,2*sg->elen,"readpc_sg");
                     e = sg->e;
                 }
                 e[vi++] = j-1;
@@ -2404,8 +2415,12 @@ readpcle_sg(FILE *f,sparsegraph *sg)
                  else x = (w1<<24) | (w2<<16) | (w3<<8) | w4; }
     int w1,w2,w3,w4;
     int bytes,n;
-    int i,j,*d,*e,di;
-    size_t *v,vi;
+    int i,j;
+    degree_t *d;
+    edge_t *e;
+    int di;
+    edge_t *v;
+    size_t vi;
 
     LEGET1(n);
     if (n == EOF || n < 0) return NULL;
@@ -2456,7 +2471,7 @@ readpcle_sg(FILE *f,sparsegraph *sg)
             {
                 if (vi == sg->elen)
                 {
-                    DYNREALLOC(int,sg->e,sg->elen,2*sg->elen,"readpcle_sg");
+                    DYNREALLOC(edge_t,sg->e,sg->elen,2*sg->elen,"readpcle_sg");
                     e = sg->e;
                 }
                 e[vi++] = j-1;

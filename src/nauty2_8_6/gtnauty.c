@@ -173,8 +173,11 @@ hasloops(graph *g, int m, int n)
 static boolean
 hasloops_sg(sparsegraph *sg)
 {
-    size_t *v,vi,j;
-    int *d,*e,n,i;
+    edge_t *v;
+    size_t vi,j;
+    degree_t *d;
+    edge_t *e;
+    int n,i;
 
     n = sg->nv;
     SG_VDE(sg,v,d,e);

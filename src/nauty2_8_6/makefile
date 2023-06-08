@@ -236,10 +236,10 @@ dreadnaut1: dreadnaut.c naututil1.o nauty1.o nautil1.o nautinv1.o \
 	     nauty1.o nautil1.o nautinv1.o naugraph1.o naurng.o gtools.o \
 	     nausparse.o schreier.o traces.o ${LDFLAGS}
 
-nauty.a: ${NAUTYO} traces.o gtools.o naututil.o nautinv.o \
+nauty.a: ${NAUTYO} nautinv.o \
 			gutil1.o gutil2.o gtnauty.o naugroup.o nautycliquer.o
 	rm -f nauty.a
-	${AR} crs nauty.a ${NAUTYO} traces.o gtools.o naututil.o \
+	${AR} crs nauty.a ${NAUTYO} \
 		 nautinv.o gutil1.o gutil2.o gtnauty.o naugroup.o \
 		 naurng.o schreier.o nautycliquer.o
 

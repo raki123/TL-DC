@@ -30,7 +30,7 @@ ParallelSearch::ParallelSearch(sparsegraph input, Edge_length max_length) :
     omp_set_num_threads(nthreads_);
     for(size_t i = 0; i < OMP_NUM_THREADS; i++) {
         SG_INIT(thread_local_sg_[i]);
-        thread_local_sg_[i].v = (size_t *)malloc(sizeof(size_t)*input.nv + sizeof(int)*(input.nv + input.nde));
+        thread_local_sg_[i].v = (edge_t *)malloc(sizeof(edge_t)*(input.nv + input.nde) + sizeof(degree_t)*input.nv);
         thread_local_lab_[i] = (int *)malloc(3*input.nv*sizeof(int));
         thread_local_ptn_[i] = thread_local_lab_[i] + input.nv;
         thread_local_orbits_[i] = thread_local_ptn_[i] + input.nv;
@@ -129,8 +129,8 @@ std::vector<Edge_weight> ParallelSearch::search() {
                     options.getcanon = true;
                     options.defaultptn = false;
                     sparsegraph sg = thread_local_sg_[thread_id];
-                    sg.d = (int *)(sg.v + old_sg.nv);
-                    sg.e = sg.d + old_sg.nv;
+                    sg.d = (degree_t *)(sg.v + old_sg.nv);
+                    sg.e = (edge_t *)(sg.d + old_sg.nv);
                     sg.vlen = old_sg.nv;
                     sg.dlen = old_sg.nv;
                     sg.elen = old_sg.nde;
@@ -191,9 +191,9 @@ std::vector<Edge_weight> ParallelSearch::search() {
                     assert(nr_edges < old_sg.nde);
                     statsblk stats;
                     SG_DECL(canon_sg);
-                    canon_sg.v = (size_t *)malloc(sizeof(size_t)*sg.nv + sizeof(int)*(sg.nv + sg.nde));
-                    canon_sg.d = (int *)(canon_sg.v + sg.nv);
-                    canon_sg.e = canon_sg.d + sg.nv;
+                    canon_sg.v = (edge_t *)malloc(sizeof(edge_t)*(sg.nv + sg.nde) + sizeof(degree_t)*sg.nv);
+                    canon_sg.d = (degree_t *)(canon_sg.v + sg.nv);
+                    canon_sg.e = (edge_t *)(canon_sg.d + sg.nv);
                     canon_sg.nv = sg.nv;
                     canon_sg.nde = sg.nde;
                     canon_sg.vlen = sg.nv;

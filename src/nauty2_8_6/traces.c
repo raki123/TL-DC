@@ -229,7 +229,7 @@ typedef struct pair {
 } pair;
 
 typedef struct grph_strct {
-    int *e;
+    edge_t *e;
     int *w;
     int d;
     boolean one;
@@ -8634,8 +8634,9 @@ void Initialize_Traces_Time_Variables (TracesVars *tv) {
 }
 
 boolean isautom_sg_pair(graph *g, int *p, boolean digraph, int m, int n, struct TracesVars *tv) {
-    int *d, *e;
-    size_t *v;
+    degree_t *d;
+    edge_t *e;
+    edge_t *v;
     int i, k, pi, di;
     size_t vi, vpi, j;
     
@@ -9314,7 +9315,8 @@ void PrintVect(int *v, int z, int n, int l) {
 
 void PrintWeightedGraph1(sparsegraph *g_arg, int n, char msg[30]) {
     int i, j;
-    int *ngh1, *wgh1;
+    edge_t *ngh1;
+    sg_weight *wgh1;
     
     printf("%s\n",msg);
     for (i=0; i<n; i++) {
@@ -9365,8 +9367,10 @@ void PrintBlissGraph(int n) {
 void putgraphplus_sg(FILE *f, sparsegraph *sg, int linelength)
 {
     int i,n,curlen,slen;
-    int *d,*e;
-    size_t *v,j;
+    degree_t *d;
+    edge_t *e;
+    edge_t *v;
+    size_t j;
     char s[60];
     
     n = sg->nv;
@@ -10057,7 +10061,8 @@ void  trie_class(trie *t, int *count) {
 int trie_classify(int n, TracesVars *tv) {
     
     int i, j, ord;
-    int *ngh1, *wgh1;
+    degree_t *ngh1;
+    int *wgh1;
     
     trieroot = trie_new(n, tv);
     ord = 0;
@@ -10256,7 +10261,8 @@ int VerifyPerm(int *perm, int n,int where) {
 void WeightCodes(int n) {
     int i,j,aux;
     int sumdegs;
-    int deg, vtx1, vtx2, *ngh1, *ngh2, *wgh1, *wgh2, ord;
+    edge_t *ngh1, *ngh2;
+    int deg, vtx1, vtx2, *wgh1, *wgh2, ord;
     
     sumdegs = 0;
     for (i=0; i<n; i++) {
