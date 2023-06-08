@@ -62,6 +62,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
                 for(int o = 0; o < old_sg.d[0]; o++) {
                     Vertex last = 0;
                     assert(old_sg.e[o] != 1);
+                    edges_[thread_id]++;
                     propagations_[thread_id]--;
                     std::vector<Vertex> poss_non_dag = {Vertex(old_sg.e[o])};
                     std::vector<Vertex> extra = {0};
@@ -70,7 +71,6 @@ std::vector<Edge_weight> ParallelSearch::search() {
                     std::vector<Edge_weight> new_result = result;
                     // there is only one non_dag edge
                     while(poss_non_dag.size() == 1) {
-                        edges_[thread_id]++;
                         propagations_[thread_id]++;
                         Vertex cur = poss_non_dag[0];
                         extra.push_back(cur);
@@ -92,14 +92,12 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         for(int i = 0; i < old_sg.d[cur]; i++) {
                             Vertex w = old_sg.e[old_sg.v[cur] + i];
                             if(w == 1) {
-                                edges_[thread_id]++;
                                 // update the partial result
                                 for(Edge_length res_length = 0; res_length < new_result.size(); res_length++) {
                                     thread_local_result_[thread_id][res_length + 1] += new_result[res_length];
                                 }
                             } else if(v_budget == distance_to_goal[w] + 1) {
                                 extra.push_back(w);
-                                edges_[thread_id]++;
                                 dags_[thread_id]++;
                                 Edge_weight result_until = new_result[max_length_ - v_budget];
                                 Edge_weight remaining_result = dag_search(old_sg, w, distance_to_goal);
@@ -262,9 +260,9 @@ std::vector<Edge_weight> ParallelSearch::search() {
 
 Edge_weight ParallelSearch::dag_search(sparsegraph const& sg, Vertex start, std::vector<Edge_length> const& distance_to_goal) {
     std::deque<Vertex> biggest_first_queue;
+    biggest_first_queue.push_back(start);
     std::vector<Edge_weight> dp(sg.nv, 0);
     dp[start] = 1;
-    biggest_first_queue.push_back(start);
     while(biggest_first_queue.front() != 1) {
         auto cur_vertex = biggest_first_queue.front();
         biggest_first_queue.pop_front();

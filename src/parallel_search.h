@@ -48,8 +48,6 @@ class ParallelSearch {
     std::vector<int *> thread_local_ptn_;
     std::vector<int *> thread_local_orbits_;
 
-    // // recursive search
-    // std::vector<Edge_weight> search(Vertex start, Edge_length budget);
     // more efficient search if budget is equal to length of shortest path
     Edge_weight dag_search(sparsegraph const& sg, Vertex start, std::vector<Edge_length> const& distance_to_goal);
 
