@@ -46,7 +46,8 @@ ParallelSearch::ParallelSearch(sparsegraph input, Edge_length max_length, size_t
 }
 
 std::vector<Edge_weight> ParallelSearch::search() {
-    cache_[initial_.nv][initial_] = {1};
+    // cached vectors are {offset, results}
+    cache_[initial_.nv][initial_] = {0, 1};
     Vertex nr_vertices = initial_.nv;
     for(Vertex remaining_size = nr_vertices + 1; remaining_size-- > 0; ) {
         #pragma omp parallel for default(none) shared(max_length_) shared(remaining_size) shared(cache_) shared(invalid_) shared(thread_local_result_) shared(thread_local_sg_) shared(thread_local_ptn_) shared(thread_local_lab_) shared(thread_local_orbits_) shared(dispatch_sparse)
@@ -55,10 +56,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
             for(auto task_it = cache_[remaining_size].begin(bucket); task_it != cache_[remaining_size].end(bucket); ++task_it) {
                 auto const& old_sg = task_it->first;
                 auto const& result = task_it->second;
-                Edge_length budget = max_length_;
-                while(result[max_length_ - budget] == 0) {
-                    budget--;
-                }
+                Edge_length budget = max_length_ - result[0];
                 for(int o = 0; o < old_sg.d[0]; o++) {
                     Vertex last = 0;
                     assert(old_sg.e[o] != 1);
@@ -74,11 +72,8 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         propagations_[thread_id]++;
                         Vertex cur = poss_non_dag[0];
                         extra.push_back(cur);
-                        new_result.resize(std::min(new_result.size() + 1, size_t(max_length_)));
-                        for(Edge_length res_length = new_result.size() - 1; res_length >= 1; res_length--) {
-                            new_result[res_length] = new_result[res_length - 1];
-                        }
-                        new_result[0] = 0;
+                        // increase the offset by one
+                        new_result[0]++;
                         v_budget -= 1;
                         std::fill(distance_to_goal.begin(), distance_to_goal.end(), invalid_);
                         for(Vertex extra_v : extra) {
@@ -93,13 +88,15 @@ std::vector<Edge_weight> ParallelSearch::search() {
                             Vertex w = old_sg.e[old_sg.v[cur] + i];
                             if(w == 1) {
                                 // update the partial result
-                                for(Edge_length res_length = 0; res_length < new_result.size(); res_length++) {
-                                    thread_local_result_[thread_id][res_length + 1] += new_result[res_length];
+                                for(Edge_length res_length = 1; res_length < new_result.size() && new_result[0] + res_length < max_length_; res_length++) {
+                                    // current offset + 1 for the additional edge
+                                    thread_local_result_[thread_id][new_result[0] + res_length] += new_result[res_length];
                                 }
                             } else if(v_budget == distance_to_goal[w] + 1) {
                                 extra.push_back(w);
                                 dags_[thread_id]++;
-                                Edge_weight result_until = new_result[max_length_ - v_budget];
+                                // must be the shortest path
+                                Edge_weight result_until = new_result[1];
                                 Edge_weight remaining_result = dag_search(old_sg, w, distance_to_goal);
                                 thread_local_result_[thread_id][max_length_] += result_until*remaining_result;
                             } else if(v_budget > distance_to_goal[w] + 1) {
@@ -222,6 +219,9 @@ std::vector<Edge_weight> ParallelSearch::search() {
                     assert(canon_sg.v == old_v);
                     assert(canon_sg.d == old_d);
                     assert(canon_sg.e == old_e);
+                    if(new_result.size() + new_result[0] - 1 > max_length_) {
+                        new_result.resize(max_length_ - new_result[0] + 1);
+                    }
                     #pragma omp critical
                     {
                         auto ins = cache_[canon_sg.nv].insert(
@@ -231,11 +231,25 @@ std::vector<Edge_weight> ParallelSearch::search() {
                             pos_hits_[thread_id]++;
                             // there is already an element with that key
                             // instead increase the partial result for that key
-                            if(ins.first->second.size() < new_result.size()) {
-                                ins.first->second.resize(new_result.size());
-                            }
-                            for(Edge_length res_length = 0; res_length < new_result.size(); res_length++) {
-                                ins.first->second[res_length] += new_result[res_length];
+                            auto old_offset = ins.first->second[0];
+                            auto new_offset = new_result[0];
+                            if(old_offset > new_offset) {
+                                // we reached this state with a smaller offset
+                                // add the paths we currently cached to the new result
+                                if(new_result.size() + new_offset < ins.first->second.size() + old_offset) {
+                                    new_result.resize(ins.first->second.size() + old_offset - new_offset);
+                                }
+                                for(Edge_length res_length = 1; res_length < ins.first->second.size(); res_length++) {
+                                    new_result[old_offset - new_offset + res_length] += ins.first->second[res_length];
+                                }
+                                ins.first->second = new_result;
+                            } else {
+                                if(ins.first->second.size() + old_offset < new_result.size() + new_offset) {
+                                    ins.first->second.resize(new_result.size() + new_offset - old_offset);
+                                }
+                                for(Edge_length res_length = 1; res_length < new_result.size(); res_length++) {
+                                    ins.first->second[new_offset - old_offset + res_length] += new_result[res_length];
+                                }
                             }
                             free(canon_sg.v);
                         } else {
