@@ -52,7 +52,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
     cache_[initial_.nv][initial_] = {0, 1};
     Vertex nr_vertices = initial_.nv;
     for(Vertex remaining_size = nr_vertices + 1; remaining_size-- > 0; ) {
-        #pragma omp parallel for default(none) shared(max_length_) shared(remaining_size) shared(cache_) shared(invalid_) shared(thread_local_result_) shared(thread_local_sg_) shared(thread_local_ptn_) shared(thread_local_lab_) shared(thread_local_orbits_) shared(thread_local_bridges_) shared(dispatch_sparse)
+        #pragma omp parallel for default(none) shared(max_length_) shared(std::cerr) shared(remaining_size) shared(cache_) shared(invalid_) shared(thread_local_result_) shared(thread_local_sg_) shared(thread_local_ptn_) shared(thread_local_lab_) shared(thread_local_orbits_) shared(thread_local_bridges_) shared(dispatch_sparse)
         for(size_t bucket = 0; bucket < cache_[remaining_size].bucket_count(); bucket++) {
             size_t thread_id = omp_get_thread_num();
             for(auto task_it = cache_[remaining_size].begin(bucket); task_it != cache_[remaining_size].end(bucket); ++task_it) {
@@ -129,6 +129,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
                     prune_articulation(old_sg, last, distance_to_start);
                     assert(last != 1);
                     assert(last < old_sg.nv);
+                    assert(distance_to_start[1] != invalid_);
                     // construct the new canonical graph
                     DEFAULTOPTIONS_SPARSEGRAPH(options);
                     options.getcanon = true;
@@ -144,11 +145,11 @@ std::vector<Edge_weight> ParallelSearch::search() {
                     mapping[last] = 0;
                     mapping[1] = 1;
                     int ctr = 2;
-                    for(auto it = thread_local_bridges_[thread_id].rbegin(); it != thread_local_bridges_[thread_id].rend(); ++it) {
-                        auto [from, to] = *it;
+                    for(auto [from, to] : thread_local_bridges_[thread_id]) {
                         if(mapping[from] == -1 && mapping[to] == -1) {
                             mapping[from] = mapping[to] = ctr++;
                         } else {
+                            assert(mapping[from] == -1 || mapping[to] == -1);
                             if(mapping[from] == -1) {
                                 mapping[from] = mapping[to];
                             } else {
@@ -156,6 +157,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
                             }
                         }
                         assert(from != last && to != last);
+                        assert(mapping[from] == mapping[to]);
                         new_result[0]++;
                     }
                     int safe = ctr;
@@ -174,7 +176,6 @@ std::vector<Edge_weight> ParallelSearch::search() {
                         }
                     }
                     sg.d[0] = nr_edges;
-                    assert(distance_to_start[1] != invalid_);
                     sg.v[1] = nr_edges;
                     for(size_t j = 0; j < old_sg.d[1]; j++) {
                         assert(old_sg.v[1] + j < old_sg.nde);
@@ -186,15 +187,17 @@ std::vector<Edge_weight> ParallelSearch::search() {
                     }
                     sg.d[1] = nr_edges - sg.v[1];
                     // take care of the edges of the merged bridge vertices
-                    Vertex last_to = -1;
+                    Vertex last_from = 1;
                     for(auto [from, to] : thread_local_bridges_[thread_id]) {
-                        if(last_to != from) {
-                            sg.v[mapping[from]] = nr_edges;
-                            for(size_t j = 0; j < old_sg.d[from]; j++) {
-                                assert(old_sg.v[from] + j < old_sg.nde);
-                                Vertex w = old_sg.e[old_sg.v[from] + j];
+                        assert(mapping[from] == mapping[to]);
+                        if(last_from != to) {
+                            assert(mapping[last_from] != mapping[to]);
+                            sg.v[mapping[to]] = nr_edges;
+                            for(size_t j = 0; j < old_sg.d[to]; j++) {
+                                assert(old_sg.v[to] + j < old_sg.nde);
+                                Vertex w = old_sg.e[old_sg.v[to] + j];
                                 assert(w < old_sg.nv);
-                                if(distance_to_start[w] != invalid_ && mapping[w] != mapping[from]) {
+                                if(distance_to_start[w] != invalid_ && mapping[w] != mapping[to]) {
                                     sg.e[nr_edges++] = mapping[w];
                                 }
                                 if(w == last) {
@@ -202,19 +205,19 @@ std::vector<Edge_weight> ParallelSearch::search() {
                                 }
                             }
                         }
-                        for(size_t j = 0; j < old_sg.d[to]; j++) {
-                            assert(old_sg.v[to] + j < old_sg.nde);
-                            Vertex w = old_sg.e[old_sg.v[to] + j];
+                        for(size_t j = 0; j < old_sg.d[from]; j++) {
+                            assert(old_sg.v[from] + j < old_sg.nde);
+                            Vertex w = old_sg.e[old_sg.v[from] + j];
                             assert(w < old_sg.nv);
-                            if(distance_to_start[w] != invalid_ && mapping[w] != mapping[to]) {
+                            if(distance_to_start[w] != invalid_ && mapping[w] != mapping[from]) {
                                 sg.e[nr_edges++] = mapping[w];
                             }
                             if(w == last) {
                                 sg.e[nr_edges++] = 0;
                             }
                         }
-                        last_to = to;
-                        sg.d[mapping[from]] = nr_edges - sg.v[mapping[from]];
+                        last_from = from;
+                        sg.d[mapping[to]] = nr_edges - sg.v[mapping[to]];
                     }
                     for(size_t i = 2; i < old_sg.nv; i++) {
                         if(distance_to_start[i] == invalid_ || mapping[i] < safe) {
@@ -401,7 +404,7 @@ bool ParallelSearch::ap_util(sparsegraph const& sg, Vertex u, std::vector<char>&
                     distance[u] = tmp;
                 } else if(low[v] > disc[u]) {
                     bridges_[omp_get_thread_num()]++;
-                    thread_local_bridges_[omp_get_thread_num()].push_back(std::make_pair(v,u));
+                    thread_local_bridges_[omp_get_thread_num()].push_back(std::make_pair(u,v));
                 }
             }
         } else if (v != parent) {
