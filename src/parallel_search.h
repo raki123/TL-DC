@@ -56,17 +56,14 @@ class ParallelSearch {
     void prune_articulation(sparsegraph const& sg, Vertex start, std::vector<Edge_length>& distance);
     bool ap_util(sparsegraph const& sg, Vertex u, std::vector<char>& visited, std::vector<Vertex>& disc, std::vector<Vertex>& low, int& time, int parent, Vertex start, std::vector<Edge_length>& distance);
     void prune_util(sparsegraph const& sg, Vertex u, std::vector<Edge_length>& distance);
-    // void component_util(Vertex u, std::vector<Vertex>& disc);
 
     // // ap datastructures
     // std::vector<Vertex> ap_disc_;
     // std::vector<Vertex> ap_low_;
     // std::vector<char> ap_visited_;
 
-    // // for splitting based on articulation points between start and goal
-    // Vertex last_ap_;
-    // std::vector<std::pair<Vertex, Vertex>> ap_start_goal_; 
-    // std::vector<std::vector<Vertex>> ap_components_;
+    // for merging bridges between start and goal
+    std::vector<std::vector<std::pair<Vertex, Vertex>>> thread_local_bridges_; 
 
     // helper functions
     void pruning_dijkstra(sparsegraph const& sg, std::vector<Edge_length>& distance, Edge_length budget);
