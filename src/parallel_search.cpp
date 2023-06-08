@@ -62,7 +62,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
                 for(int o = 0; o < old_sg.d[0]; o++) {
                     Vertex last = 0;
                     assert(old_sg.e[o] != 1);
-                    edges_[thread_id]++;
+                    propagations_[thread_id]--;
                     std::vector<Vertex> poss_non_dag = {Vertex(old_sg.e[o])};
                     std::vector<Vertex> extra = {0};
                     Edge_length v_budget = budget;
