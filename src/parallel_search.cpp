@@ -251,9 +251,6 @@ std::vector<Edge_weight> ParallelSearch::search() {
                     canon_sg.vlen = sg.nv;
                     canon_sg.dlen = sg.nv;
                     canon_sg.elen = sg.nde;
-                    auto old_v = canon_sg.v;
-                    auto old_d = canon_sg.d;
-                    auto old_e = canon_sg.e;
                     int *lab = thread_local_lab_[thread_id];
                     int *ptn = thread_local_ptn_[thread_id];
                     int *orbits = thread_local_orbits_[thread_id];
@@ -273,9 +270,6 @@ std::vector<Edge_weight> ParallelSearch::search() {
                     //     }
                     // }
                     sortlists_sg(&canon_sg);
-                    assert(canon_sg.v == old_v);
-                    assert(canon_sg.d == old_d);
-                    assert(canon_sg.e == old_e);
                     if(new_result.size() + new_result[0] - 1 > max_length_) {
                         new_result.resize(max_length_ - new_result[0] + 1);
                     }

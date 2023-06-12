@@ -34,7 +34,7 @@ dnl Check for thread-local attribute
 AC_DEFUN([AX_TLS], [
   AC_MSG_CHECKING([for thread local storage (TLS) class])
   AC_CACHE_VAL([ac_cv_tls],
-   [for ax_tls_keyword in thread_local _Thread_local __thread '__declspec(thread)' none; do
+   [for ax_tls_keyword in __thread '__declspec(thread)' none; do
        AS_CASE([$ax_tls_keyword],
           [none], [ac_cv_tls=none ; break],
           [AC_COMPILE_IFELSE([AC_LANG_PROGRAM(

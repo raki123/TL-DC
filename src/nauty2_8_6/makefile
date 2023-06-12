@@ -2,7 +2,7 @@
 # makefile.  Generated from makefile.in by configure.
 
 SHELL=/bin/bash
-CC=g++
+CC=gcc
 CFLAGS= -O4  -mpopcnt -march=native
 SAFECFLAGS= -O4
 LDFLAGS= 
@@ -236,10 +236,10 @@ dreadnaut1: dreadnaut.c naututil1.o nauty1.o nautil1.o nautinv1.o \
 	     nauty1.o nautil1.o nautinv1.o naugraph1.o naurng.o gtools.o \
 	     nausparse.o schreier.o traces.o ${LDFLAGS}
 
-nauty.a: ${NAUTYO} nautinv.o \
+nauty.a: ${NAUTYO} traces.o gtools.o naututil.o nautinv.o \
 			gutil1.o gutil2.o gtnauty.o naugroup.o nautycliquer.o
 	rm -f nauty.a
-	${AR} crs nauty.a ${NAUTYO} \
+	${AR} crs nauty.a ${NAUTYO} traces.o gtools.o naututil.o \
 		 nautinv.o gutil1.o gutil2.o gtnauty.o naugroup.o \
 		 naurng.o schreier.o nautycliquer.o
 
