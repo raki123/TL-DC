@@ -25,6 +25,7 @@ class Graph {
     public:
     friend class Search;
     friend class ParallelSearch;
+    friend class TreewidthSearch;
     Graph(std::istream &input);
 
     void preprocess();
@@ -38,6 +39,8 @@ class Graph {
     bool is_all_pair() { return all_pair_; }
 
     Edge_length max_length() { return max_length_; }
+
+    std::vector<vertex_t> terminals() { return terminals_; }
 
     sparsegraph to_canon_nauty();
     private:
