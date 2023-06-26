@@ -317,7 +317,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
                 free(old_sg.v);
             }
         }
-        cache_[remaining_size].clear();
+        cache_[remaining_size] = {};
         // std::cerr << remaining_size << std::endl;
         // print_stats();
     }
