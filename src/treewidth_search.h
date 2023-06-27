@@ -52,6 +52,8 @@ class TreewidthSearch {
     void take(Frontier& frontier, size_t bag_idx);
     void skip(Frontier& frontier, size_t bag_idx);
 
+    void advance(Frontier& frontier, size_t bag_idx);
+
         // stats
     std::vector<size_t> pos_hits_;
     std::vector<size_t> neg_hits_;
