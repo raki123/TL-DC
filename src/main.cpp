@@ -13,7 +13,7 @@ int main() {
 
 
 	Decomposer d;
-	auto r = d.decompose(initial_graph);
+	auto r = std::move(d.decompose(initial_graph));
 	for (auto it = r.begin(); it != r.end(); ++it)
 	{
 		std::cout << "edge " << it->first.first << "," << it->first.second << "; bag ";
