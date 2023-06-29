@@ -8,7 +8,7 @@
 Decomposer::Decomposer(const char* const decomposer, const char* params)
 {
 	this->decomposer = decomposer;
-	this->params = params;
+	//this->params = params;
 }
 
 
@@ -30,7 +30,7 @@ std::vector<std::pair<Edge, std::vector<vertex_t>>> Decomposer::decompose(/*cons
     	nr_edges /= 2;
 
 	int in, out;
-	if (popen2(this->decomposer, this->params, &in, &out) > 0)
+	if (popen2(this->decomposer, NULL /*this->params*/, &in, &out) > 0)
 	{
 		std::stringstream s;
 		s << "p tw " << graph.neighbors_.size() << " " << //171 << std::endl; //

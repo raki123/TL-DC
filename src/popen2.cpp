@@ -23,7 +23,7 @@ popen2(const char *command, const char* pars, int *infp, int *outfp)
 
         //execl("/bin/sh", "sh" "-c", command, NULL);
         //execl("/bin/sh", "sh" "-c", "../htd --child-limit 1", NULL);
-        execl(command, pars, NULL);
+        execl(command, "--opt width", "--iterations", "50", "--child-limit", "1", NULL);
         perror("execl");
         exit(1);
     }

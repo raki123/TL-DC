@@ -10,14 +10,16 @@ using namespace fpc;
 #define _DECOMPOSER_HPP_
 
 #define DEF_DECOMPOSER "../utils/htd"
-#define DEF_DECOMP_PARAMS "--child-limit 1"
+#define DEF_DECOMP_PARAMS "SEE popen2.cpp"
 
 class Decomposer {
 	public:
 		Decomposer(const char* const decomposer=DEF_DECOMPOSER, const char* const params=DEF_DECOMP_PARAMS);
 		virtual ~Decomposer() {}
 
-		std::vector<std::pair<Edge, std::vector<vertex_t>>> decompose(/*const*/ Graph& graph, int child_nodes=1);
+		std::pair<Graph, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>
+		//std::vector<std::pair<Edge, std::vector<vertex_t>>> 
+		decompose(/*const*/ Graph& graph);
 	protected:
 		const char* decomposer, *params;
 };
