@@ -31,7 +31,7 @@ TreewidthSearch::TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::
     std::vector<vertex_t> last_remaining;
     std::vector<frontier_index_t> last_idx;
     if(!is_all_pair_) {
-        last_remaining = {graph_.neighbors(terminals_[0]).size(), graph_.neighbors(terminals_[1]).size()};
+        last_remaining = {vertex_t(graph_.neighbors(terminals_[0]).size()), vertex_t(graph_.neighbors(terminals_[1]).size())};
         last_idx = std::vector<frontier_index_t>(graph_.adjacency_.size(), invalid_index_);
         last_idx[terminals_[0]] = start_index_;
         last_idx[terminals_[1]] = goal_index_;
@@ -106,8 +106,8 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                             skip(new_frontier, new_idx);
                         }
                         new_idx++;
-                        takeable = canTake(new_frontier, new_idx);
-                        skippable = canSkip(new_frontier, new_idx);
+                        takeable = canTake(new_frontier, new_idx, new_result);
+                        skippable = canSkip(new_frontier, new_idx, new_result);
                         includeSolutions(new_frontier, new_idx, new_result);
                     }
                     // both are possible, so we have a new decision edge
@@ -287,15 +287,15 @@ bool TreewidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vector<Ed
     assert(frontier[w_idx] != v_idx);
     if(!is_all_pair_) {
         // start and goal are already connected
-        if(frontier[start_idx_] == goal_idx_) {
-            assert(frontier[goal_idx_] == start_idx_);
+        if(frontier[start_index_] == goal_index_) {
+            assert(frontier[goal_index_] == start_index_);
             return false;
         }
         // make sure start goal have only one outgoing edge
-        if((v_idx == start_idx_ || v_idx == goal_idx_) && frontier[v_idx] != no_edge_index_) {
+        if((v_idx == start_index_ || v_idx == goal_index_) && frontier[v_idx] != no_edge_index_) {
             return false;
         }
-        if((w_idx == start_idx_ || w_idx == goal_idx_) && frontier[w_idx] != no_edge_index_) {
+        if((w_idx == start_index_ || w_idx == goal_index_) && frontier[w_idx] != no_edge_index_) {
             return false;
         }
 
@@ -307,16 +307,16 @@ bool TreewidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vector<Ed
     // length based pruning
     auto old_v = frontier[v_idx];
     auto old_w = frontier[w_idx];
-    std::vector<std::pair<frontier_index_t>> restore({std::make_pair(v_idx, old_v), std::make_pair(w_idx, old_w)});
-    if(old_v == no_edge_index_ && old_w == no_edge_idx_) {
+    std::vector<std::pair<frontier_index_t, frontier_index_t>> restore({std::make_pair(v_idx, old_v), std::make_pair(w_idx, old_w)});
+    if(old_v == no_edge_index_ && old_w == no_edge_index_) {
         frontier[v_idx] = w_idx;
         frontier[w_idx] = v_idx;
-    } else if(old_v != no_edge_index_ && old_w == no_edge_idx_) {
+    } else if(old_v != no_edge_index_ && old_w == no_edge_index_) {
         restore.push_back(std::make_pair(old_v, frontier[old_v]));
         frontier[old_v] = w_idx;
         frontier[v_idx] = two_edge_index_;
         frontier[w_idx] = old_v;
-    } else if(old_v == no_edge_index_ && old_w != no_edge_idx_) {
+    } else if(old_v == no_edge_index_ && old_w != no_edge_index_) {
         restore.push_back(std::make_pair(old_w, frontier[old_w]));
         frontier[old_w] = v_idx;
         frontier[w_idx] = two_edge_index_;
@@ -352,15 +352,15 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
     auto w_remaining = remaining_edges_after_this_[bag_idx][w_idx];
     if(!is_all_pair_) {
         // start and goal are already connected
-        if(frontier[start_idx_] == goal_idx_) {
-            assert(frontier[goal_idx_] == start_idx_);
+        if(frontier[start_index_] == goal_index_) {
+            assert(frontier[goal_index_] == start_index_);
             return false;
         }
         // make sure start goal have at least one outgoing edge
-        if((v_idx == start_idx_ || v_idx == goal_idx_) && frontier[v_idx] == no_edge_index_ && v_remaining == 0) {
+        if((v_idx == start_index_ || v_idx == goal_index_) && frontier[v_idx] == no_edge_index_ && v_remaining == 0) {
             return false;
         }
-        if((w_idx == start_idx_ || w_idx == goal_idx_) && frontier[w_idx] == no_edge_index_ && w_remaining == 0) {
+        if((w_idx == start_index_ || w_idx == goal_index_) && frontier[w_idx] == no_edge_index_ && w_remaining == 0) {
             return false;
         }
     }
@@ -386,11 +386,50 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
 }
 
 void TreewidthSearch::take(Frontier& frontier, size_t bag_idx) {
-    
+    Edge edge = path_decomposition_[bag_idx].first;
+    auto v_idx = bag_local_idx_map_[bag_idx][edge.first];
+    auto w_idx = bag_local_idx_map_[bag_idx][edge.second];
+    auto old_v = frontier[v_idx];
+    auto old_w = frontier[w_idx];
+    if(old_v == no_edge_index_ && old_w == no_edge_index_) {
+        frontier[v_idx] = w_idx;
+        frontier[w_idx] = v_idx;
+    } else if(old_v != no_edge_index_ && old_w == no_edge_index_) {
+        frontier[old_v] = w_idx;
+        frontier[v_idx] = two_edge_index_;
+        frontier[w_idx] = old_v;
+    } else if(old_v == no_edge_index_ && old_w != no_edge_index_) {
+        frontier[old_w] = v_idx;
+        frontier[w_idx] = two_edge_index_;
+        frontier[v_idx] = w_idx;
+    } else {
+        frontier[old_w] = v_idx;
+        frontier[old_v] = w_idx;
+        frontier[w_idx] = two_edge_index_;
+        frontier[v_idx] = two_edge_index_;
+    }
+    advance(frontier, bag_idx);
 }
 
 void TreewidthSearch::skip(Frontier& frontier, size_t bag_idx) {
-    
+    advance(frontier, bag_idx);
 }
+
+void TreewidthSearch::advance(Frontier& frontier, size_t bag_idx) {
+    Frontier old = frontier;
+    auto &bag = path_decomposition_[bag_idx].second;
+    frontier.resize(is_all_pair_?bag.size():bag.size() + 2);
+    std::fill(frontier.begin(), frontier.end(), no_edge_index_);
+    auto &old_idx = bag_local_idx_map_[bag_idx];
+    auto &new_idx = bag_local_idx_map_[bag_idx + 1];
+    for(auto v : bag) {
+        if(old_idx[v] != invalid_index_) {
+            // FIXME: add bag_local_vertex_map_ that does from idx to vertex
+            frontier[new_idx[v]] = old[old_idx[v]];
+        }
+    }
+}
+
+
 
 }
