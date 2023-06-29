@@ -38,6 +38,7 @@ class TreewidthSearch {
     frontier_index_t start_index_ = 0;
     frontier_index_t goal_index_ = 1;
     std::vector<std::vector<frontier_index_t>> bag_local_idx_map_;
+    std::vector<std::vector<vertex_t>> bag_local_vertex_map_;
 
     std::vector<Edge_weight> result_;
     std::vector<std::vector<Edge_weight>> thread_local_result_;

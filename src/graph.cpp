@@ -26,17 +26,17 @@ Graph::Graph(std::istream &input) {
             std::string str;
             input >> str >> nr_vertices >> nr_edges;
             assert(str == "edge");
-            adjacency_ = std::vector<std::vector<std::map<Edge_length,Edge_weight>>>(nr_vertices + 2, 
-                                    std::vector<std::map<Edge_length,Edge_weight>>(nr_vertices + 2, 
+            adjacency_ = std::vector<std::vector<std::map<Edge_length,Edge_weight>>>(nr_vertices, 
+                                    std::vector<std::map<Edge_length,Edge_weight>>(nr_vertices, 
                                                             std::map<Edge_length,Edge_weight>()));
-            neighbors_ = std::vector<std::set<Vertex>>(nr_vertices + 2, std::set<Vertex>());
-            exclusion_classes_ = std::vector<std::set<Vertex>>(nr_vertices + 2, std::set<Vertex>());
-            exclude_ = std::vector<size_t>(nr_vertices + 2);
-            for(size_t i = 0; i < nr_vertices + 2; i++) {
+            neighbors_ = std::vector<std::set<Vertex>>(nr_vertices, std::set<Vertex>());
+            exclusion_classes_ = std::vector<std::set<Vertex>>(nr_vertices, std::set<Vertex>());
+            exclude_ = std::vector<size_t>(nr_vertices);
+            for(size_t i = 0; i < nr_vertices; i++) {
                 exclusion_classes_[i].insert(i);
                 exclude_[i] = i;
             }
-            max_length_ = nr_vertices + 2;
+            max_length_ = nr_vertices;
             break;
         }
         case 'e':
@@ -67,17 +67,7 @@ Graph::Graph(std::istream &input) {
     assert(adjacency_.size() > 0);
     max_length_ = Edge_length(std::min(nr_vertices - 1, int(max_length_)));
     extra_paths_ = std::vector<Edge_weight>(max_length_ + 1, 0);
-    if(terminals_.empty()) {
-        terminals_ = {nr_vertices, Vertex(nr_vertices + 1)};
-        max_length_ += 2;
-        extra_paths_.push_back(0);
-        extra_paths_.push_back(0);
-        for(Vertex v = 0; v < nr_vertices; v++) {
-            add_edge(Edge(v,terminals_[0]), Weight(1,1));
-            add_edge(Edge(v,terminals_[1]), Weight(1,1));
-        }
-        all_pair_ = true;
-    }
+    all_pair_ = true;
 }
 
 void Graph::preprocess() {
@@ -111,7 +101,9 @@ void Graph::print_stats() {
     }
     nr_edges /= 2;
     std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
-    dijkstra(terminals_[1], distance_to_goal, {});
+    if(!all_pair_) {
+        dijkstra(terminals_[1], distance_to_goal, {});
+    }
     if(isolated_removed)            std::cerr << "Removed isolated: " << isolated_removed << std::endl;
     if(forwarder_removed)           std::cerr << "Removed forwarder: " << forwarder_removed << std::endl;
     if(position_determined_removed) std::cerr << "Removed position determined: " << position_determined_removed << std::endl;
@@ -122,17 +114,21 @@ void Graph::print_stats() {
     if(three_sep_removed)           std::cerr << "Removed due to 3-separation: " << three_sep_removed << std::endl;
     if(max_length_decrease)         std::cerr << "Max length decreased by: " << max_length_decrease << std::endl;
     std::cerr << "#vertices " << adjacency_.size() << " #edges " << nr_edges;
-    std::cerr << " max. length " << static_cast<size_t>(max_length_) << " min. length " << static_cast<size_t>(distance_to_goal[terminals_[0]]) << std::endl;
+    if(!all_pair_) {
+        std::cerr << " max. length " << static_cast<size_t>(max_length_) << " min. length " << static_cast<size_t>(distance_to_goal[terminals_[0]]) << std::endl;
+    }
 }
 
 void Graph::normalize() {
     Vertex unnamed = std::numeric_limits<Vertex>::max();
     std::vector<Vertex> new_name(adjacency_.size(), unnamed);
-    new_name[terminals_[0]] = 0;
-    new_name[terminals_[1]] = 1;
-    Vertex cur_name = 2;
+    if(!all_pair_) {
+        new_name[terminals_[0]] = 0;
+        new_name[terminals_[1]] = 1;
+    }
+    Vertex cur_name = 0;
     for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(neighbors(v).empty() || v == terminals_[0] || v == terminals_[1]) {
+        if(neighbors(v).empty() || (!all_pair_ && (v == terminals_[0] || v == terminals_[1]))) {
             continue;
         }
         if(new_name[v] == unnamed) {
@@ -155,8 +151,10 @@ void Graph::normalize() {
     }
     adjacency_ = new_adjacency;
     neighbors_ = new_neighbors;
-    terminals_[0] = new_name[terminals_[0]];
-    terminals_[1] = new_name[terminals_[1]];
+    if(!all_pair_) {
+        terminals_[0] = new_name[terminals_[0]];
+        terminals_[1] = new_name[terminals_[1]];
+    }
 }
 
 sparsegraph Graph::to_canon_nauty() {
