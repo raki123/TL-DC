@@ -11,6 +11,9 @@ extern "C" {
 #include <unordered_set>
 #include <queue>
 
+
+class Decomposer;
+
 namespace fpc {
 
 typedef uint16_t Vertex;
@@ -26,6 +29,7 @@ class Graph {
     friend class Search;
     friend class ParallelSearch;
     friend class TreewidthSearch;
+    friend class ::Decomposer;
     Graph(std::istream &input);
 
     void preprocess();

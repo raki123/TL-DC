@@ -2,6 +2,7 @@
 #include "parallel_search.h"
 
 #include <iostream>
+#include "Decomposer.hpp"
 
 int main() {
     fpc::Graph initial_graph(std::cin);
@@ -9,6 +10,18 @@ int main() {
     initial_graph.preprocess();
     initial_graph.normalize();
     initial_graph.print_stats();
+
+
+	Decomposer d;
+	auto r = d.decompose(initial_graph);
+	for (auto it = r.begin(); it != r.end(); ++it)
+	{
+		std::cout << "edge " << it->first.first << "," << it->first.second << "; bag ";
+		for (auto jt = it->second.begin(); jt != it->second.end(); jt++)
+			std::cout << *jt << " ";
+		std::cout << std::endl;
+	}
+
     fpc::ParallelSearch search(initial_graph.to_canon_nauty(), initial_graph.max_length(), OMP_NUM_THREADS);
     auto res = search.search();
     fpc::Edge_weight final_result = 0;

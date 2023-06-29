@@ -1,3 +1,6 @@
 [submodule "src/clingo"]
 	path = src/clingo
 	url = git@github.com:potassco/clingo.git
+[submodule "src/htd"]
+	path = src/htd
+	url = git@github.com:TU-Wien-DBAI/htd.git

@@ -41,6 +41,8 @@ set_target_properties(nauty PROPERTIES
 
 SET(SOURCES 
     src/graph.cpp
+    src/popen2.cpp
+    src/Decomposer.cpp
     src/search.cpp
     src/parallel_search.cpp
     src/treewidth_search.cpp
