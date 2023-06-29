@@ -14,11 +14,13 @@ Decomposer::Decomposer(const char* const decomposer, const char* params)
 
 #define BUF_SIZE 1024
 
-
-std::vector<std::pair<Edge, std::vector<vertex_t>>> Decomposer::decompose(/*const*/ Graph& graph, int child_nodes)
+std::pair<int, std::pair<std::map<int, int>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>>
+//std::vector<std::pair<Edge, std::vector<vertex_t>>> 
+Decomposer::decompose(/*const*/ Graph& graph)
 {
-	std::vector<std::pair<Edge, std::vector<vertex_t>>> td;
 
+	std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>> bgs; 
+	std::map<int, int> succ;
 	//FIXME: add this to graph.cpp
 	Vertex nr_edges = 0;
     	for (Vertex v = 0; v < graph.adjacency_.size(); v++) 
@@ -30,6 +32,7 @@ std::vector<std::pair<Edge, std::vector<vertex_t>>> Decomposer::decompose(/*cons
     	nr_edges /= 2;
 
 	int in, out;
+	int root = 0;
 	if (popen2(this->decomposer, NULL /*this->params*/, &in, &out) > 0)
 	{
 		std::stringstream s;
@@ -68,6 +71,7 @@ std::vector<std::pair<Edge, std::vector<vertex_t>>> Decomposer::decompose(/*cons
 
 		int bags, width, verts;
 
+
 		//std::cout << "preread " << fout << std::endl;
 		//if (read(out, buf, BUF_SIZE) > 0)
 		//std::cout << fscanf(fout, "s td %d %d %d", &bags, &width, &verts) << std::endl;
@@ -76,15 +80,19 @@ std::vector<std::pair<Edge, std::vector<vertex_t>>> Decomposer::decompose(/*cons
 			std::set<Edge> edges; //only cover an edge at most once
 			//std::cout << "read " << std::endl;
 			//sscanf(buf, "s td %d %d %d\n", &bags, &width, &verts);
-			//std::cout << bags << "," << width << "," << verts << std::endl;
-			for (; bags > 0 && fgets(buf, BUF_SIZE-1, fout) != NULL; --bags)
+			std::cout << bags << "," << width << "," << verts << std::endl;
+			int b = 1;
+			for (; b <= bags && fgets(buf, BUF_SIZE-1, fout) != NULL; ++b)
 			{
 				if (buf[0] != 'c') 
 				{
+					assert(buf[0] == 'b');
 					//std::cout << buf << std::endl;
 					char* pos = buf + 2; //don't read the 'b'
 					int v1;
+					
 					std::vector<vertex_t> bag;
+
 					while ((sscanf(pos, "%d", &v1)) > 0) 
 					{
 						bag.push_back(v1-1);
@@ -98,6 +106,7 @@ std::vector<std::pair<Edge, std::vector<vertex_t>>> Decomposer::decompose(/*cons
 
 					}
 
+					std::vector<Edge> td; //, std::vector<vertex_t>>> td;
 
 					for (auto jt = bag.begin(); jt != bag.end(); ++jt)	
 					{
@@ -118,22 +127,37 @@ std::vector<std::pair<Edge, std::vector<vertex_t>>> Decomposer::decompose(/*cons
 								if (edges.find(e) == edges.end())
 								{
 									edges.insert(e);
-									td.push_back(std::pair<Edge, std::vector<vertex_t>> (std::move(e), bag));
+									td.push_back(e); //, std::vector<vertex_t>> (std::move(e), bag));
 								}
 							}
 						}
 					}
+					bgs.insert({b, std::pair<std::vector<Edge>, std::vector<vertex_t>>(std::move(td), std::move(bag))});
 				}
-				else
+				else 
 				{
-					bags++;
-				}
+					if (root == 0)
+						sscanf(buf, "c r %d\n", &root);
+					b--;
+				}	
+			}
+			int b1, b2;
+			b = bags - 1;
+			std::cout << "root " << root << std::endl;
+			for (; b > 0 && fgets(buf, BUF_SIZE-1, fout) != NULL && sscanf(buf, "%d %d\n", &b1, &b2); --b)
+			//for (; b > 0 && !feof(fout) && fscanf(fout, "%d %d\n", &b1, &b2) == 2; --b)
+			{
+				//graph.add_edge(b1-1, b2-1);
+				succ.insert({b1, b2});
+				//std::cout << b << "," << b1 << "," << b2 << std::endl;
 			}
 		}
 		fclose(fout);
 		//std::cout << "out" << std::endl;
 		close(out);
 	}
-	return std::move(td);	
+	//pair < root, pair<neighbors, map<int, {pair<edges, bag>}>>>
+	return std::pair<int, std::pair<std::map<int, int>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>>(root, 
+			std::pair<std::map<int, int>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>(succ, std::move(bgs)));	
 }
 
