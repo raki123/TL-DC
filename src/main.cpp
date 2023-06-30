@@ -31,20 +31,36 @@ int main() {
 	}		
 
     std::vector<std::pair<Edge, std::vector<vertex_t>>> r;
-    r = {
-        {Edge(0,1), {0,1}},
-        {Edge(1,2), {0,1,2}},
-        {Edge(0,3), {0,1,2,3}},
-        {Edge(1,4), {1,2,3,4}},
-        {Edge(2,5), {2,3,4,5}},
-        {Edge(3,4), {3,4,5}},
-        {Edge(4,5), {3,4,5}},
-        {Edge(3,6), {3,4,5,6}},
-        {Edge(4,7), {4,5,6,7}},
-        {Edge(5,8), {5,6,7,8}},
-        {Edge(6,7), {6,7,8}},
-        {Edge(7,8), {7,8}}
-    };
+    auto actual_td = td.second;
+    int cur = td.first;
+    while(actual_td.first.count(cur) != 0) {
+        std::cerr << cur << std::endl;
+        auto &edges = actual_td.second[cur].first;
+        auto &bag = actual_td.second[cur].second;
+        for(auto edge : edges) {
+            r.push_back(std::make_pair(edge, bag));
+        }
+        cur = actual_td.first[cur];
+    }
+    auto &edges = actual_td.second[cur].first;
+    auto &bag = actual_td.second[cur].second;
+    for(auto edge : edges) {
+        r.push_back(std::make_pair(edge, bag));
+    }
+    // r = {
+    //     {Edge(0,1), {0,1}},
+    //     {Edge(1,2), {0,1,2}},
+    //     {Edge(0,3), {0,1,2,3}},
+    //     {Edge(1,4), {1,2,3,4}},
+    //     {Edge(2,5), {2,3,4,5}},
+    //     {Edge(3,4), {3,4,5}},
+    //     {Edge(4,5), {3,4,5}},
+    //     {Edge(3,6), {3,4,5,6}},
+    //     {Edge(4,7), {4,5,6,7}},
+    //     {Edge(5,8), {5,6,7,8}},
+    //     {Edge(6,7), {6,7,8}},
+    //     {Edge(7,8), {7,8}}
+    // };
     // r = {
     //     {Edge(0,1), {0,1}},
     //     {Edge(0,2), {0,1,2}},

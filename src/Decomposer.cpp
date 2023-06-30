@@ -144,13 +144,27 @@ Decomposer::decompose(/*const*/ Graph& graph)
 			int b1, b2;
 			b = bags - 1;
 			std::cout << "root " << root << std::endl;
+			std::map<int, std::vector<int>> neighs;
 			for (; b > 0 && fgets(buf, BUF_SIZE-1, fout) != NULL && sscanf(buf, "%d %d\n", &b1, &b2); --b)
 			//for (; b > 0 && !feof(fout) && fscanf(fout, "%d %d\n", &b1, &b2) == 2; --b)
 			{
-				//graph.add_edge(b1-1, b2-1);
-				succ.insert({b1, b2});
-				//std::cout << b << "," << b1 << "," << b2 << std::endl;
+				neighs[b1].push_back(b2);
+				neighs[b2].push_back(b1);
+				std::cout << b << "," << b1 << "," << b2 << std::endl;
 			}
+			for(root = 1; neighs[root].size() > 1; root++){}
+			std::set<int> seen;
+			int cur = root;
+			while(cur == root || neighs[cur].size() > 1) {
+				if(seen.count(neighs[cur][0]) > 0) {
+					succ[cur] = neighs[cur][1];
+				} else {
+					succ[cur] = neighs[cur][0];
+				}
+				seen.insert(cur);
+				cur = succ[cur];
+			}
+			assert(seen.size() == bags - 1);
 		}
 		fclose(fout);
 		//std::cout << "out" << std::endl;
