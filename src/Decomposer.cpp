@@ -102,12 +102,12 @@ Decomposer::decompose(/*const*/ Graph& graph)
 						else 
 						{
 							bag.push_back(v1-1);
-							//std::cout << v1 << std::endl;
+						}
+						//std::cout << v1 << std::endl;
 							while (*pos != '\0' && *pos != ' ')
 								++pos;
 							if (*pos == ' ')
 								++pos;
-						}
 					}
 
 					std::vector<Edge> td; //, std::vector<vertex_t>>> td;
