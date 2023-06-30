@@ -9,7 +9,8 @@ using namespace fpc;
 #ifndef _DECOMPOSER_HPP_
 #define _DECOMPOSER_HPP_
 
-#define DEF_DECOMPOSER "../utils/htd"
+//#define DEF_DECOMPOSER "../utils/htd"
+#define DEF_DECOMPOSER "../path_decomp.py"
 #define DEF_DECOMP_PARAMS "SEE popen2.cpp"
 
 class Decomposer {
