@@ -1,5 +1,5 @@
 #include "treewidth_search.h"
-
+#include <algorithm>
 namespace fpc {
 
 TreewidthSearch::TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::vector<vertex_t>>> path_decomposition) 
@@ -29,6 +29,10 @@ TreewidthSearch::TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::
         propagations_(nthreads_, 0) {
     
     std::vector<char> seen(graph_.adjacency_.size(), false);
+    std::vector<vertex_t> degree;
+    for(size_t v = 0; v < graph_.adjacency_.size(); v++) {
+        degree.push_back(graph_.neighbors(v).size());
+    }
     std::vector<vertex_t> last_remaining;
     std::vector<frontier_index_t> last_idx;
     if(!is_all_pair_) {
@@ -54,6 +58,13 @@ TreewidthSearch::TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::
             remaining.resize(bag.size());
         }
         frontier_index_t cur_idx = is_all_pair_?0:2;
+        for(size_t i = 0; i < bag.size(); i++) {
+            if(degree[bag[i]] == 0) {
+                std::swap(bag[i], bag.back());
+                bag.pop_back();
+                i--;
+            }
+        }
         for(auto v : bag) {
             if(is_all_pair_ || (terminals_[0] != v && terminals_[1] != v)) {
                 assert(cur_idx != invalid_index_);
@@ -76,12 +87,24 @@ TreewidthSearch::TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::
             }
         }
         Edge edge = path_decomposition_[bag_idx].first;
+        assert(degree[edge.first] != 0);
+        assert(remaining[idx[edge.first]] != 0);
         remaining[idx[edge.first]]--;
-        assert(remaining[idx[edge.first]] >= 0);
+        degree[edge.first]--;
+        assert(degree[edge.second] != 0);
+        assert(remaining[idx[edge.second]] != 0);
         remaining[idx[edge.second]]--;
-        assert(remaining[idx[edge.second]] >= 0);
+        degree[edge.second]--;
+        assert(degree[edge.first] == remaining[idx[edge.first]]);
+        assert(degree[edge.second] == remaining[idx[edge.second]]);
         last_remaining = remaining;
         last_idx = idx;
+    }
+    for(vertex_t v = 0; v < graph_.adjacency_.size(); v++) {
+        if(degree[v] != 0) {
+            std::cerr << v << std::endl;
+        }
+        assert(degree[v] == 0);
     }
     Frontier initial_frontier;
     if(!is_all_pair_) {
@@ -97,15 +120,15 @@ TreewidthSearch::TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::
 }
 
 std::vector<Edge_weight> TreewidthSearch::search() {
-    // auto print_results = [&]() {
-    //     Edge_weight res = 0;
-    //     for(Edge_length length = 0; length <= max_length_; length++) {
-    //         for(size_t id = 0; id < nthreads_; id++) {
-    //             res += thread_local_result_[id][length];
-    //         }
-    //     }
-    //     std::cerr << res << std::endl;
-    // };
+    auto results = [&]() {
+        Edge_weight res = 0;
+        for(Edge_length length = 0; length <= max_length_; length++) {
+            for(size_t id = 0; id < nthreads_; id++) {
+                res += thread_local_result_[id][length];
+            }
+        }
+        return res;
+    };
     size_t thread_id = 0;
     for(size_t bag_idx = 0; bag_idx < path_decomposition_.size(); bag_idx++) {
         for(size_t bucket = 0; bucket < cache_[bag_idx].bucket_count(); bucket++) {
@@ -128,21 +151,24 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                         }
                         new_idx++;
                         if(new_idx < path_decomposition_.size()) {
-                            // Edge edge = path_decomposition_[new_idx].first;
-                            // auto v_idx = bag_local_idx_map_[new_idx][edge.first];
-                            // auto w_idx = bag_local_idx_map_[new_idx][edge.second];
-
-                            // std::cerr << "Edge " << size_t(v_idx) << " " << size_t(w_idx) << " " << size_t(new_idx) << std::endl;
-                            // for(frontier_index_t idx = 0; idx < new_frontier.size(); idx++) {
-                            //     std::cerr << size_t(new_frontier[idx]) << " ";
-                            // }
-                            // std::cerr << std::endl;
-                            // print_results();
+                            Edge edge = path_decomposition_[new_idx].first;
+                            auto v_idx = bag_local_idx_map_[new_idx][edge.first];
+                            auto w_idx = bag_local_idx_map_[new_idx][edge.second];
+                            std::cerr << "Edge: " << size_t(v_idx) << " " << size_t(w_idx) << " " << size_t(new_idx) << std::endl;
+                            for(auto idx : new_frontier) {
+                                std::cerr << size_t(idx) << " ";
+                            }
+                            std::cerr << std::endl;
+                            for(auto i = 0; i < new_frontier.size(); i++) {
+                                std::cerr << size_t(remaining_edges_after_this_[new_idx][i]) << " ";
+                            }
+                            std::cerr << std::endl;
                             takeable = canTake(new_frontier, new_idx, new_result);
                             skippable = canSkip(new_frontier, new_idx, new_result);
+                            auto prev = results();
                             includeSolutions(new_frontier, new_idx, new_result);
-                            // print_results();
-                            // std::cerr << takeable << " " << skippable << std::endl;
+                            std::cerr << takeable << " " << skippable << std::endl;
+                            std::cerr << prev << " " << results() << std::endl;
                         }
                     }
                     // both are possible, so we have a new decision edge
@@ -184,6 +210,7 @@ std::vector<Edge_weight> TreewidthSearch::search() {
         }
         cache_[bag_idx] = {};
         std::cerr << bag_idx << std::endl;
+        std::cerr << results() << std::endl;
         // print_stats();
     }
     for(Edge_length length = 0; length <= max_length_; length++) {
@@ -325,11 +352,6 @@ bool TreewidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vector<Ed
     auto v_idx = bag_local_idx_map_[bag_idx][edge.first];
     auto w_idx = bag_local_idx_map_[bag_idx][edge.second];
 
-    // std::cerr << "CEdge " << size_t(v_idx) << " " << size_t(w_idx) << std::endl;
-    // for(frontier_index_t idx = 0; idx < frontier.size(); idx++) {
-    //     std::cerr << size_t(frontier[idx]) << " ";
-    // }
-    // std::cerr << std::endl;
     // must not be closing a path to a loop
     if(frontier[v_idx] == w_idx) {
         assert(frontier[w_idx] == v_idx);
@@ -466,7 +488,8 @@ bool TreewidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vector<Ed
         frontier[idx] = rest;
     }
     // + 1 - 1 since were taking the edge
-    return number_paths + number_cut_paths + partial_result[0] <= max_length_;
+    // + 1 since we want to take another edge in the future
+    return number_paths + number_cut_paths + partial_result[0] + 1 <= max_length_;
 }
 
 bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result) {
@@ -495,6 +518,11 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
         // were discontinuing a cut path
         return false;
     }
+    if(v_remaining == 0 && w_remaining == 0
+        && frontier[v_idx] != no_edge_index_ && frontier[v_idx] != two_edge_index_
+        && frontier[w_idx] != no_edge_index_ && frontier[w_idx] != two_edge_index_) {
+            return false;
+        }
     // length based pruning
     size_t number_paths = 0;
     size_t number_cut_paths = 0;
@@ -532,11 +560,7 @@ void TreewidthSearch::take(Frontier& frontier, size_t bag_idx) {
     auto w_idx = bag_local_idx_map_[bag_idx][edge.second];
     auto old_v = frontier[v_idx];
     auto old_w = frontier[w_idx];
-    // std::cerr << "Idx: " << bag_idx << " Edge: " << size_t(v_idx) << " " << size_t(w_idx) << std::endl;
-    // for(frontier_index_t idx = 0; idx < frontier.size(); idx++) {
-    //     std::cerr << size_t(frontier[idx]) << " ";
-    // }
-    // std::cerr << std::endl;
+
     if(old_v == no_edge_index_) {
         if(old_w == no_edge_index_) {
             frontier[v_idx] = w_idx;
@@ -576,10 +600,7 @@ void TreewidthSearch::take(Frontier& frontier, size_t bag_idx) {
             frontier[v_idx] = two_edge_index_;
         }
     }
-    // for(frontier_index_t idx = 0; idx < frontier.size(); idx++) {
-    //     std::cerr << size_t(frontier[idx]) << " ";
-    // }
-    // std::cerr << std::endl;
+
     advance(frontier, bag_idx);
 }
 
@@ -589,34 +610,35 @@ void TreewidthSearch::skip(Frontier& frontier, size_t bag_idx) {
 
 void TreewidthSearch::advance(Frontier& frontier, size_t bag_idx) {
     Frontier old = frontier;
-    // std::cerr << "Idx: " << bag_idx << std::endl;
-    // for(frontier_index_t idx = 0; idx < frontier.size(); idx++) {
-    //     std::cerr << size_t(frontier[idx]) << " ";
-    // }
-    // std::cerr << std::endl;
+
+
     auto &bag = path_decomposition_[bag_idx + 1].second;
     frontier.resize(is_all_pair_?bag.size():bag.size() + 2);
     std::fill(frontier.begin(), frontier.end(), no_edge_index_);
     auto &old_idx = bag_local_idx_map_[bag_idx];
     auto &new_idx = bag_local_idx_map_[bag_idx + 1];
     auto &old_vertex = bag_local_vertex_map_[bag_idx];
+    bool found_two = false;
+    bool found_invalid = false;
+    bool found_path = true;
     for(auto v : bag) {
         if(old_idx[v] != invalid_index_) {
             if(old[old_idx[v]] == no_edge_index_) {
                 frontier[new_idx[v]] = no_edge_index_;
             } else if(old[old_idx[v]] == two_edge_index_) {
                 frontier[new_idx[v]] = two_edge_index_;
+                found_two = true;
             } else if(old[old_idx[v]] == invalid_index_) {
                 frontier[new_idx[v]] = invalid_index_;
+                found_invalid = true;
             } else {
                 frontier[new_idx[v]] = new_idx[old_vertex[old[old_idx[v]]]];
+                found_path = true;
             }
+            assert(frontier[new_idx[v]] == no_edge_index_ || frontier[new_idx[v]] == two_edge_index_ || remaining_edges_after_this_[bag_idx][old_idx[v]] > 0);
         }
     }
-    // for(frontier_index_t idx = 0; idx < frontier.size(); idx++) {
-    //     std::cerr << size_t(frontier[idx]) << " ";
-    // }
-    // std::cerr << std::endl;
+    assert(!found_two || found_invalid || found_path);
 }
 
 

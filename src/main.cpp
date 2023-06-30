@@ -34,16 +34,15 @@ int main() {
     auto actual_td = td.second;
     int cur = td.first;
     while(actual_td.first.count(cur) != 0) {
-        std::cerr << cur << std::endl;
-        auto &edges = actual_td.second[cur].first;
-        auto &bag = actual_td.second[cur].second;
+        auto edges = actual_td.second[cur].first;
+        auto bag = actual_td.second[cur].second;
         for(auto edge : edges) {
             r.push_back(std::make_pair(edge, bag));
         }
         cur = actual_td.first[cur];
     }
-    auto &edges = actual_td.second[cur].first;
-    auto &bag = actual_td.second[cur].second;
+    auto edges = actual_td.second[cur].first;
+    auto bag = actual_td.second[cur].second;
     for(auto edge : edges) {
         r.push_back(std::make_pair(edge, bag));
     }
