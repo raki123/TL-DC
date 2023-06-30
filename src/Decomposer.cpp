@@ -80,7 +80,7 @@ Decomposer::decompose(/*const*/ Graph& graph)
 			std::set<Edge> edges; //only cover an edge at most once
 			//std::cout << "read " << std::endl;
 			//sscanf(buf, "s td %d %d %d\n", &bags, &width, &verts);
-			std::cout << bags << "," << width << "," << verts << std::endl;
+			std::cout << bags << ",w: " << width << "," << verts << std::endl;
 			int b = 1;
 			for (; b <= bags && fgets(buf, BUF_SIZE-1, fout) != NULL; ++b)
 			{
