@@ -488,7 +488,11 @@ bool TreewidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vector<Ed
         frontier[idx] = rest;
     }
     // + 1 - 1 since were taking the edge
-    return number_paths + number_cut_paths + partial_result[0] <= max_length_;
+    if(number_paths + number_cut_paths > 1) {
+        return number_paths + number_cut_paths + partial_result[0] <= max_length_;
+    } else {
+        return number_paths + number_cut_paths + partial_result[0] + 1 <=max_length_;
+    }
 }
 
 bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result) {
@@ -550,7 +554,11 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
     }
     // + 1 because to connect number_paths, we need number_paths - 1 edges at least
     // but number_paths may be zero and we do not want to underflow 
-    return number_paths + number_cut_paths + partial_result[0] <= max_length_ + 1;
+    if(number_paths + number_cut_paths > 1) {
+        return number_paths + number_cut_paths + partial_result[0] <= max_length_ + 1;
+    } else {
+        return number_paths + number_cut_paths + partial_result[0] <= max_length_;
+    }
 }
 
 void TreewidthSearch::take(Frontier& frontier, size_t bag_idx) {
