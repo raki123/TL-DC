@@ -90,20 +90,24 @@ Decomposer::decompose(/*const*/ Graph& graph)
 					//std::cout << buf << std::endl;
 					char* pos = buf + 2; //don't read the 'b'
 					int v1;
+
+					int bid = -1;
 					
 					std::vector<vertex_t> bag;
 
 					while ((sscanf(pos, "%d", &v1)) > 0) 
 					{
-						bag.push_back(v1-1);
-						//std::cout << v1 << std::endl;
-						while (*pos != '\0' && *pos != ' ')
-							++pos;
-						if (*pos == ' ')
-							++pos;
-
-					//todo: avoid copying (move?)
-
+						if (bid < 0)
+							bid = v1;
+						else 
+						{
+							bag.push_back(v1-1);
+							//std::cout << v1 << std::endl;
+							while (*pos != '\0' && *pos != ' ')
+								++pos;
+							if (*pos == ' ')
+								++pos;
+						}
 					}
 
 					std::vector<Edge> td; //, std::vector<vertex_t>>> td;
@@ -132,7 +136,7 @@ Decomposer::decompose(/*const*/ Graph& graph)
 							}
 						}
 					}
-					bgs.insert({b, std::pair<std::vector<Edge>, std::vector<vertex_t>>(std::move(td), std::move(bag))});
+					bgs.insert({bid, std::pair<std::vector<Edge>, std::vector<vertex_t>>(std::move(td), std::move(bag))});
 				}
 				else 
 				{
