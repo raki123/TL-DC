@@ -154,7 +154,7 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                             Edge edge = path_decomposition_[new_idx].first;
                             auto v_idx = bag_local_idx_map_[new_idx][edge.first];
                             auto w_idx = bag_local_idx_map_[new_idx][edge.second];
-                            std::cerr << "Edge: " << size_t(v_idx) << " " << size_t(w_idx) << " " << size_t(new_idx) << std::endl;
+                            std::cerr << "Edge: " << size_t(v_idx) << " " << size_t(w_idx) << " " << size_t(new_idx) << " " << size_t(new_result[0]) << std::endl;
                             for(auto idx : new_frontier) {
                                 std::cerr << size_t(idx) << " ";
                             }
@@ -488,8 +488,7 @@ bool TreewidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vector<Ed
         frontier[idx] = rest;
     }
     // + 1 - 1 since were taking the edge
-    // + 1 since we want to take another edge in the future
-    return number_paths + number_cut_paths + partial_result[0] + 1 <= max_length_;
+    return number_paths + number_cut_paths + partial_result[0] <= max_length_;
 }
 
 bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result) {
