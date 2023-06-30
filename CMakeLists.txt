@@ -23,10 +23,10 @@ add_subdirectory("src/clingo")
 
 add_definitions(-DOMP_NUM_THREADS=4)
 
-set(CMAKE_CXX_FLAGS "-std=c++17 -ggdb -fopenmp -Wall -Wextra -Wshadow -Wfatal-errors -Wno-sign-compare -Wno-literal-suffix")
+set(CMAKE_CXX_FLAGS "-std=c++17 -O3 -fopenmp -Wall -Wextra -Wshadow -Wfatal-errors -Wno-sign-compare -Wno-literal-suffix")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse4.2 -mpclmul -march=native -funroll-loops -Wstrict-overflow -Wstrict-aliasing -pedantic")
 
-SET(CMAKE_C_FLAGS "-std=c11 -ggdb -fopenmp -Wall")
+SET(CMAKE_C_FLAGS "-std=c11 -O3 -fopenmp -Wall")
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -msse4.2 -mpclmul -march=native -funroll-loops -Wstrict-overflow -Wstrict-aliasing -Wextra -pedantic -Wshadow")
 
 set(CMAKE_C_STANDARD 11)
