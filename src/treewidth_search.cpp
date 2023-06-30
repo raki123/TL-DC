@@ -97,13 +97,21 @@ TreewidthSearch::TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::
 }
 
 std::vector<Edge_weight> TreewidthSearch::search() {
+    // auto print_results = [&]() {
+    //     Edge_weight res = 0;
+    //     for(Edge_length length = 0; length <= max_length_; length++) {
+    //         for(size_t id = 0; id < nthreads_; id++) {
+    //             res += thread_local_result_[id][length];
+    //         }
+    //     }
+    //     std::cerr << res << std::endl;
+    // };
     size_t thread_id = 0;
     for(size_t bag_idx = 0; bag_idx < path_decomposition_.size(); bag_idx++) {
         for(size_t bucket = 0; bucket < cache_[bag_idx].bucket_count(); bucket++) {
             for(auto task_it = cache_[bag_idx].begin(bucket); task_it != cache_[bag_idx].end(bucket); ++task_it) {
                 auto const& old_frontier = task_it->first;
                 auto const& result = task_it->second;
-                Edge_length budget = max_length_ - result[0];
                 for(auto pp : {std::make_pair(true, false), std::make_pair(false, true)}) {
                     bool takeable = pp.first;
                     bool skippable = pp.second;
@@ -120,9 +128,21 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                         }
                         new_idx++;
                         if(new_idx < path_decomposition_.size()) {
+                            // Edge edge = path_decomposition_[new_idx].first;
+                            // auto v_idx = bag_local_idx_map_[new_idx][edge.first];
+                            // auto w_idx = bag_local_idx_map_[new_idx][edge.second];
+
+                            // std::cerr << "Edge " << size_t(v_idx) << " " << size_t(w_idx) << " " << size_t(new_idx) << std::endl;
+                            // for(frontier_index_t idx = 0; idx < new_frontier.size(); idx++) {
+                            //     std::cerr << size_t(new_frontier[idx]) << " ";
+                            // }
+                            // std::cerr << std::endl;
+                            // print_results();
                             takeable = canTake(new_frontier, new_idx, new_result);
                             skippable = canSkip(new_frontier, new_idx, new_result);
                             includeSolutions(new_frontier, new_idx, new_result);
+                            // print_results();
+                            // std::cerr << takeable << " " << skippable << std::endl;
                         }
                     }
                     // both are possible, so we have a new decision edge
@@ -163,7 +183,7 @@ std::vector<Edge_weight> TreewidthSearch::search() {
             }
         }
         cache_[bag_idx] = {};
-        // std::cerr << bag_idx << std::endl;
+        std::cerr << bag_idx << std::endl;
         // print_stats();
     }
     for(Edge_length length = 0; length <= max_length_; length++) {
@@ -185,6 +205,10 @@ void TreewidthSearch::includeSolutions(Frontier const& frontier, size_t bag_idx,
         return;
     }
     assert(frontier[w_idx] != v_idx);
+
+    if(frontier[w_idx] == two_edge_index_ || frontier[v_idx] == two_edge_index_) {
+        return;
+    }
 
     size_t thread_id = 0;
     size_t number_paths = 0;
@@ -467,7 +491,7 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
     //     }
     // }
 
-    if(frontier[v_idx] == invalid_index_ || frontier[w_idx] == invalid_index_) {
+    if((v_remaining == 0 && frontier[v_idx] == invalid_index_) || (w_remaining == 0 && frontier[w_idx] == invalid_index_)) {
         // were discontinuing a cut path
         return false;
     }

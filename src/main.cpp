@@ -45,7 +45,12 @@ int main() {
         {Edge(6,7), {6,7,8}},
         {Edge(7,8), {7,8}}
     };
-	
+    // r = {
+    //     {Edge(0,1), {0,1}},
+    //     {Edge(0,2), {0,1,2}},
+    //     {Edge(1,3), {1,2,3}},
+    //     {Edge(2,3), {2,3}}
+    // };
 
     fpc::TreewidthSearch search(initial_graph, r);
     auto res = search.search();
@@ -63,9 +68,6 @@ int main() {
             std::cerr << res[l] << " extra paths of length " << static_cast<size_t>(l) << std::endl;
         }
         final_result += res[l];
-    }
-    if(initial_graph.is_all_pair()) {
-        final_result /= 2;  
     }
     std::cout << final_result << std::endl;
     return 0;
