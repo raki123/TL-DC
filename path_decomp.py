@@ -21,6 +21,8 @@ with sys.stdin as in_file:
             line = [ int(v) for v in line.split(' ')[1:] ]
             terminals = line
         else: # line[0] == 'e'
+            if line[0] == 'e':
+                line = line[2:]
             line = [ int(v) for v in line.split(' ')[0:] ]
             graph.add_edge(line[0], line[1])
 
