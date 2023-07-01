@@ -111,22 +111,39 @@ Decomposer::decompose(/*const*/ Graph& graph)
 					}
 
 					std::vector<Edge> td; //, std::vector<vertex_t>>> td;
-
+					std::sort(bag.begin(), bag.end());
+					
 					for (auto jt = bag.begin(); jt != bag.end(); ++jt)	
 					{
-						auto ngbs = std::move(graph.neighbors(*jt));
+						std::set<Vertex> ngbs = std::move(
+							graph.neighbors(*jt));
+						
+						//std::sort(ngbs.begin(), ngbs.end());
+
 						std::set<Vertex> intersect;
 						std::set_intersection(std::make_move_iterator(ngbs.begin()),
                     							std::make_move_iterator(ngbs.end()),
                     							bag.begin(), bag.end(),
 									std::inserter(intersect, intersect.begin()));
-						ngbs.swap(intersect);
+						//ngbs.swap(intersect);
 						//set<Vertex> intersect;
 						//set_intersection(bag.begin(), bag.end(), ngbs.begin(), ngbs.end(), std::inserter(intersect, intersect.begin()));
+						/*if ((*jt) == 18) {
+							std::cout << *jt << "," << bag.size() << "," << ngbs.size() << "," << intersect.size() << std::endl;
 						for (auto it = ngbs.begin(); it != ngbs.end(); ++it) 
+							std::cout << "n " << *it << std::endl;
+						for (auto it = bag.begin(); it != bag.end(); ++it) 
+							std::cout << "b " << *it << std::endl;}*/
+
+						for (auto it = intersect.begin(); it != intersect.end(); ++it) 
 						{
+							/*if ((*jt) == 18)
+								std::cout << "inner " << *it << std::endl;*/
 							if (*jt < *it) 
 							{
+								//vertex_t mi = std::min(*jt, *it), ma = std::max(*jt, *it);
+
+								//Edge e(mi, ma);
 								Edge e(*jt, *it);
 								if (edges.find(e) == edges.end())
 								{
@@ -145,6 +162,20 @@ Decomposer::decompose(/*const*/ Graph& graph)
 					b--;
 				}	
 			}
+			/*for (Vertex v = 0; v < graph.adjacency_.size(); v++) 
+			{
+				auto ngbs = std::move(graph.neighbors(v));
+				for (auto jt = ngbs.begin(); jt != ngbs.end(); ++jt) 
+				{
+					if (v < *jt && edges.find(std::make_pair(v, (*jt))) == edges.end()) 
+					{
+						std::cerr << "MISSING EDGE " << v << "," << *jt << std::endl;
+					}
+				}
+			}*/
+
+			//std::cout << "edges " << nr_edges << "; found edges " << edges.size() << std::endl;
+			assert(edges.size() == nr_edges);
 			int b1, b2;
 			b = bags - 1;
 			std::cout << "root " << root << std::endl;
