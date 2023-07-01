@@ -157,30 +157,30 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                         }
                         new_idx++;
                         if(new_idx < path_decomposition_.size()) {
-                            Edge edge = path_decomposition_[new_idx].first;
-                            auto v_idx = bag_local_idx_map_[new_idx][edge.first];
-                            auto w_idx = bag_local_idx_map_[new_idx][edge.second];
-                            std::cerr << "Edge: (" << size_t(v_idx) << "," << size_t(w_idx) << ") Idx:" << size_t(new_idx) << std::endl;
-                            for(auto idx : new_frontier) {
-                                std::cerr << size_t(idx) << " ";
-                            }
-                            std::cerr << std::endl;
-                            std::cerr << "Remaining: ";
-                            for(auto i = 0; i < new_frontier.size(); i++) {
-                                std::cerr << size_t(remaining_edges_after_this_[new_idx][i]) << " ";
-                            }
-                            std::cerr << std::endl;
-                            std::cerr << "Result: ";
-                            for(auto i = 0; i < new_result.size(); i++) {
-                                std::cerr << new_result[i] << " ";
-                            }
-                            std::cerr << std::endl;
+                            // Edge edge = path_decomposition_[new_idx].first;
+                            // auto v_idx = bag_local_idx_map_[new_idx][edge.first];
+                            // auto w_idx = bag_local_idx_map_[new_idx][edge.second];
+                            // std::cerr << "Edge: (" << size_t(v_idx) << "," << size_t(w_idx) << ") Idx:" << size_t(new_idx) << std::endl;
+                            // for(auto idx : new_frontier) {
+                            //     std::cerr << size_t(idx) << " ";
+                            // }
+                            // std::cerr << std::endl;
+                            // std::cerr << "Remaining: ";
+                            // for(auto i = 0; i < new_frontier.size(); i++) {
+                            //     std::cerr << size_t(remaining_edges_after_this_[new_idx][i]) << " ";
+                            // }
+                            // std::cerr << std::endl;
+                            // std::cerr << "Result: ";
+                            // for(auto i = 0; i < new_result.size(); i++) {
+                            //     std::cerr << new_result[i] << " ";
+                            // }
+                            // std::cerr << std::endl;
                             takeable = canTake(new_frontier, new_idx, new_result);
                             skippable = canSkip(new_frontier, new_idx, new_result);
                             auto prev = results();
                             includeSolutions(new_frontier, new_idx, new_result);
-                            std::cerr << takeable << " " << skippable << std::endl;
-                            std::cerr << prev << " " << results() << std::endl;
+                            // std::cerr << takeable << " " << skippable << std::endl;
+                            // std::cerr << prev << " " << results() << std::endl;
                         }
                     }
                     // both are possible, so we have a new decision edge
