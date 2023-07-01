@@ -119,6 +119,8 @@ void Graph::print_stats() {
     std::cerr << "#vertices " << adjacency_.size() << " #edges " << nr_edges;
     if(!all_pair_) {
         std::cerr << " max. length " << static_cast<size_t>(max_length_) << " min. length " << static_cast<size_t>(distance_to_goal[terminals_[0]]) << std::endl;
+    } else {
+        std::cerr << std::endl;
     }
 }
 

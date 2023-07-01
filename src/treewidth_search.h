@@ -20,7 +20,7 @@ public:
 
 class TreewidthSearch {
   public:
-    TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::vector<vertex_t>>> path_decomposition);
+    TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::vector<vertex_t>>> path_decomposition, size_t nthreads);
 
     std::vector<Edge_weight> search();
   private:

@@ -2,8 +2,8 @@
 #include <algorithm>
 namespace fpc {
 
-TreewidthSearch::TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::vector<vertex_t>>> path_decomposition) 
-    :   nthreads_(1),
+TreewidthSearch::TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::vector<vertex_t>>> path_decomposition, size_t nthreads) 
+    :   nthreads_(nthreads),
         graph_(input),
         max_length_(graph_.max_length()),
         is_all_pair_(graph_.is_all_pair()),
@@ -46,22 +46,26 @@ TreewidthSearch::TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::
         }
     }
     for(size_t bag_idx = 0; bag_idx < path_decomposition_.size(); bag_idx++) {
+        auto edge = path_decomposition_[bag_idx].first;
         auto &bag = path_decomposition_[bag_idx].second;
         auto &idx = bag_local_idx_map_[bag_idx];
         auto &vertex = bag_local_vertex_map_[bag_idx];
         auto &remaining = remaining_edges_after_this_[bag_idx];
         remaining.resize(bag.size());
-        if(!is_all_pair_) {
-            assert(std::find(bag.begin(), bag.end(), terminals_[0]) != bag.end());
-            assert(std::find(bag.begin(), bag.end(), terminals_[1]) != bag.end());
-        }
         for(size_t i = 0; i < bag.size(); i++) {
             if(degree[bag[i]] == 0) {
                 std::swap(bag[i], bag.back());
                 bag.pop_back();
                 i--;
+            } else if(is_all_pair_ || (bag[i] != terminals_[0] && bag[i] != terminals_[1])) {
+                if(degree[bag[i]] == graph_.neighbors(bag[i]).size() && bag[i] != edge.first && bag[i] != edge.second) {
+                    std::swap(bag[i], bag.back());
+                    bag.pop_back();
+                    i--;
+                }
             }
         }
+        std::sort(bag.begin(), bag.end());
         frontier_index_t cur_idx = 0;
         for(auto v : bag) {
             assert(cur_idx != invalid_index_);
@@ -82,7 +86,6 @@ TreewidthSearch::TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::
                 remaining[idx[v]] = graph_.neighbors(v).size();
             }
         }
-        Edge edge = path_decomposition_[bag_idx].first;
         assert(degree[edge.first] != 0);
         assert(remaining[idx[edge.first]] != 0);
         remaining[idx[edge.first]]--;
@@ -116,24 +119,10 @@ TreewidthSearch::TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::
 }
 
 std::vector<Edge_weight> TreewidthSearch::search() {
-    auto results = [&]() {
-        Edge_weight res = 0;
-        for(Edge_length length = 0; length <= max_length_; length++) {
-            for(size_t id = 0; id < nthreads_; id++) {
-                res += thread_local_result_[id][length];
-            }
-        }
-        return res;
-    };
-    auto has_n_length = [&](size_t n, std::vector<Edge_weight> res) {
-        if(res.size() + res[0] >= n + 2) {
-            return res[n - res[0] + 1] != 0;
-        }
-        return false;
-    };
-    size_t thread_id = 0;
     for(size_t bag_idx = 0; bag_idx < path_decomposition_.size(); bag_idx++) {
+        #pragma omp parallel for default(none) shared(bag_idx) shared(max_length_) shared(cache_) shared(path_decomposition_) shared(thread_local_result_) shared(pos_hits_) shared(neg_hits_) shared(bag_local_idx_map_) shared(bag_local_vertex_map_)
         for(size_t bucket = 0; bucket < cache_[bag_idx].bucket_count(); bucket++) {
+            size_t thread_id = omp_get_thread_num();
             for(auto task_it = cache_[bag_idx].begin(bucket); task_it != cache_[bag_idx].end(bucket); ++task_it) {
                 auto const& old_frontier = task_it->first;
                 auto const& result = task_it->second;
@@ -187,44 +176,45 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                             // std::cerr << std::endl;
                             takeable = canTake(new_frontier, new_idx, new_result);
                             skippable = canSkip(new_frontier, new_idx, new_result);
-                            auto prev = results();
                             includeSolutions(new_frontier, new_idx, new_result);
                             // std::cerr << takeable << " " << skippable << std::endl;
-                            // std::cerr << prev << " " << results() << std::endl;
                         }
                     }
                     // both are possible, so we have a new decision edge
                     // put it into the cache
                     if(takeable && skippable && new_idx < path_decomposition_.size()) {
-                        auto ins = cache_[new_idx].insert(
-                            std::make_pair(new_frontier, new_result)
-                        );
-                        if(!ins.second) {
-                            pos_hits_[thread_id]++;
-                            // there is already an element with that key
-                            // instead increase the partial result for that key
-                            auto old_offset = ins.first->second[0];
-                            auto new_offset = new_result[0];
-                            if(old_offset > new_offset) {
-                                // we reached this state with a smaller offset
-                                // add the paths we currently cached to the new result
-                                if(new_result.size() + new_offset < ins.first->second.size() + old_offset) {
-                                    new_result.resize(ins.first->second.size() + old_offset - new_offset);
+                        #pragma omp critical 
+                        {
+                            auto ins = cache_[new_idx].insert(
+                                std::make_pair(new_frontier, new_result)
+                            );
+                            if(!ins.second) {
+                                pos_hits_[thread_id]++;
+                                // there is already an element with that key
+                                // instead increase the partial result for that key
+                                auto old_offset = ins.first->second[0];
+                                auto new_offset = new_result[0];
+                                if(old_offset > new_offset) {
+                                    // we reached this state with a smaller offset
+                                    // add the paths we currently cached to the new result
+                                    if(new_result.size() + new_offset < ins.first->second.size() + old_offset) {
+                                        new_result.resize(ins.first->second.size() + old_offset - new_offset);
+                                    }
+                                    for(Edge_length res_length = 1; res_length < ins.first->second.size(); res_length++) {
+                                        new_result[old_offset - new_offset + res_length] += ins.first->second[res_length];
+                                    }
+                                    ins.first->second = new_result;
+                                } else {
+                                    if(ins.first->second.size() + old_offset < new_result.size() + new_offset) {
+                                        ins.first->second.resize(new_result.size() + new_offset - old_offset);
+                                    }
+                                    for(Edge_length res_length = 1; res_length < new_result.size(); res_length++) {
+                                        ins.first->second[new_offset - old_offset + res_length] += new_result[res_length];
+                                    }
                                 }
-                                for(Edge_length res_length = 1; res_length < ins.first->second.size(); res_length++) {
-                                    new_result[old_offset - new_offset + res_length] += ins.first->second[res_length];
-                                }
-                                ins.first->second = new_result;
                             } else {
-                                if(ins.first->second.size() + old_offset < new_result.size() + new_offset) {
-                                    ins.first->second.resize(new_result.size() + new_offset - old_offset);
-                                }
-                                for(Edge_length res_length = 1; res_length < new_result.size(); res_length++) {
-                                    ins.first->second[new_offset - old_offset + res_length] += new_result[res_length];
-                                }
+                                neg_hits_[thread_id]++;
                             }
-                        } else {
-                            neg_hits_[thread_id]++;
                         }
                     }
                 }
@@ -232,7 +222,7 @@ std::vector<Edge_weight> TreewidthSearch::search() {
         }
         cache_[bag_idx] = {};
         std::cerr << bag_idx << std::endl;
-        std::cerr << results() << std::endl;
+        // std::cerr << results() << std::endl;
         // print_stats();
     }
     for(Edge_length length = 0; length <= max_length_; length++) {
@@ -259,7 +249,7 @@ void TreewidthSearch::includeSolutions(Frontier const& frontier, size_t bag_idx,
         return;
     }
 
-    size_t thread_id = 0;
+    size_t thread_id = omp_get_thread_num();
     size_t number_paths = 0;
     size_t number_cut_paths = 0;
     for(frontier_index_t idx = 0; idx < frontier.size(); idx++) {
@@ -341,34 +331,9 @@ bool TreewidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vector<Ed
     }
 
     // make sure we took less than two edges at both ends of the new edge
-    if(frontier[v_idx] == two_edge_index_ || frontier[w_idx] == two_edge_index_) {
-        assert(!takeable_[takeable_idx_v][takeable_idx_w]);
+    if(!takeable_[takeable_idx_v][takeable_idx_w]) {
         return false;
     }
-
-    // we can take it but we cannot continue with it afterwards
-    if(v_remaining == 0 && frontier[w_idx] == invalid_index_ 
-        && (frontier[v_idx] == no_edge_index_ || frontier[v_idx] == invalid_index_)) {
-        assert(!takeable_[takeable_idx_v][takeable_idx_w]);
-        return false;
-    }
-    // we can take it but we cannot continue with it afterwards
-    if(w_remaining == 0 && frontier[v_idx] == invalid_index_
-        && (frontier[w_idx] == no_edge_index_ || frontier[w_idx] == invalid_index_)) {
-        assert(!takeable_[takeable_idx_v][takeable_idx_w]);
-        return false;
-    }
-    // we can take it but we cannot continue with it afterwards
-    if(v_remaining == 0 && w_remaining == 0 && frontier[v_idx] == no_edge_index_ && frontier[w_idx] == no_edge_index_) {
-        assert(!takeable_[takeable_idx_v][takeable_idx_w]);
-        return false;
-    }
-    // we can take it but we cannot continue with it afterwards
-    if(frontier[v_idx] == invalid_index_ && frontier[w_idx] == invalid_index_) {
-        assert(!takeable_[takeable_idx_v][takeable_idx_w]);
-        return false;
-    }
-    assert(takeable_[takeable_idx_v][takeable_idx_w]);
 
     assert(w_idx < frontier.size());
     assert(v_idx < frontier.size());
@@ -485,16 +450,13 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
     if(w_remaining) {
         skippable_idx_w += 4;
     }
-    if((v_remaining == 0 && frontier[v_idx] == invalid_index_) || (w_remaining == 0 && frontier[w_idx] == invalid_index_)) {
-        // were discontinuing a cut path
-        assert(!skippable_[skippable_idx_v][skippable_idx_w]);
+    if(!skippable_[skippable_idx_v][skippable_idx_w]) {
         return false;
     }
     if(v_remaining == 0 && w_remaining == 0
         && frontier[v_idx] == w_idx) {
         return false;
     }
-    assert(skippable_[skippable_idx_v][skippable_idx_w]);
     // length based pruning
     size_t number_paths = 0;
     size_t number_cut_paths = 0;
@@ -586,7 +548,8 @@ void TreewidthSearch::skip(Frontier& frontier, size_t bag_idx) {
 }
 
 void TreewidthSearch::advance(Frontier& frontier, size_t bag_idx) {
-    Frontier old = frontier;
+    static __thread Frontier old;
+    old = frontier;
     auto &bag = path_decomposition_[bag_idx + 1].second;
     frontier.resize(bag.size());
     std::fill(frontier.begin(), frontier.end(), no_edge_index_);
