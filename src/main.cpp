@@ -6,6 +6,7 @@
 
 int main() {
     fpc::Graph initial_graph(std::cin);
+    // initial_graph.preprocess();
     // initial_graph.normalize();
     initial_graph.print_stats();
 
@@ -70,15 +71,14 @@ int main() {
     fpc::TreewidthSearch search(initial_graph, r);
     auto res = search.search();
     fpc::Edge_weight final_result = 0;
-    fpc::Edge_length min_idx = initial_graph.is_all_pair() ? 0 : 0;
-    for(fpc::Edge_length l = min_idx; l < res.size(); l++) {
+    for(fpc::Edge_length l = 0; l < res.size(); l++) {
         if(res[l] != 0) {
             std::cerr << res[l] << " paths of length " << static_cast<size_t>(l) << std::endl;
         }
         final_result += res[l];
     }
     res = initial_graph.extra_paths();
-    for(fpc::Edge_length l = min_idx; l < res.size(); l++) {
+    for(fpc::Edge_length l = 0; l < res.size(); l++) {
         if(res[l] != 0) {
             std::cerr << res[l] << " extra paths of length " << static_cast<size_t>(l) << std::endl;
         }

@@ -36,28 +36,25 @@ TreewidthSearch::TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::
     std::vector<vertex_t> last_remaining;
     std::vector<frontier_index_t> last_idx;
     if(!is_all_pair_) {
-        last_remaining = {vertex_t(graph_.neighbors(terminals_[0]).size()), vertex_t(graph_.neighbors(terminals_[1]).size())};
-        last_idx = std::vector<frontier_index_t>(graph_.adjacency_.size(), invalid_index_);
-        last_idx[terminals_[0]] = start_index_;
-        last_idx[terminals_[1]] = goal_index_;
-        seen[terminals_[0]] = true;
-        seen[terminals_[1]] = true;
+        for(auto &[_, bag] : path_decomposition_) {
+            if(std::find(bag.begin(), bag.end(), terminals_[0]) == bag.end()) {
+                bag.push_back(terminals_[0]);
+            }
+            if(std::find(bag.begin(), bag.end(), terminals_[1]) == bag.end()) {
+                bag.push_back(terminals_[1]);
+            }
+        }
     }
     for(size_t bag_idx = 0; bag_idx < path_decomposition_.size(); bag_idx++) {
         auto &bag = path_decomposition_[bag_idx].second;
         auto &idx = bag_local_idx_map_[bag_idx];
         auto &vertex = bag_local_vertex_map_[bag_idx];
         auto &remaining = remaining_edges_after_this_[bag_idx];
+        remaining.resize(bag.size());
         if(!is_all_pair_) {
-            idx[terminals_[0]] = start_index_;
-            idx[terminals_[1]] = goal_index_;
-            vertex.push_back(start_index_);
-            vertex.push_back(goal_index_);
-            remaining.resize(bag.size() + 2);
-        } else {
-            remaining.resize(bag.size());
+            assert(std::find(bag.begin(), bag.end(), terminals_[0]) != bag.end());
+            assert(std::find(bag.begin(), bag.end(), terminals_[1]) != bag.end());
         }
-        frontier_index_t cur_idx = is_all_pair_?0:2;
         for(size_t i = 0; i < bag.size(); i++) {
             if(degree[bag[i]] == 0) {
                 std::swap(bag[i], bag.back());
@@ -65,12 +62,11 @@ TreewidthSearch::TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::
                 i--;
             }
         }
+        frontier_index_t cur_idx = 0;
         for(auto v : bag) {
-            if(is_all_pair_ || (terminals_[0] != v && terminals_[1] != v)) {
-                assert(cur_idx != invalid_index_);
-                idx[v] = cur_idx++;
-                vertex.push_back(v);
-            }
+            assert(cur_idx != invalid_index_);
+            idx[v] = cur_idx++;
+            vertex.push_back(v);
             if(seen[v]) {
                 assert(v < idx.size());
                 frontier_index_t new_idx = idx[v];
@@ -106,12 +102,12 @@ TreewidthSearch::TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::
         }
         assert(degree[v] == 0);
     }
-    Frontier initial_frontier;
+    Frontier initial_frontier(path_decomposition_[0].second.size(), no_edge_index_);
     if(!is_all_pair_) {
-        initial_frontier = {no_edge_index_, no_edge_index_};
-    }
-    for(auto _ : path_decomposition_[0].second) {
-        initial_frontier.push_back(no_edge_index_);
+        assert(bag_local_idx_map_[0][terminals_[0]] != invalid_index_);
+        assert(bag_local_idx_map_[0][terminals_[1]] != invalid_index_);
+        initial_frontier[bag_local_idx_map_[0][terminals_[0]]] = invalid_index_;
+        initial_frontier[bag_local_idx_map_[0][terminals_[1]]] = invalid_index_;
     }
     // cached vectors are {offset, results}
     std::vector<Edge_weight> initial_result = {0, 1};
@@ -145,10 +141,24 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                     bool takeable = pp.first;
                     bool skippable = pp.second;
                     Frontier new_frontier = old_frontier;
-                    frontier_index_t new_idx = bag_idx;
+                    size_t new_idx = bag_idx;
                     std::vector<Edge_weight> new_result = result;
                     // propagate while only one of the two is possible
                     while(takeable ^ skippable && new_idx + 1 < path_decomposition_.size()) {
+                        // Edge edge = path_decomposition_[new_idx].first;
+                        // auto v_idx = bag_local_idx_map_[new_idx][edge.first];
+                        // auto w_idx = bag_local_idx_map_[new_idx][edge.second];
+                        // std::cerr << "Edge: (" << size_t(v_idx) << "," << size_t(w_idx) << ") Idx:" << size_t(new_idx) << std::endl;
+                        // for(auto idx : new_frontier) {
+                        //     std::cerr << size_t(idx) << " ";
+                        // }
+                        // std::cerr << std::endl;
+                        // std::cerr << "Remaining: ";
+                        // for(auto i = 0; i < new_frontier.size(); i++) {
+                        //     std::cerr << size_t(remaining_edges_after_this_[new_idx][i]) << " ";
+                        // }
+                        // std::cerr << std::endl;
+                        // std::cerr << takeable << " " << skippable << std::endl;
                         if(takeable) {
                             take(new_frontier, new_idx);
                             new_result[0]++;
@@ -264,98 +274,47 @@ void TreewidthSearch::includeSolutions(Frontier const& frontier, size_t bag_idx,
     assert(number_paths % 2 == 0);
     number_paths /= 2;
     number_paths += number_cut_paths;
-    if(is_all_pair_) {
-        // no way this leads to a complete path
-        if(number_paths > 2) {
-            return;
-        }
-        // this can lead to a path if the first path and the second path connect
-        if(number_paths == 2) {
-            // cannot connect if they arent ends of paths
-            if( frontier[v_idx] == no_edge_index_ 
-                || frontier[v_idx] == two_edge_index_ 
-                || frontier[w_idx] == no_edge_index_ 
-                || frontier[w_idx] == two_edge_index_) {
-                return;
-            }
-            // we connected them
-            // add the partial result
-            for(Edge_length res_length = 1; res_length < partial_result.size() && partial_result[0] + res_length <= max_length_; res_length++) {
-                // current offset + 1 for the additional edge
-                thread_local_result_[thread_id][partial_result[0] + res_length] += partial_result[res_length];
-            }
-            return;
-        }
-        // this can lead to a path if we continue the existing path
-        if(number_paths == 1) {
-            // cannot connect if neither is the end of the path
-            if(     (frontier[v_idx] == no_edge_index_ 
-                    || frontier[v_idx] == two_edge_index_)
-                &&  (frontier[w_idx] == no_edge_index_ 
-                    || frontier[w_idx] == two_edge_index_)) {
-                return;
-            }
-            // we connected them
-            // add the partial result
-            for(Edge_length res_length = 1; res_length < partial_result.size() && partial_result[0] + res_length <= max_length_; res_length++) {
-                // current offset + 1 for the additional edge
-                thread_local_result_[thread_id][partial_result[0] + res_length] += partial_result[res_length];
-            }
-            return;
-        }
-        assert(number_paths == 0);
-        assert(partial_result[0] == 0);
-        thread_local_result_[thread_id][1] += 1;
+    // no way this leads to a complete path
+    if(number_paths > 2) {
         return;
-    } else {
-        // no way this leads to a complete path
-        if(number_paths > 2) {
-            return;
-        }
-        // this can lead to a path if the first path and the second path connect
-        if(number_paths == 2) {
-            // leads to a path if start and goal are both part of the path
-            if(     (frontier[start_index_] != w_idx 
-                    && frontier[start_index_] != v_idx)
-                ||  (frontier[goal_index_] != w_idx 
-                    && frontier[goal_index_] != v_idx)) {
-                return;
-            }
-            assert(frontier[goal_index_] != frontier[start_index_]);
-            // add the partial result
-            for(Edge_length res_length = 1; res_length < partial_result.size() && partial_result[0] + res_length <= max_length_; res_length++) {
-                // current offset + 1 for the additional edge
-                thread_local_result_[thread_id][partial_result[0] + res_length] += partial_result[res_length];
-            }
-            return;
-        }
-        // this can lead to a path if we continue the existing path
-        if(number_paths == 1) {
-            // can leads to a path only if start or goal are part of the path
-            if(frontier[start_index_] != w_idx 
-                && frontier[start_index_] != v_idx
-                && frontier[goal_index_] != w_idx 
-                && frontier[goal_index_] != v_idx) {
-                return;
-            }
-            // now the other index must be the missing of goal and end
-            if(v_idx != start_index_
-                && v_idx != goal_index_
-                && w_idx != start_index_
-                && w_idx != goal_index_) {
-                return;
-            }
-            // we connected them
-            // add the partial result
-            for(Edge_length res_length = 1; res_length < partial_result.size() && partial_result[0] + res_length <= max_length_; res_length++) {
-                // current offset + 1 for the additional edge
-                thread_local_result_[thread_id][partial_result[0] + res_length] += partial_result[res_length];
-            }
-            return;
-        }
-        // we should already have covered the edges between start and goal during preprocessing
-        assert(false);
     }
+    // this can lead to a path if the first path and the second path connect
+    if(number_paths == 2) {
+        // cannot connect if they arent ends of paths
+        if( frontier[v_idx] == no_edge_index_ 
+            || frontier[v_idx] == two_edge_index_ 
+            || frontier[w_idx] == no_edge_index_ 
+            || frontier[w_idx] == two_edge_index_) {
+            return;
+        }
+        // we connected them
+        // add the partial result
+        for(Edge_length res_length = 1; res_length < partial_result.size() && partial_result[0] + res_length <= max_length_; res_length++) {
+            // current offset + 1 for the additional edge
+            thread_local_result_[thread_id][partial_result[0] + res_length] += partial_result[res_length];
+        }
+        return;
+    }
+    // this can lead to a path if we continue the existing path
+    if(number_paths == 1) {
+        // cannot connect if neither is the end of the path
+        if(     (frontier[v_idx] == no_edge_index_ 
+                || frontier[v_idx] == two_edge_index_)
+            &&  (frontier[w_idx] == no_edge_index_ 
+                || frontier[w_idx] == two_edge_index_)) {
+            return;
+        }
+        // we connected them
+        // add the partial result
+        for(Edge_length res_length = 1; res_length < partial_result.size() && partial_result[0] + res_length <= max_length_; res_length++) {
+            // current offset + 1 for the additional edge
+            thread_local_result_[thread_id][partial_result[0] + res_length] += partial_result[res_length];
+        }
+        return;
+    }
+    assert(number_paths == 0);
+    assert(partial_result[0] == 0);
+    thread_local_result_[thread_id][1] += 1;
 }
 
 bool TreewidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result) {
@@ -395,24 +354,9 @@ bool TreewidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vector<Ed
         return false;
     }
 
-    // assert(w_idx < frontier.size());
-    // assert(v_idx < frontier.size());
-    // assert(frontier[w_idx] != v_idx);
-    // if(!is_all_pair_) {
-    //     // start and goal are already connected
-    //     if(frontier[start_index_] == goal_index_) {
-    //         assert(frontier[goal_index_] == start_index_);
-    //         return false;
-    //     }
-    //     // make sure start goal have only one outgoing edge
-    //     if((v_idx == start_index_ || v_idx == goal_index_) && frontier[v_idx] != no_edge_index_) {
-    //         return false;
-    //     }
-    //     if((w_idx == start_index_ || w_idx == goal_index_) && frontier[w_idx] != no_edge_index_) {
-    //         return false;
-    //     }
-    // }
-
+    assert(w_idx < frontier.size());
+    assert(v_idx < frontier.size());
+    assert(frontier[w_idx] != v_idx);
     // length based pruning
     auto old_v = frontier[v_idx];
     auto old_w = frontier[w_idx];
@@ -516,20 +460,6 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
     auto w_idx = bag_local_idx_map_[bag_idx][edge.second];
     auto v_remaining = remaining_edges_after_this_[bag_idx][v_idx];
     auto w_remaining = remaining_edges_after_this_[bag_idx][w_idx];
-    // if(!is_all_pair_) {
-    //     // start and goal are already connected
-    //     if(frontier[start_index_] == goal_index_) {
-    //         assert(frontier[goal_index_] == start_index_);
-    //         return false;
-    //     }
-    //     // make sure start goal have at least one outgoing edge
-    //     if((v_idx == start_index_ || v_idx == goal_index_) && frontier[v_idx] == no_edge_index_ && v_remaining == 0) {
-    //         return false;
-    //     }
-    //     if((w_idx == start_index_ || w_idx == goal_index_) && frontier[w_idx] == no_edge_index_ && w_remaining == 0) {
-    //         return false;
-    //     }
-    // }
 
     if((v_remaining == 0 && frontier[v_idx] == invalid_index_) || (w_remaining == 0 && frontier[w_idx] == invalid_index_)) {
         // were discontinuing a cut path
@@ -632,10 +562,8 @@ void TreewidthSearch::skip(Frontier& frontier, size_t bag_idx) {
 
 void TreewidthSearch::advance(Frontier& frontier, size_t bag_idx) {
     Frontier old = frontier;
-
-
     auto &bag = path_decomposition_[bag_idx + 1].second;
-    frontier.resize(is_all_pair_?bag.size():bag.size() + 2);
+    frontier.resize(bag.size());
     std::fill(frontier.begin(), frontier.end(), no_edge_index_);
     auto &old_idx = bag_local_idx_map_[bag_idx];
     auto &new_idx = bag_local_idx_map_[bag_idx + 1];
@@ -655,11 +583,16 @@ void TreewidthSearch::advance(Frontier& frontier, size_t bag_idx) {
                 found_invalid += 1;
             } else {
                 frontier[new_idx[v]] = new_idx[old_vertex[old[old_idx[v]]]];
-                found_path += 1;
+                if(frontier[new_idx[v]] != invalid_index_) {
+                    found_path += 1;
+                } else {
+                    found_path += 2;
+                }
             }
             assert(frontier[new_idx[v]] == no_edge_index_ || frontier[new_idx[v]] == two_edge_index_ || remaining_edges_after_this_[bag_idx][old_idx[v]] > 0);
         }
     }
+    assert(found_path % 2 == 0);
     assert(!found_two || found_invalid || found_path);
     assert(found_invalid <= 2);
 }

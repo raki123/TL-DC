@@ -15,6 +15,7 @@ Graph::Graph(std::istream &input) {
     Vertex nr_vertices;
     Vertex nr_edges;
     std::string line;
+    all_pair_ = true;
     while(!input.eof()) {
         switch (dec)
         {
@@ -56,6 +57,7 @@ Graph::Graph(std::istream &input) {
             input >> terminals_[0] >> terminals_[1];
             terminals_[0]--;
             terminals_[1]--;
+            all_pair_ = false;
             break;
         default:
             std::cerr << "Invalid character " << dec << " at beginning of line." << std::endl;
@@ -67,7 +69,6 @@ Graph::Graph(std::istream &input) {
     assert(adjacency_.size() > 0);
     // max_length_ = Edge_length(std::min(nr_vertices - 1, int(max_length_)));
     extra_paths_ = std::vector<Edge_weight>(max_length_ + 1, 0);
-    all_pair_ = true;
 }
 
 void Graph::preprocess() {
@@ -92,6 +93,8 @@ void Graph::preprocess() {
         }
         preprocess_start_goal_edges();
     }
+    assert(all_pair_ || neighbors(terminals_[0]).count(terminals_[1]) == 0);
+    assert(all_pair_ || neighbors(terminals_[1]).count(terminals_[0]) == 0);
 }
 
 void Graph::print_stats() {
