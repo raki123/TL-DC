@@ -35,8 +35,6 @@ class TreewidthSearch {
     frontier_index_t invalid_index_ = std::numeric_limits<frontier_index_t>::max();
     frontier_index_t no_edge_index_ = std::numeric_limits<frontier_index_t>::max() - 1;
     frontier_index_t two_edge_index_ = std::numeric_limits<frontier_index_t>::max() - 2;
-    frontier_index_t start_index_ = 0;
-    frontier_index_t goal_index_ = 1;
     std::vector<std::vector<frontier_index_t>> bag_local_idx_map_;
     std::vector<std::vector<vertex_t>> bag_local_vertex_map_;
 
@@ -44,6 +42,27 @@ class TreewidthSearch {
     std::vector<std::vector<Edge_weight>> thread_local_result_;
 
     std::vector<std::unordered_map<Frontier, std::vector<Edge_weight>, vec_hash>> cache_;
+
+    std::vector<std::vector<char>> takeable_ = {
+      {true, false, true, true, true, false, true, true},
+      {false, false, false, false, false, false, false, false},
+      {true, false, false, false, true, false, true, false},
+      {true, false, false, false, true, false, true, false},
+      {true, false, true, true, true, false, true, true},
+      {false, false, false, false, false, false, false, false},
+      {true, false, true, true, true, false, true, true},
+      {true, false, false, false, true, false, true, false}
+    };
+    std::vector<std::vector<char>> skippable_ = {
+      {true, true, true, false, true, true, true, true},
+      {true, true, true, false, true, true, true, true},
+      {true, true, true, false, true, true, true, true},
+      {false, false, false, false, false, false, false, false},
+      {true, true, true, false, true, true, true, true},
+      {true, true, true, false, true, true, true, true},
+      {true, true, true, false, true, true, true, true},
+      {true, true, true, false, true, true, true, true}
+    };
 
     void includeSolutions(Frontier const& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result);
 

@@ -1227,7 +1227,7 @@ Vertex Graph::limit_max_length() {
             prog_str << ".\n";
         }
     }
-    // std::cout << prog_str.str();
+    // std::cerr << prog_str.str();
     // return 0;
     // prog_str << "#show sep/1.\n";
     // initialize clingo

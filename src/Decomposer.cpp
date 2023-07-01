@@ -27,7 +27,7 @@ Decomposer::decompose(/*const*/ Graph& graph)
 	{
         	nr_edges += graph.neighbors(v).size();
 		//for (auto i=graph.neighbors(v).begin(); i!= graph.neighbors(v).end(); ++i)
-		//	std::cout << i << std::endl;
+		//	std::cerr << i << std::endl;
     	}
     	nr_edges /= 2;
 
@@ -38,7 +38,7 @@ Decomposer::decompose(/*const*/ Graph& graph)
 		std::stringstream s;
 		s << "p tw " << graph.neighbors_.size() << " " << //171 << std::endl; //
 		nr_edges << std::endl;
-		//std::cout << s.str();
+		//std::cerr << s.str();
 		write(in, s.str().c_str(), strlen(s.str().c_str()));
 		int i = 0;
     		for (Vertex v = 0; v < graph.adjacency_.size(); v++) {
@@ -54,40 +54,40 @@ Decomposer::decompose(/*const*/ Graph& graph)
 					++i;
 					s << (v+1) << " " << *(jt)+1 << std::endl;
 					std::string ss = s.str();
-					//std::cout << ss;
+					//std::cerr << ss;
 					write(in, ss.c_str(), strlen(ss.c_str()));
 				}
 			}
 		}
-		//std::cout << i << std::endl;
+		//std::cerr << i << std::endl;
 		//fsync(in);
 		close(in);
 	
 		FILE* fout = fdopen(out, "r");
 			
-		//std::cout << "done " << std::endl;
+		//std::cerr << "done " << std::endl;
 
 		char buf[BUF_SIZE] = {0};
 
 		int bags, width, verts;
 
 
-		//std::cout << "preread " << fout << std::endl;
+		//std::cerr << "preread " << fout << std::endl;
 		//if (read(out, buf, BUF_SIZE) > 0)
-		//std::cout << fscanf(fout, "s td %d %d %d", &bags, &width, &verts) << std::endl;
+		//std::cerr << fscanf(fout, "s td %d %d %d", &bags, &width, &verts) << std::endl;
 		if (fscanf(fout, "s td %d %d %d\n", &bags, &width, &verts) == 3)
 		{
 			std::set<Edge> edges; //only cover an edge at most once
-			//std::cout << "read " << std::endl;
+			//std::cerr << "read " << std::endl;
 			//sscanf(buf, "s td %d %d %d\n", &bags, &width, &verts);
-			std::cout << bags << ",w: " << width << "," << verts << std::endl;
+			std::cerr << bags << ",w: " << width << "," << verts << std::endl;
 			int b = 1;
 			for (; b <= bags && fgets(buf, BUF_SIZE-1, fout) != NULL; ++b)
 			{
 				if (buf[0] != 'c') 
 				{
 					assert(buf[0] == 'b');
-					//std::cout << buf << std::endl;
+					//std::cerr << buf << std::endl;
 					char* pos = buf + 2; //don't read the 'b'
 					int v1;
 
@@ -103,7 +103,7 @@ Decomposer::decompose(/*const*/ Graph& graph)
 						{
 							bag.push_back(v1-1);
 						}
-						//std::cout << v1 << std::endl;
+						//std::cerr << v1 << std::endl;
 							while (*pos != '\0' && *pos != ' ')
 								++pos;
 							if (*pos == ' ')
@@ -129,16 +129,16 @@ Decomposer::decompose(/*const*/ Graph& graph)
 						//set<Vertex> intersect;
 						//set_intersection(bag.begin(), bag.end(), ngbs.begin(), ngbs.end(), std::inserter(intersect, intersect.begin()));
 						/*if ((*jt) == 18) {
-							std::cout << *jt << "," << bag.size() << "," << ngbs.size() << "," << intersect.size() << std::endl;
+							std::cerr << *jt << "," << bag.size() << "," << ngbs.size() << "," << intersect.size() << std::endl;
 						for (auto it = ngbs.begin(); it != ngbs.end(); ++it) 
-							std::cout << "n " << *it << std::endl;
+							std::cerr << "n " << *it << std::endl;
 						for (auto it = bag.begin(); it != bag.end(); ++it) 
-							std::cout << "b " << *it << std::endl;}*/
+							std::cerr << "b " << *it << std::endl;}*/
 
 						for (auto it = intersect.begin(); it != intersect.end(); ++it) 
 						{
 							/*if ((*jt) == 18)
-								std::cout << "inner " << *it << std::endl;*/
+								std::cerr << "inner " << *it << std::endl;*/
 							if (*jt < *it) 
 							{
 								//vertex_t mi = std::min(*jt, *it), ma = std::max(*jt, *it);
@@ -174,18 +174,18 @@ Decomposer::decompose(/*const*/ Graph& graph)
 				}
 			}*/
 
-			//std::cout << "edges " << nr_edges << "; found edges " << edges.size() << std::endl;
+			//std::cerr << "edges " << nr_edges << "; found edges " << edges.size() << std::endl;
 			assert(edges.size() == nr_edges);
 			int b1, b2;
 			b = bags - 1;
-			std::cout << "root " << root << std::endl;
+			std::cerr << "root " << root << std::endl;
 			std::map<int, std::vector<int>> neighs;
 			for (; b > 0 && fgets(buf, BUF_SIZE-1, fout) != NULL && sscanf(buf, "%d %d\n", &b1, &b2); --b)
 			//for (; b > 0 && !feof(fout) && fscanf(fout, "%d %d\n", &b1, &b2) == 2; --b)
 			{
 				neighs[b1].push_back(b2);
 				neighs[b2].push_back(b1);
-				std::cout << b << "," << b1 << "," << b2 << std::endl;
+				std::cerr << b << "," << b1 << "," << b2 << std::endl;
 			}
 			for(root = 1; neighs[root].size() > 1; root++){}
 			std::set<int> seen;
@@ -202,7 +202,7 @@ Decomposer::decompose(/*const*/ Graph& graph)
 			assert(seen.size() == bags - 1);
 		}
 		fclose(fout);
-		//std::cout << "out" << std::endl;
+		//std::cerr << "out" << std::endl;
 		close(out);
 	}
 	//pair < root, pair<neighbors, map<int, {pair<edges, bag>}>>>

@@ -12,23 +12,23 @@ int main() {
 
 	Decomposer d;
 	auto td = std::move(d.decompose(initial_graph));
-	std::cout << "decomposed, root " << td.first << std::endl;
+	std::cerr << "decomposed, root " << td.first << std::endl;
 
 	for (auto it = td.second.first.begin(); it != td.second.first.end(); ++it)
-		std::cout << "td edge " << it->first << " -> " << it->second << std::endl;
+		std::cerr << "td edge " << it->first << " -> " << it->second << std::endl;
 
 	for (auto it = td.second.second.begin(); it != td.second.second.end(); ++it)
 	{	
-		std::cout << "bag " << it->first << std::endl;
-		std::cout << "edges { ";
+		std::cerr << "bag " << it->first << std::endl;
+		std::cerr << "edges { ";
 		for (auto jt = it->second.first.begin(); jt != it->second.first.end(); ++jt)
-			std::cout << jt->first << "," << jt->second << "; ";
-		std::cout << "}" << std::endl;
+			std::cerr << jt->first << "," << jt->second << "; ";
+		std::cerr << "}" << std::endl;
 	
-		std::cout << "bag { ";
+		std::cerr << "bag { ";
 		for (auto jt = it->second.second.begin(); jt != it->second.second.end(); ++jt)
-			std::cout << *jt << "; ";
-		std::cout << "}" << std::endl;
+			std::cerr << *jt << "; ";
+		std::cerr << "}" << std::endl;
 	}		
 
     std::vector<std::pair<Edge, std::vector<vertex_t>>> r;

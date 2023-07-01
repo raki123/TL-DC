@@ -322,37 +322,53 @@ bool TreewidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vector<Ed
     Edge edge = path_decomposition_[bag_idx].first;
     auto v_idx = bag_local_idx_map_[bag_idx][edge.first];
     auto w_idx = bag_local_idx_map_[bag_idx][edge.second];
+    auto v_remaining = remaining_edges_after_this_[bag_idx][v_idx];
+    auto w_remaining = remaining_edges_after_this_[bag_idx][w_idx];
 
     // must not be closing a path to a loop
     if(frontier[v_idx] == w_idx) {
         assert(frontier[w_idx] == v_idx);
         return false;
     }
+
+    int takeable_idx_v = std::max(frontier[v_idx], frontier_index_t(252)) - 252;
+    if(v_remaining) {
+        takeable_idx_v += 4;
+    }
+    int takeable_idx_w = std::max(frontier[w_idx], frontier_index_t(252)) - 252;
+    if(w_remaining) {
+        takeable_idx_w += 4;
+    }
+
     // make sure we took less than two edges at both ends of the new edge
     if(frontier[v_idx] == two_edge_index_ || frontier[w_idx] == two_edge_index_) {
+        assert(!takeable_[takeable_idx_v][takeable_idx_w]);
         return false;
     }
 
-    auto v_remaining = remaining_edges_after_this_[bag_idx][v_idx];
     // we can take it but we cannot continue with it afterwards
     if(v_remaining == 0 && frontier[w_idx] == invalid_index_ 
         && (frontier[v_idx] == no_edge_index_ || frontier[v_idx] == invalid_index_)) {
+        assert(!takeable_[takeable_idx_v][takeable_idx_w]);
         return false;
     }
-    auto w_remaining = remaining_edges_after_this_[bag_idx][w_idx];
     // we can take it but we cannot continue with it afterwards
     if(w_remaining == 0 && frontier[v_idx] == invalid_index_
         && (frontier[w_idx] == no_edge_index_ || frontier[w_idx] == invalid_index_)) {
+        assert(!takeable_[takeable_idx_v][takeable_idx_w]);
         return false;
     }
     // we can take it but we cannot continue with it afterwards
     if(v_remaining == 0 && w_remaining == 0 && frontier[v_idx] == no_edge_index_ && frontier[w_idx] == no_edge_index_) {
+        assert(!takeable_[takeable_idx_v][takeable_idx_w]);
         return false;
     }
     // we can take it but we cannot continue with it afterwards
     if(frontier[v_idx] == invalid_index_ && frontier[w_idx] == invalid_index_) {
+        assert(!takeable_[takeable_idx_v][takeable_idx_w]);
         return false;
     }
+    assert(takeable_[takeable_idx_v][takeable_idx_w]);
 
     assert(w_idx < frontier.size());
     assert(v_idx < frontier.size());
@@ -461,15 +477,24 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
     auto v_remaining = remaining_edges_after_this_[bag_idx][v_idx];
     auto w_remaining = remaining_edges_after_this_[bag_idx][w_idx];
 
+    int skippable_idx_v = std::max(frontier[v_idx], frontier_index_t(252)) - 252;
+    if(v_remaining) {
+        skippable_idx_v += 4;
+    }
+    int skippable_idx_w = std::max(frontier[w_idx], frontier_index_t(252)) - 252;
+    if(w_remaining) {
+        skippable_idx_w += 4;
+    }
     if((v_remaining == 0 && frontier[v_idx] == invalid_index_) || (w_remaining == 0 && frontier[w_idx] == invalid_index_)) {
         // were discontinuing a cut path
+        assert(!skippable_[skippable_idx_v][skippable_idx_w]);
         return false;
     }
     if(v_remaining == 0 && w_remaining == 0
-        && frontier[v_idx] != no_edge_index_ && frontier[v_idx] != two_edge_index_
-        && frontier[w_idx] != no_edge_index_ && frontier[w_idx] != two_edge_index_) {
-            return false;
-        }
+        && frontier[v_idx] == w_idx) {
+        return false;
+    }
+    assert(skippable_[skippable_idx_v][skippable_idx_w]);
     // length based pruning
     size_t number_paths = 0;
     size_t number_cut_paths = 0;
