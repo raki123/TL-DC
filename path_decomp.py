@@ -1,4 +1,4 @@
-#!/home/hecher/minconda34/bin/python3
+#!/home/rafael/miniconda3/bin/python
 
 import networkx as nx
 import sys
