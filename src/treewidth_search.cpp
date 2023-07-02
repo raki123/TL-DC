@@ -120,7 +120,7 @@ TreewidthSearch::TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::
 
 std::vector<Edge_weight> TreewidthSearch::search() {
     for(size_t bag_idx = 0; bag_idx < path_decomposition_.size(); bag_idx++) {
-        #pragma omp parallel for default(none) shared(bag_idx) shared(max_length_) shared(cache_) shared(path_decomposition_) shared(thread_local_result_) shared(pos_hits_) shared(neg_hits_) shared(bag_local_idx_map_) shared(bag_local_vertex_map_)
+        #pragma omp parallel for /*default(none)*/ shared(bag_idx) shared(max_length_) shared(cache_) shared(path_decomposition_) shared(thread_local_result_) shared(pos_hits_) shared(neg_hits_) shared(bag_local_idx_map_) shared(bag_local_vertex_map_)
         for(size_t bucket = 0; bucket < cache_[bag_idx].bucket_count(); bucket++) {
             size_t thread_id = omp_get_thread_num();
             for(auto task_it = cache_[bag_idx].begin(bucket); task_it != cache_[bag_idx].end(bucket); ++task_it) {
