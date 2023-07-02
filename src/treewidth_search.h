@@ -23,6 +23,7 @@ class TreewidthSearch {
     TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::vector<vertex_t>>> path_decomposition, size_t nthreads);
 
     std::vector<Edge_weight> search();
+    void print_stats();
   private:
     size_t nthreads_;
     Graph graph_;
@@ -37,6 +38,8 @@ class TreewidthSearch {
     frontier_index_t two_edge_index_ = std::numeric_limits<frontier_index_t>::max() - 2;
     std::vector<std::vector<frontier_index_t>> bag_local_idx_map_;
     std::vector<std::vector<vertex_t>> bag_local_vertex_map_;
+    Edge_length invalid_distance_ = std::numeric_limits<Edge_length>::max();
+    std::vector<std::vector<std::vector<Edge_length>>> bag_local_distance_;
 
     std::vector<Edge_weight> result_;
     std::vector<std::vector<Edge_weight>> thread_local_result_;
