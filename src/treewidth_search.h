@@ -72,6 +72,13 @@ class TreewidthSearch {
     bool canTake(Frontier& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result);
     bool canSkip(Frontier& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result);
 
+    bool distancePrune(
+      Frontier& frontier,
+      std::vector<frontier_index_t> const& paths,
+      std::vector<frontier_index_t> const& cut_paths,
+      size_t bag_idx,
+      size_t offset);
+
     void take(Frontier& frontier, size_t bag_idx);
     void skip(Frontier& frontier, size_t bag_idx);
 

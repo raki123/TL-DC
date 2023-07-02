@@ -459,128 +459,7 @@ bool TreewidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vector<Ed
         return false;
     }
 
-    // advanced length based pruning
-    auto &distance = bag_local_distance_[bag_idx];
-    if(cut_paths.size() == 2) {
-        if(paths.size() == 0) {
-            // we have to connect the cut paths
-            return distance[cut_paths[0]][cut_paths[1]] + partial_result[0] + 1<= max_length_;
-        }
-        // there is at least one other path that we have to incorporate
-        // connecting the cut paths is not an option
-        size_t min_dist = 0;
-        for(auto v : cut_paths) {
-            Edge_length cur_min_dist = invalid_distance_;
-            for(auto other : paths) {
-                cur_min_dist = std::min(cur_min_dist, distance[v][other]);
-            }
-            if(cur_min_dist == invalid_distance_) {
-                // we cannot connect this cut path
-                return false;
-            }
-            min_dist += cur_min_dist;
-        }
-        if(min_dist + partial_result[0] + 1 > max_length_) {
-            return false;
-        }
-        size_t path_min_dist = 0;
-        Edge_length path_max_dist = 0;
-        for(auto v : paths) {
-            Edge_length cur_min_dist = std::min(distance[v][cut_paths[0]], distance[v][cut_paths[1]]);
-            for(auto other : paths) {
-                if(frontier[v] != other) {
-                    cur_min_dist = std::min(cur_min_dist, distance[v][other]);
-                }
-            }
-            path_max_dist = std::max(path_max_dist, cur_min_dist);
-            path_min_dist += cur_min_dist;
-        }
-        path_min_dist /= 2;
-        if(path_min_dist > path_max_dist) {
-            path_min_dist -= path_max_dist;
-        } else {
-            path_min_dist = 0;
-        }
-        if(path_min_dist + min_dist + partial_result[0] + 1 >  max_length_) {
-            return false;
-        }
-    }
-    if(cut_paths.size() == 1) {
-        if(paths.size() == 0) {
-            // + 1 because we took the edge
-            // + 2 because we want to take another edge later
-            // we dont have to do anything
-            return partial_result[0] + 2 <= max_length_;
-        }
-        // there is at least one other path that we have to incorporate
-        size_t min_dist = 0;
-        for(auto v : cut_paths) {
-            Edge_length cur_min_dist = invalid_distance_;
-            for(auto other : paths) {
-                cur_min_dist = std::min(cur_min_dist, distance[v][other]);
-            }
-            if(cur_min_dist == invalid_distance_) {
-                // we cannot connect this cut path
-                return false;
-            }
-            min_dist += cur_min_dist;
-        }
-        if(min_dist + partial_result[0] + 1 > max_length_) {
-            return false;
-        }
-        size_t path_min_dist = 0;
-        Edge_length path_max_dist = 0;
-        for(auto v : paths) {
-            Edge_length cur_min_dist = distance[v][cut_paths[0]];
-            for(auto other : paths) {
-                if(frontier[v] != other) {
-                    cur_min_dist = std::min(cur_min_dist, distance[v][other]);
-                }
-            }
-            path_max_dist = std::max(path_max_dist, cur_min_dist);
-            path_min_dist += cur_min_dist;
-        }
-        path_min_dist /= 2;
-        if(path_min_dist > path_max_dist) {
-            path_min_dist -= path_max_dist;
-        } else {
-            path_min_dist = 0;
-        }
-        if(path_min_dist + min_dist + partial_result[0] + 1 >  max_length_) {
-            return false;
-        }
-    }
-    if(cut_paths.size() == 0) {
-        if(paths.size() <= 1) {
-            // + 1 because we took the edge
-            // + 2 because we want to take another edge later
-            // we dont have to do anything
-            return partial_result[0] + 2 <= max_length_;
-        }
-        // there is at least one other path that we have to incorporate
-        size_t path_min_dist = 0;
-        Edge_length path_max_dist = 0;
-        for(auto v : paths) {
-            Edge_length cur_min_dist = invalid_distance_;
-            for(auto other : paths) {
-                if(frontier[v] != other) {
-                    cur_min_dist = std::min(cur_min_dist, distance[v][other]);
-                }
-            }
-            path_max_dist = std::max(path_max_dist, cur_min_dist);
-            path_min_dist += cur_min_dist;
-        }
-        path_min_dist /= 2;
-        if(path_min_dist > path_max_dist) {
-            path_min_dist -= path_max_dist;
-        } else {
-            path_min_dist = 0;
-        }
-        if(path_min_dist + partial_result[0] + 1 > max_length_) {
-            return false;
-        }
-    }
-    return true;
+    return distancePrune(frontier, paths, cut_paths, bag_idx, partial_result[0] + 1);
 }
 
 bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result) {
@@ -633,14 +512,22 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
         }
     }
 
-    
+    return distancePrune(frontier, paths, cut_paths, bag_idx, partial_result[0]);
+}
 
-    // // advanced length based pruning
+bool TreewidthSearch::distancePrune(
+        Frontier& frontier, 
+        std::vector<frontier_index_t> const& paths, 
+        std::vector<frontier_index_t> const& cut_paths, 
+        size_t bag_idx, 
+        size_t offset) {
+
+    // advanced length based pruning
     auto &distance = bag_local_distance_[bag_idx];
     if(cut_paths.size() == 2) {
         if(paths.size() == 0) {
             // we have to connect the cut paths
-            return distance[cut_paths[0]][cut_paths[1]] + partial_result[0] <= max_length_;
+            return distance[cut_paths[0]][cut_paths[1]] + offset <= max_length_;
         }
         // there is at least one other path that we have to incorporate
         // connecting the cut paths is not an option
@@ -656,7 +543,7 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
             }
             min_dist += cur_min_dist;
         }
-        if(min_dist + partial_result[0] > max_length_) {
+        if(min_dist + offset > max_length_) {
             return false;
         }
         size_t path_min_dist = 0;
@@ -677,7 +564,7 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
         } else {
             path_min_dist = 0;
         }
-        if(path_min_dist + min_dist + partial_result[0] >  max_length_) {
+        if(path_min_dist + min_dist + offset >  max_length_) {
             return false;
         }
     }
@@ -685,8 +572,7 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
         if(paths.size() == 0) {
             // + 1 because we want to take another edge later
             // we dont have to do anything
-            assert(partial_result[0] + 1 <= max_length_);
-            return true;
+            return offset <= max_length_;
         }
         // there is at least one other path that we have to incorporate
         size_t min_dist = 0;
@@ -701,7 +587,7 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
             }
             min_dist += cur_min_dist;
         }
-        if(min_dist + partial_result[0] > max_length_) {
+        if(min_dist + offset > max_length_) {
             return false;
         }
         size_t path_min_dist = 0;
@@ -722,7 +608,7 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
         } else {
             path_min_dist = 0;
         }
-        if(path_min_dist + min_dist + partial_result[0] >  max_length_) {
+        if(path_min_dist + min_dist + offset >  max_length_) {
             return false;
         }
     }
@@ -730,8 +616,7 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
         if(paths.size() <= 1) {
             // + 1 because we want to take another edge later
             // we dont have to do anything
-            assert(partial_result[0] + 1 <= max_length_);
-            return true;
+            return offset + 1 <= max_length_;
         }
         // there is at least one other path that we have to incorporate
         size_t path_min_dist = 0;
@@ -752,7 +637,7 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
         } else {
             path_min_dist = 0;
         }
-        if(path_min_dist + partial_result[0] > max_length_) {
+        if(path_min_dist + offset > max_length_) {
             return false;
         }
     }
