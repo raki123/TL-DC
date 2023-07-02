@@ -10,52 +10,13 @@ int main() {
     // initial_graph.normalize();
     initial_graph.print_stats();
 
-	Decomposer d;
-	auto td = std::move(d.decompose(initial_graph));
-	std::cerr << "decomposed, root " << std::get<0>(td) << std::endl;
+    Decomposer d;
+    std::vector<std::pair<Edge, std::vector<vertex_t>>> r = std::move(d.path_decompose(initial_graph));
 
-	for (auto it = std::get<1>(td).begin(); it != std::get<1>(td).end(); ++it)
-		std::cerr << "leaf " << *it << std::endl;
+    //std::vector<std::pair<Edge, std::vector<vertex_t>>> r = std::move(d.tree_decompose(initial_graph));
 
-	for (auto it = std::get<2>(td).begin(); it != std::get<2>(td).end(); ++it)
-		for (auto jt = it->second.begin(); jt != it->second.end(); ++jt)
-			std::cerr << "td edge " << it->first << " -> " << *jt << std::endl;
 
-	for (auto it = std::get<3>(td).begin(); it != std::get<3>(td).end(); ++it)
-	{	
-		std::cerr << "bag " << it->first << std::endl;
-		std::cerr << "edges { ";
-		for (auto jt = it->second.first.begin(); jt != it->second.first.end(); ++jt)
-			std::cerr << jt->first << "," << jt->second << "; ";
-		std::cerr << "}" << std::endl;
-	
-		std::cerr << "bag { ";
-		for (auto jt = it->second.second.begin(); jt != it->second.second.end(); ++jt)
-			std::cerr << *jt << "; ";
-		std::cerr << "}" << std::endl;
-	}		
-
-    std::cerr << "gluing now" << std::endl;
-    std::vector<std::pair<Edge, std::vector<vertex_t>>> r;
-    auto actual_td = std::get<3>(td);
-    //int cur = std::get<0>(td);
-
-    int cur = std::get<1>(td)[0];	//FIXME: just take any leave for now
-    std::cerr << "leaf " << cur << std::endl;
-    while (true) { //actual_td.count(cur) != 0) {
-        auto edges = actual_td[cur].first;
-        auto bag = actual_td[cur].second;
-        for(auto edge : edges) {
-            r.push_back(std::make_pair(edge, bag));
-        }
-
-    	//std::cerr << cur << std::endl;
-	if (std::get<2>(td).count(cur) == 0)	//no successor
-		break;
-	else
-		//FIXME: extend to TDs (first element / one successor sufficient for PDs)
-        	cur = std::get<2>(td)[cur][0];
-    }
+    
     /*auto edges = actual_td[cur].first;
     auto bag = actual_td[cur].second;
     for(auto edge : edges) {

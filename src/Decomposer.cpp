@@ -14,8 +14,87 @@ Decomposer::Decomposer(const char* const decomposer, const char* params)
 
 #define BUF_SIZE 1024
 
-std::tuple<int, std::vector<int>, std::map<int, std::vector<int>>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>
-//std::vector<std::pair<Edge, std::vector<vertex_t>>> 
+
+std::vector<std::pair<Edge, std::vector<vertex_t>>> Decomposer::tree_decompose(/*const*/ Graph& graph)
+{
+    auto td = std::move(decompose(graph));
+    stats(td);
+    std::vector<std::pair<Edge, std::vector<vertex_t>>> r;
+    auto actual_td = std::get<3>(td);
+    //int cur = std::get<0>(td);
+
+    int cur = std::get<1>(td)[0];	//FIXME: just take any leave for now
+    std::cerr << "leaf " << cur << std::endl;
+    while (true) { //actual_td.count(cur) != 0) {
+        auto edges = actual_td[cur].first;
+        auto bag = actual_td[cur].second;
+        for(auto edge : edges) {
+            r.push_back(std::make_pair(edge, bag));
+        }
+
+    	//std::cerr << cur << std::endl;
+	if (std::get<2>(td).count(cur) == 0)	//no successor
+		break;
+	else
+		//FIXME: extend to TDs (first element / one successor sufficient for PDs)
+        	cur = std::get<2>(td)[cur][0];
+    }
+    return std::move(r);
+}
+
+std::vector<std::pair<Edge, std::vector<vertex_t>>> Decomposer::path_decompose(/*const*/ Graph& graph)
+{
+    auto td = std::move(decompose(graph));
+    stats(td);
+    std::vector<std::pair<Edge, std::vector<vertex_t>>> r;
+    auto actual_td = std::get<3>(td);
+    //int cur = std::get<0>(td);
+
+    int cur = std::get<1>(td)[0];	
+    std::cerr << "leaf " << cur << std::endl;
+    while (true) { //actual_td.count(cur) != 0) {
+        auto edges = actual_td[cur].first;
+        auto bag = actual_td[cur].second;
+        for(auto edge : edges) {
+            r.push_back(std::make_pair(edge, bag));
+        }
+
+    	//std::cerr << cur << std::endl;
+	if (std::get<2>(td).count(cur) == 0)	//no successor
+		break;
+	else
+        	cur = std::get<2>(td)[cur][0];
+    }
+    return std::move(r);
+}
+
+void Decomposer::stats(const Td_t& td)
+{
+	std::cerr << "decomposed, root " << std::get<0>(td) << std::endl;
+
+	for (auto it = std::get<1>(td).begin(); it != std::get<1>(td).end(); ++it)
+		std::cerr << "leaf " << *it << std::endl;
+
+	for (auto it = std::get<2>(td).begin(); it != std::get<2>(td).end(); ++it)
+		for (auto jt = it->second.begin(); jt != it->second.end(); ++jt)
+			std::cerr << "td edge " << it->first << " -> " << *jt << std::endl;
+
+	for (auto it = std::get<3>(td).begin(); it != std::get<3>(td).end(); ++it)
+	{	
+		std::cerr << "bag " << it->first << std::endl;
+		std::cerr << "edges { ";
+		for (auto jt = it->second.first.begin(); jt != it->second.first.end(); ++jt)
+			std::cerr << jt->first << "," << jt->second << "; ";
+		std::cerr << "}" << std::endl;
+	
+		std::cerr << "bag { ";
+		for (auto jt = it->second.second.begin(); jt != it->second.second.end(); ++jt)
+			std::cerr << *jt << "; ";
+		std::cerr << "}" << std::endl;
+	}
+}
+
+Td_t
 Decomposer::decompose(/*const*/ Graph& graph)
 {
 
