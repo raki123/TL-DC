@@ -61,11 +61,12 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
                 size_t top = stack.back();
                 stack.pop_back();
                 auto &top_node = decomposition_[top];
-                cur_graph.remove_edge(top_node.edge);
                 switch (top_node.type) {
                 case NodeType::LEAF:
+                    cur_graph.remove_edge(top_node.edge);
                     break;
                 case NodeType::PATH_LIKE:
+                    cur_graph.remove_edge(top_node.edge);
                     assert(top > 0);
                     stack.push_back(top - 1);
                     break;
