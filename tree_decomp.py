@@ -1,4 +1,3 @@
-#!/home/rafael/miniconda3/bin/python
 #!/home/hecher/minconda34/bin/python
 
 import networkx as nx
@@ -28,50 +27,45 @@ with sys.stdin as in_file:
             graph.add_edge(line[0], line[1])
 
 
-# print(length, terminals)
-bef = len(graph.nodes())
-def preprocess(graph, terminals):
-    found = True
-    while found:
-        found = False
-        nodes = list(graph.nodes())
-        for node in nodes:
-            if node in terminals:
-                continue
-            if len(graph.edges(node)) <= 2:
-                if len(graph.edges(node)) <= 1:
-                    graph.remove_node(node)
-                # else:
-                #     neigh = list(graph.neighbors(node))
-                #     graph.remove_node(node)
-                #     graph.add_edge(neigh[0], neigh[1])
-                # found = True
-
+def separator(graph, sep, nbs):
+	bags = []
+	cmin = graph.nodes()
+	sz = len(cmin)
+	ngbs = cmin
+	i = 10
+	for c in nx.all_node_cuts(graph):
+		ngb = set(c)
+		for n in c:
+			ngb.update(graph.neighbors(n))
+		if sz > len(ngbs):
+			sz = len(ngbs)
+			cmin = c
+			ngbs = ngb
+		i += 1
+		if i >= 10:
+			break
+	bags.append(sep + list(cmin))
+	graph = nx.Graph(graph)
+	graph.remove_nodes_from(cmin)
+	if len(graph.nodes()) < 5:
+		bags.append(list(graph.nodes()) + sep)
+	else:
+		for co in nx.connected_components(graph):
+			bags.extend([list(s) + sep for s in separator(nx.induced_subgraph(graph, co), list(c))])	
+	return bags
 
 def eliminate(graph):
 	bags = []
 	pbag = []
 	bsize = 0
-	removed = []
-
-	ngbs_done  = {}
-
-	for i in graph.nodes():
-		ngbs_done[i] = set(graph.neighbors(i))
-
+	removed = [] 
 	for i in sorted(graph.nodes()):
-		if i not in ngbs_done:
-			continue
-
 		bag = set(graph.neighbors(i))
 		bag.update(pbag) #previous bag
-
 		bag.add(i)
 		bag.difference_update(removed)
 
 		removed.append(i)
-		del ngbs_done[i]
-
 
 		if not bag.issubset(pbag): #otherwise skip this bag
 			bags.append(bag)
@@ -80,21 +74,14 @@ def eliminate(graph):
 			pbag = set(bag)	#copy
 			
 		pbag.remove(i)
-	
-		# update open edges and delete if possible
-		for j in bag:
-			if j != i:
-				ngbs_done[j].difference_update(bag)
-				if len(ngbs_done[j]) == 0:
-					removed.append(j)
-					pbag.remove(j)
-					del ngbs_done[j]
-
 
 
 	return bags, bsize
 
 
+b = separator(graph, [])
+print(b, max([len(s) for s in b]))
+exit(1)
 
 bags, bsize = eliminate(graph)
 
