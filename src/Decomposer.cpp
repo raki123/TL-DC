@@ -14,13 +14,17 @@ Decomposer::Decomposer(const char* const decomposer, const char* params)
 
 #define BUF_SIZE 1024
 
-std::pair<int, std::pair<std::map<int, int>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>>
+std::tuple<int, std::vector<int>, std::map<int, std::vector<int>>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>
 //std::vector<std::pair<Edge, std::vector<vertex_t>>> 
 Decomposer::decompose(/*const*/ Graph& graph)
 {
 
 	std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>> bgs; 
-	std::map<int, int> succ;
+	//std::map<int, int> succ;
+	std::map<int, std::vector<int>> succ;
+
+	std::vector<int> leaves;
+
 	//FIXME: add this to graph.cpp
 	Vertex nr_edges = 0;
     	for (Vertex v = 0; v < graph.adjacency_.size(); v++) 
@@ -189,24 +193,41 @@ Decomposer::decompose(/*const*/ Graph& graph)
 			}
 			for(root = 1; neighs[root].size() > 1; root++){}
 			std::set<int> seen;
+			std::vector<int> stack = {root};
 			int cur = root;
-			while(cur == root || neighs[cur].size() > 1) {
+			while (stack.size() > 0) {
+			/*cur == root || neighs[cur].size() > 1) {
 				if(seen.count(neighs[cur][0]) > 0) {
-					succ[cur] = neighs[cur][1];
+					succ[cur].push_back(neighs[cur][1]);
 				} else {
-					succ[cur] = neighs[cur][0];
-				}
+					succ[cur].push_back(neighs[cur][0]);
+				}*/
+				cur = stack[stack.size() - 1];
+				stack.pop_back();
+				int sz = stack.size();
+				for (auto it = neighs[cur].begin(); it != neighs[cur].end(); ++it)
+					if (seen.count(*it) == 0) {
+						//succ[cur].push_back(*it); //direction from the root
+						succ[*it].push_back(cur); //direction towards the root
+						stack.push_back(*it);
+					}
+				if (sz == stack.size())
+					leaves.push_back(cur);
 				seen.insert(cur);
-				cur = succ[cur];
+				/*if (succ.find(cur) == succ.end())
+					succ[cur]
+				cur = succ[cur];*/
 			}
-			assert(seen.size() == bags - 1);
+			//std::cerr << seen.size() << "," << bags << std::endl;
+			assert(seen.size() == bags);
 		}
 		fclose(fout);
 		//std::cerr << "out" << std::endl;
 		close(out);
 	}
 	//pair < root, pair<neighbors, map<int, {pair<edges, bag>}>>>
-	return std::pair<int, std::pair<std::map<int, int>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>>(root, 
-			std::pair<std::map<int, int>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>(succ, std::move(bgs)));	
+	/*return std::pair<int, std::pair<std::map<int, std::vector<int>>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>>(root, 
+			std::pair<std::map<int, std::vector<int>>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>(succ, std::move(bgs)));	*/
+	return std::make_tuple(root, std::move(leaves), std::move(succ), std::move(bgs));
 }
 

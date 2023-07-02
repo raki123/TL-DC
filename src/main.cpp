@@ -12,12 +12,16 @@ int main() {
 
 	Decomposer d;
 	auto td = std::move(d.decompose(initial_graph));
-	std::cerr << "decomposed, root " << td.first << std::endl;
+	std::cerr << "decomposed, root " << std::get<0>(td) << std::endl;
 
-	for (auto it = td.second.first.begin(); it != td.second.first.end(); ++it)
-		std::cerr << "td edge " << it->first << " -> " << it->second << std::endl;
+	for (auto it = std::get<1>(td).begin(); it != std::get<1>(td).end(); ++it)
+		std::cerr << "leaf " << *it << std::endl;
 
-	for (auto it = td.second.second.begin(); it != td.second.second.end(); ++it)
+	for (auto it = std::get<2>(td).begin(); it != std::get<2>(td).end(); ++it)
+		for (auto jt = it->second.begin(); jt != it->second.end(); ++jt)
+			std::cerr << "td edge " << it->first << " -> " << *jt << std::endl;
+
+	for (auto it = std::get<3>(td).begin(); it != std::get<3>(td).end(); ++it)
 	{	
 		std::cerr << "bag " << it->first << std::endl;
 		std::cerr << "edges { ";
@@ -31,22 +35,32 @@ int main() {
 		std::cerr << "}" << std::endl;
 	}		
 
+    std::cerr << "gluing now" << std::endl;
     std::vector<std::pair<Edge, std::vector<vertex_t>>> r;
-    auto actual_td = td.second;
-    int cur = td.first;
-    while(actual_td.first.count(cur) != 0) {
-        auto edges = actual_td.second[cur].first;
-        auto bag = actual_td.second[cur].second;
+    auto actual_td = std::get<3>(td);
+    //int cur = std::get<0>(td);
+
+    int cur = std::get<1>(td)[0];	//FIXME: just take any leave for now
+    std::cerr << "leaf " << cur << std::endl;
+    while (true) { //actual_td.count(cur) != 0) {
+        auto edges = actual_td[cur].first;
+        auto bag = actual_td[cur].second;
         for(auto edge : edges) {
             r.push_back(std::make_pair(edge, bag));
         }
-        cur = actual_td.first[cur];
+
+    	//std::cerr << cur << std::endl;
+	if (std::get<2>(td).count(cur) == 0)	//no successor
+		break;
+	else
+		//FIXME: extend to TDs (first element / one successor sufficient for PDs)
+        	cur = std::get<2>(td)[cur][0];
     }
-    auto edges = actual_td.second[cur].first;
-    auto bag = actual_td.second[cur].second;
+    /*auto edges = actual_td[cur].first;
+    auto bag = actual_td[cur].second;
     for(auto edge : edges) {
         r.push_back(std::make_pair(edge, bag));
-    }
+    }*/
     // r = {
     //     {Edge(0,1), {0,1}},
     //     {Edge(1,2), {0,1,2}},

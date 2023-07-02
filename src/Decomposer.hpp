@@ -19,8 +19,10 @@ class Decomposer {
 		virtual ~Decomposer() {}
 
 		//std::pair<Graph, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>
-		std::pair<int, std::pair<std::map<int, int>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>>
+		//std::pair<int, std::pair<std::map<int, std::vector<int>>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>>
 		//std::vector<std::pair<Edge, std::vector<vertex_t>>> 
+		
+		std::tuple<int, std::vector<int>, std::map<int, std::vector<int>>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>
 		decompose(/*const*/ Graph& graph);
 	protected:
 		const char* decomposer, *params;
