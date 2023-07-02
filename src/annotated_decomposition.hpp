@@ -12,6 +12,7 @@ enum NodeType {
 
 struct AnnotatedNode {
   public:
+    size_t parent; // parent of the node or -1 if root
     NodeType type;
     Edge edge; // if LEAF or PATH_LIKE
     std::pair<size_t, size_t> children; // if JOIN the indices of the child nodes in the annotated decomposition
