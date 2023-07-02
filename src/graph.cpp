@@ -16,6 +16,7 @@ Graph::Graph(std::istream &input) {
     Vertex nr_edges;
     std::string line;
     all_pair_ = true;
+    max_length_ = std::numeric_limits<Edge_length>::max();
     while(!input.eof()) {
         switch (dec)
         {
@@ -37,7 +38,6 @@ Graph::Graph(std::istream &input) {
                 exclusion_classes_[i].insert(i);
                 exclude_[i] = i;
             }
-            max_length_ = nr_vertices;
             break;
         }
         case 'e':
@@ -67,6 +67,7 @@ Graph::Graph(std::istream &input) {
     }
     assert(max_length_ + 1 == extra_paths_.size());
     assert(adjacency_.size() > 0);
+    assert(all_pair_ || terminals_.size() == 2);
     // max_length_ = Edge_length(std::min(nr_vertices - 1, int(max_length_)));
     extra_paths_ = std::vector<Edge_weight>(max_length_ + 1, 0);
 }
