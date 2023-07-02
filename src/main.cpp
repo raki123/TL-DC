@@ -70,6 +70,7 @@ int main() {
 
     fpc::TreewidthSearch search(initial_graph, r, 4);
     auto res = search.search();
+    search.print_stats();
     fpc::Edge_weight final_result = 0;
     for(fpc::Edge_length l = 0; l < res.size(); l++) {
         if(res[l] != 0) {
