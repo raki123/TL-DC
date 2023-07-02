@@ -524,122 +524,58 @@ bool TreewidthSearch::distancePrune(
 
     // advanced length based pruning
     auto &distance = bag_local_distance_[bag_idx];
-    if(cut_paths.size() == 2) {
-        if(paths.size() == 0) {
-            // we have to connect the cut paths
-            return distance[cut_paths[0]][cut_paths[1]] + offset <= max_length_;
+    if(cut_paths.size() == 2 && paths.size() == 0) {
+        // we have to connect the cut paths
+        return distance[cut_paths[0]][cut_paths[1]] + offset <= max_length_;
+    }
+    if(cut_paths.size() + paths.size() <= 1) {
+        return offset + 1 <= max_length_;
+    }
+
+    // there is at least one other path that we have to incorporate
+    // connecting the cut paths is not an option
+    size_t min_dist = 0;
+    for(auto v : cut_paths) {
+        Edge_length cur_min_dist = invalid_distance_;
+        for(auto other : paths) {
+            cur_min_dist = std::min(cur_min_dist, distance[v][other]);
         }
-        // there is at least one other path that we have to incorporate
-        // connecting the cut paths is not an option
-        size_t min_dist = 0;
-        for(auto v : cut_paths) {
-            Edge_length cur_min_dist = invalid_distance_;
-            for(auto other : paths) {
+        if(cur_min_dist == invalid_distance_) {
+            // we cannot connect this cut path
+            return false;
+        }
+        min_dist += cur_min_dist;
+    }
+    if(min_dist + offset > max_length_) {
+        return false;
+    }
+    size_t path_min_dist = 0;
+    Edge_length path_max_dist = 0;
+    Edge_length path_snd_max_dist = 0;
+    for(auto v : paths) {
+        Edge_length cur_min_dist = invalid_distance_;
+        for(auto cut_end : cut_paths) {
+            cur_min_dist = std::min(cur_min_dist, distance[v][cut_end]);
+        }
+        for(auto other : paths) {
+            if(frontier[v] != other) {
                 cur_min_dist = std::min(cur_min_dist, distance[v][other]);
             }
-            if(cur_min_dist == invalid_distance_) {
-                // we cannot connect this cut path
-                return false;
-            }
-            min_dist += cur_min_dist;
         }
-        if(min_dist + offset > max_length_) {
-            return false;
+        if(cur_min_dist >= path_max_dist) {
+            path_snd_max_dist = path_max_dist;
+            path_max_dist = cur_min_dist;
+        } else if(cur_min_dist > path_snd_max_dist) {
+            path_snd_max_dist = cur_min_dist;
         }
-        size_t path_min_dist = 0;
-        Edge_length path_max_dist = 0;
-        for(auto v : paths) {
-            Edge_length cur_min_dist = std::min(distance[v][cut_paths[0]], distance[v][cut_paths[1]]);
-            for(auto other : paths) {
-                if(frontier[v] != other) {
-                    cur_min_dist = std::min(cur_min_dist, distance[v][other]);
-                }
-            }
-            path_max_dist = std::max(path_max_dist, cur_min_dist);
-            path_min_dist += cur_min_dist;
-        }
-        path_min_dist /= 2;
-        if(path_min_dist > path_max_dist) {
-            path_min_dist -= path_max_dist;
-        } else {
-            path_min_dist = 0;
-        }
-        if(path_min_dist + min_dist + offset >  max_length_) {
-            return false;
-        }
+        path_min_dist += cur_min_dist;
     }
-    if(cut_paths.size() == 1) {
-        if(paths.size() == 0) {
-            // + 1 because we want to take another edge later
-            // we dont have to do anything
-            return offset <= max_length_;
-        }
-        // there is at least one other path that we have to incorporate
-        size_t min_dist = 0;
-        for(auto v : cut_paths) {
-            Edge_length cur_min_dist = invalid_distance_;
-            for(auto other : paths) {
-                cur_min_dist = std::min(cur_min_dist, distance[v][other]);
-            }
-            if(cur_min_dist == invalid_distance_) {
-                // we cannot connect this cut path
-                return false;
-            }
-            min_dist += cur_min_dist;
-        }
-        if(min_dist + offset > max_length_) {
-            return false;
-        }
-        size_t path_min_dist = 0;
-        Edge_length path_max_dist = 0;
-        for(auto v : paths) {
-            Edge_length cur_min_dist = distance[v][cut_paths[0]];
-            for(auto other : paths) {
-                if(frontier[v] != other) {
-                    cur_min_dist = std::min(cur_min_dist, distance[v][other]);
-                }
-            }
-            path_max_dist = std::max(path_max_dist, cur_min_dist);
-            path_min_dist += cur_min_dist;
-        }
-        path_min_dist /= 2;
-        if(path_min_dist > path_max_dist) {
-            path_min_dist -= path_max_dist;
-        } else {
-            path_min_dist = 0;
-        }
-        if(path_min_dist + min_dist + offset >  max_length_) {
-            return false;
-        }
-    }
-    if(cut_paths.size() == 0) {
-        if(paths.size() <= 1) {
-            // + 1 because we want to take another edge later
-            // we dont have to do anything
-            return offset + 1 <= max_length_;
-        }
-        // there is at least one other path that we have to incorporate
-        size_t path_min_dist = 0;
-        Edge_length path_max_dist = 0;
-        for(auto v : paths) {
-            Edge_length cur_min_dist = invalid_distance_;
-            for(auto other : paths) {
-                if(frontier[v] != other) {
-                    cur_min_dist = std::min(cur_min_dist, distance[v][other]);
-                }
-            }
-            path_max_dist = std::max(path_max_dist, cur_min_dist);
-            path_min_dist += cur_min_dist;
-        }
-        path_min_dist /= 2;
-        if(path_min_dist > path_max_dist) {
-            path_min_dist -= path_max_dist;
-        } else {
-            path_min_dist = 0;
-        }
-        if(path_min_dist + offset > max_length_) {
-            return false;
-        }
+    assert(path_min_dist >= path_max_dist + path_snd_max_dist);
+    path_min_dist -= path_max_dist;
+    path_min_dist -= path_snd_max_dist;
+    path_min_dist /= 2;
+    if(path_min_dist + min_dist + offset >  max_length_) {
+        return false;
     }
     return true;
 }
