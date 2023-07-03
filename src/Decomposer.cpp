@@ -4,6 +4,7 @@
 #include <unistd.h>
 #include <sstream>
 #include <algorithm>
+#include <unordered_map>
 
 Decomposer::Decomposer(const char* const decomposer, const char* params)
 {
@@ -14,30 +15,152 @@ Decomposer::Decomposer(const char* const decomposer, const char* params)
 
 #define BUF_SIZE 1024
 
+std::pair<int, int> Decomposer::insertEdges(AnnotatedDecomposition& r, std::vector<vertex_t>& bag, std::vector<Edge>& edges, size_t child, NodeType type)
+{
+	int first = -1;
+	int idx = -1;
+	for(auto it = edges.begin(); it != edges.end(); ++it) 
+	{
+		AnnotatedNode c;
+		c.type = type;
+		c.parent = idx;
+		c.edge = (*it);
+		c.bag = bag;
+        	idx = r.size();
+		if (first < 0)	//link to the outside world
+		{
+			c.children = std::make_pair(child, (size_t)-1);
+			r[child].parent = idx;
+			
+			first = idx;
+			type = PATH_LIKE;
+		}
+		else	//linking from within
+		{
+			c.children = std::make_pair(idx - 1, (size_t)-1);
+			r[idx - 1].parent = idx;
+		}
+		r.push_back(std::move(c));
+	}
+	//first and last
+	return std::make_pair(first, idx);
+}
 
-std::vector<std::pair<Edge, std::vector<vertex_t>>> Decomposer::tree_decompose(/*const*/ Graph& graph)
+/*int Decomposer::createNode(AnnotatedDecomposition& r, std::vector<vertex_t>& bag, std::vector<Edge>::iterator& it, NodeType type)
+{
+	AnnotatedNode c;
+	c.type = type;
+	c.bag = bag;
+	
+	if (it != edges.end())
+	{
+		c.edge = *it;
+		it++;
+	}
+	r.push_back(std::move(c));
+	return r.size()-1;
+}*/
+
+AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 {
     auto td = std::move(decompose(graph));
     stats(td);
-    std::vector<std::pair<Edge, std::vector<vertex_t>>> r;
+    
+    AnnotatedDecomposition r;
     auto actual_td = std::get<3>(td);
+    auto succ = std::get<2>(td);
     //int cur = std::get<0>(td);
 
-    int cur = std::get<1>(td)[0];	//FIXME: just take any leave for now
-    std::cerr << "leaf " << cur << std::endl;
-    while (true) { //actual_td.count(cur) != 0) {
-        auto edges = actual_td[cur].first;
-        auto bag = actual_td[cur].second;
-        for(auto edge : edges) {
-            r.push_back(std::make_pair(edge, bag));
-        }
+    std::unordered_map<int, int> td2r;
+    std::vector<std::pair<int, int>> stack;
+    //leaves
+    //stack.insert(stack.end(), std::get<1>(td).begin(), std::get<1>(td).end());
 
-    	//std::cerr << cur << std::endl;
-	if (std::get<2>(td).count(cur) == 0)	//no successor
+	//leaves
+    for (auto it = std::get<1>(td).begin(); it != std::get<1>(td).end(); ++it)
+    {
+    	stack.push_back(std::make_pair(-1, *it));
+
+    	/*auto jt = actual_td[*it].first.begin();
+	if (jt != actual_td[*it].first.end())
+    	int chld = createNode(r, actual_td[*it].second, jt, LEAF);
+	auto idx = insertEdges(r, actual_td[*it].second, jt);
+	r[chld].parent = idx.first;
+	//r idx, td idx
+	stack.push_back(std::make_pair(idx.second, *it));*/
+    }
+
+    //int cur = std::get<1>(td)[0];	//FIXME: just take any leave for now
+    //std::cerr << "leaf " << cur << std::endl;
+    while (true) { //actual_td.count(cur) != 0) {
+	auto cur = stack.front();
+	stack.erase(stack.begin());
+    	
+        auto edges = actual_td[cur.second].first;
+        auto bag = actual_td[cur.second].second;
+       
+	auto idx = insertEdges(r, bag, edges, (size_t)cur.first, cur.first < 0 ? LEAF : PATH_LIKE);
+
+	if (idx.first == -1)	//no edges, skip it then
+	{
+		assert(succ.count(cur.second));
+		stack.push_back(std::make_pair(cur.first, succ[cur.second][0]));	
+	}
+	else
+	{
+		// map tdidx to r idx
+		td2r[cur.second] = idx.first;
+		if (succ.count(cur.second) > 0)
+		{
+			auto par = succ[cur.second][0];
+			stack.push_back(std::make_pair(idx.second, par));	
+			if (td2r.count(par) > 0)	//parent already exists, can only be a join node, right?
+			{
+				auto ridx = td2r[par];
+				assert(r[ridx].children.first != (size_t)-1);
+				{	//add intermediate join node
+
+					int pos = r.size();
+
+					AnnotatedNode c;
+					c.type = JOIN;
+					c.parent = ridx;
+					c.bag = bag;
+					c.children = std::make_pair(r[ridx].children.first, idx.second);
+					r[r[ridx].children.first].parent = pos;
+					r[idx.second].parent = pos;	
+
+					r.push_back(std::move(c));
+
+
+					r[ridx].children = std::make_pair(pos, (size_t)-1);
+				}
+				/*else //first child or not a join node
+				{
+					r[ridx].children.first = idx.second;
+				}*/
+			}
+		}	//otherwise: root
+	}
+
+	
+	/*for(; it != edges.end()-1; ++it) 
+	{
+        	int idx = r.size();
+		AnnotatedNode c;
+		c.type = PATH_LIKE;
+		c.parent = idx;
+		c.edge = (*it);
+		c.bag = bag;
+            	r.push_back(std::move(c));
+	}*/
+
+	    	//std::cerr << cur << std::endl;
+	/*if (std::get<2>(td).count(cur) == 0)	//no successor
 		break;
 	else
 		//FIXME: extend to TDs (first element / one successor sufficient for PDs)
-        	cur = std::get<2>(td)[cur][0];
+        	cur = std::get<2>(td)[cur][0];*/
     }
     return std::move(r);
 }

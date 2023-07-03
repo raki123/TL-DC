@@ -1,6 +1,7 @@
 #!/home/rafael/miniconda3/bin/python
 #!/home/hecher/minconda34/bin/python
 
+import random
 import networkx as nx
 import sys
 
@@ -59,7 +60,19 @@ def eliminate(graph):
 	for i in graph.nodes():
 		ngbs_done[i] = set(graph.neighbors(i))
 
-	for i in sorted(graph.nodes()):
+
+	order = sorted(graph.nodes())
+
+#	for i in range(2):
+#		x=random.randint(0, len(order)-1)
+#		y=random.randint(0, len(order)-1)
+#
+#		if x != y:
+#			t = order[x]
+#			order[x] = order[y]
+#			order[y] = t
+#
+	for i in order:
 		if i not in ngbs_done:
 			continue
 
@@ -107,3 +120,4 @@ for b in bags:
 
 for b in range(1,len(bags)+1):
 	print("{} {}".format(b, b + 1))
+

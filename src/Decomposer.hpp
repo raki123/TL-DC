@@ -3,6 +3,7 @@
 #include <vector>
 #include <utility>
 #include <limits>
+#include "annotated_decomposition.hpp"
 
 using namespace fpc;
 
@@ -25,7 +26,7 @@ class Decomposer {
 		//std::pair<int, std::pair<std::map<int, std::vector<int>>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>>
 		//std::vector<std::pair<Edge, std::vector<vertex_t>>> 
 
-		std::vector<std::pair<Edge, std::vector<vertex_t>>> tree_decompose(/*const*/ Graph& graph);
+		AnnotatedDecomposition tree_decompose(/*const*/ Graph& graph);
 
 		std::vector<std::pair<Edge, std::vector<vertex_t>>> path_decompose(/*const*/ Graph& graph);
 
@@ -37,6 +38,9 @@ class Decomposer {
 		decompose(/*const*/ Graph& graph);
 	protected:
 		const char* decomposer, *params;
+
+
+		std::pair<int, int> insertEdges(AnnotatedDecomposition& r, std::vector<vertex_t>& bag, std::vector<Edge>& edges, size_t child, NodeType type);
 };
 
 
