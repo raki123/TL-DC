@@ -1,5 +1,6 @@
 #pragma once
 
+#include "annotated_decomposition.hpp"
 #include "graph.h"
 #include "search.h"
 #include <limits>
@@ -18,9 +19,11 @@ public:
     }  
 };
 
+typedef std::unordered_map<Frontier, std::vector<Edge_weight>, vec_hash> Cache;
+
 class TreewidthSearch {
   public:
-    TreewidthSearch(Graph& input, std::vector<std::pair<Edge, std::vector<vertex_t>>> path_decomposition, size_t nthreads);
+    TreewidthSearch(Graph& input, AnnotatedDecomposition decomposition, size_t nthreads);
 
     std::vector<Edge_weight> search();
     void print_stats();
@@ -30,7 +33,7 @@ class TreewidthSearch {
     Edge_length max_length_;
     bool is_all_pair_;
     std::vector<vertex_t> terminals_;
-    std::vector<std::pair<Edge, std::vector<vertex_t>>> path_decomposition_;
+    AnnotatedDecomposition decomposition_;
     std::vector<std::vector<vertex_t>> remaining_edges_after_this_;
 
     frontier_index_t invalid_index_ = std::numeric_limits<frontier_index_t>::max();
@@ -44,7 +47,7 @@ class TreewidthSearch {
     std::vector<Edge_weight> result_;
     std::vector<std::vector<Edge_weight>> thread_local_result_;
 
-    std::vector<std::unordered_map<Frontier, std::vector<Edge_weight>, vec_hash>> cache_;
+    std::vector<std::pair<Cache, Cache>> cache_;
 
     std::vector<std::vector<char>> takeable_ = {
       {true, false, true, true, true, false, true, true},
@@ -81,6 +84,8 @@ class TreewidthSearch {
 
     void take(Frontier& frontier, size_t bag_idx);
     void skip(Frontier& frontier, size_t bag_idx);
+
+    bool merge(Frontier& left, Frontier const& right, size_t bag_idx, std::vector<Edge_weight>& left_result, std::vector<Edge_weight> const& right_result);
 
     void advance(Frontier& frontier, size_t bag_idx);
 

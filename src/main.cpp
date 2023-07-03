@@ -16,13 +16,7 @@ int main() {
     //std::vector<std::pair<Edge, std::vector<vertex_t>>> r = std::move(d.tree_decompose(initial_graph));
 
 
-    
-    /*auto edges = actual_td[cur].first;
-    auto bag = actual_td[cur].second;
-    for(auto edge : edges) {
-        r.push_back(std::make_pair(edge, bag));
-    }*/
-    // r = {
+    // fpc::AnnotatedDecomposition example = {
     //     {Edge(0,1), {0,1}},
     //     {Edge(1,2), {0,1,2}},
     //     {Edge(0,3), {0,1,2,3}},
@@ -36,14 +30,16 @@ int main() {
     //     {Edge(6,7), {6,7,8}},
     //     {Edge(7,8), {7,8}}
     // };
-    // r = {
-    //     {Edge(0,1), {0,1}},
-    //     {Edge(0,2), {0,1,2}},
-    //     {Edge(1,3), {1,2,3}},
-    //     {Edge(2,3), {2,3}}
-    // };
+    size_t invalid = size_t(-1);
+    fpc::AnnotatedDecomposition example = {
+        {2, fpc::NodeType::LEAF, Edge(0,1), std::make_pair(invalid, invalid), {0,1}},
+        {2, fpc::NodeType::LEAF, Edge(0,2), std::make_pair(invalid, invalid), {0,2}},
+        {3, fpc::NodeType::JOIN, Edge(invalid,invalid), std::make_pair(1, 0), {0,1,2}},
+        {4, fpc::NodeType::PATH_LIKE, Edge(1,3), std::make_pair(3, invalid), {1,2,3}},
+        {invalid, fpc::NodeType::PATH_LIKE, Edge(2,3), std::make_pair(2, invalid), {2,3}},
+    };
 
-    fpc::TreewidthSearch search(initial_graph, r, 4);
+    fpc::TreewidthSearch search(initial_graph, example, 4);
     auto res = search.search();
     search.print_stats();
     fpc::Edge_weight final_result = 0;
