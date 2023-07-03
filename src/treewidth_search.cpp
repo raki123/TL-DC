@@ -26,6 +26,8 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
         edges_(nthreads_, 0),
         propagations_(nthreads_, 0) {
     
+    omp_set_num_threads(nthreads_);
+
     if(!is_all_pair_) {
         for(auto &node : decomposition_) {
             auto &bag = node.bag;
@@ -98,7 +100,9 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
         std::sort(node.bag.begin(), node.bag.end());
         bag_local_distance_[bag_idx].resize(node.bag.size());
         remaining.resize(node.bag.size());
-        cur_graph.remove_edge(node.edge);
+        if(node.type != NodeType::JOIN) {
+            cur_graph.remove_edge(node.edge);
+        }
         frontier_index_t cur_idx = 0;
         for(auto v : node.bag) {
             assert(cur_idx != invalid_index_);
@@ -292,26 +296,67 @@ std::vector<Edge_weight> TreewidthSearch::search() {
             }
         } else {
             // JOIN
+            // FIXME: check if its better to take either bag as the outer one
             #pragma omp parallel for /*default(none)*/ shared(bag_idx) shared(max_length_) shared(cache_) shared(decomposition_) shared(thread_local_result_) shared(pos_hits_) shared(neg_hits_) shared(bag_local_idx_map_) shared(bag_local_vertex_map_)
             for(size_t bucket = 0; bucket < cache_[bag_idx].first.bucket_count(); bucket++) {
                 size_t thread_id = omp_get_thread_num();
                 for(auto task_it = cache_[bag_idx].first.begin(bucket); task_it != cache_[bag_idx].first.end(bucket); ++task_it) {
                     // FIXME: can we just modify the object somehow?
-                    auto left_frontier = task_it->first;
-                    auto left_result = task_it->second;
                     for(auto const&[right_frontier, right_result] : cache_[bag_idx].second) {
+                        auto left_frontier = task_it->first;
+                        auto left_result = task_it->second;
+                        // for(auto idx : left_frontier) {
+                        //     std::cerr << size_t(idx) << " ";
+                        // }
+                        // std::cerr << std::endl;
+                        // for(auto idx : right_frontier) {
+                        //     std::cerr << size_t(idx) << " ";
+                        // }
+                        // std::cerr << std::endl;
+                        // std::cerr << "Remaining: ";
+                        // for(auto i = 0; i < left_frontier.size(); i++) {
+                        //     std::cerr << size_t(remaining_edges_after_this_[bag_idx][i]) << " ";
+                        // }
+                        // std::cerr << std::endl;
+                        // std::cerr << "Result: ";
+                        // for(auto i = 0; i < left_result.size(); i++) {
+                        //     std::cerr << left_result[i] << " ";
+                        // }
+                        // std::cerr << std::endl;
+
                         if(!merge(left_frontier, right_frontier, bag_idx, left_result, right_result)) {
+                            // std::cerr << "Not Merged" << std::endl;
                             continue;
                         }
+                        // std::cerr << "Merged" << std::endl;
                         size_t last_idx = bag_idx;
                         size_t new_idx = decomposition_[bag_idx].parent;
                         assert(new_idx != size_t(-1));
                         bool takeable = false;
                         bool skippable = false;
                         if(decomposition_[new_idx].type != JOIN) {
+                            // Edge edge = decomposition_[new_idx].edge;
+                            // auto v_idx = bag_local_idx_map_[new_idx][edge.first];
+                            // auto w_idx = bag_local_idx_map_[new_idx][edge.second];
+                            // std::cerr << "Edge: (" << size_t(v_idx) << "," << size_t(w_idx) << ") Idx:" << size_t(new_idx) << std::endl;
+                            // for(auto idx : left_frontier) {
+                            //     std::cerr << size_t(idx) << " ";
+                            // }
+                            // std::cerr << std::endl;
+                            // std::cerr << "Remaining: ";
+                            // for(auto i = 0; i < left_frontier.size(); i++) {
+                            //     std::cerr << size_t(remaining_edges_after_this_[new_idx][i]) << " ";
+                            // }
+                            // std::cerr << std::endl;
+                            // std::cerr << "Result: ";
+                            // for(auto i = 0; i < left_result.size(); i++) {
+                            //     std::cerr << left_result[i] << " ";
+                            // }
+                            // std::cerr << std::endl;
                             takeable = canTake(left_frontier, new_idx, left_result);
                             skippable = canSkip(left_frontier, new_idx, left_result);
                             includeSolutions(left_frontier, new_idx, left_result);
+                            // std::cerr << takeable << " " << skippable << std::endl;
                             if(!takeable && !skippable) {
                                 continue;
                             }
@@ -323,16 +368,16 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                         // propagate while only one of the two is possible
                         while(takeable ^ skippable && new_idx + 1 < decomposition_.size() && decomposition_[new_idx].type != JOIN) {
                             propagations_[thread_id]++;
-                            // Edge edge = path_decomposition_[new_idx].first;
+                            // Edge edge = decomposition_[new_idx].edge;
                             // auto v_idx = bag_local_idx_map_[new_idx][edge.first];
                             // auto w_idx = bag_local_idx_map_[new_idx][edge.second];
                             // std::cerr << "Edge: (" << size_t(v_idx) << "," << size_t(w_idx) << ") Idx:" << size_t(new_idx) << std::endl;
-                            // for(auto idx : new_frontier) {
+                            // for(auto idx : left_frontier) {
                             //     std::cerr << size_t(idx) << " ";
                             // }
                             // std::cerr << std::endl;
                             // std::cerr << "Remaining: ";
-                            // for(auto i = 0; i < new_frontier.size(); i++) {
+                            // for(auto i = 0; i < left_frontier.size(); i++) {
                             //     std::cerr << size_t(remaining_edges_after_this_[new_idx][i]) << " ";
                             // }
                             // std::cerr << std::endl;
@@ -346,22 +391,22 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                             last_idx = new_idx;
                             new_idx = decomposition_[new_idx].parent;
                             if(new_idx < decomposition_.size() && decomposition_[new_idx].type != JOIN) {
-                                // Edge edge = path_decomposition_[new_idx].first;
+                                // Edge edge = decomposition_[new_idx].edge;
                                 // auto v_idx = bag_local_idx_map_[new_idx][edge.first];
                                 // auto w_idx = bag_local_idx_map_[new_idx][edge.second];
                                 // std::cerr << "Edge: (" << size_t(v_idx) << "," << size_t(w_idx) << ") Idx:" << size_t(new_idx) << std::endl;
-                                // for(auto idx : new_frontier) {
+                                // for(auto idx : left_frontier) {
                                 //     std::cerr << size_t(idx) << " ";
                                 // }
                                 // std::cerr << std::endl;
                                 // std::cerr << "Remaining: ";
-                                // for(auto i = 0; i < new_frontier.size(); i++) {
+                                // for(auto i = 0; i < left_frontier.size(); i++) {
                                 //     std::cerr << size_t(remaining_edges_after_this_[new_idx][i]) << " ";
                                 // }
                                 // std::cerr << std::endl;
                                 // std::cerr << "Result: ";
-                                // for(auto i = 0; i < new_result.size(); i++) {
-                                //     std::cerr << new_result[i] << " ";
+                                // for(auto i = 0; i < left_result.size(); i++) {
+                                //     std::cerr << left_result[i] << " ";
                                 // }
                                 // std::cerr << std::endl;
                                 takeable = canTake(left_frontier, new_idx, left_result);
@@ -907,17 +952,26 @@ bool TreewidthSearch::merge(Frontier& left, Frontier const& right, size_t bag_id
                     left[right[idx]] = two_edge_index_;
                 }
             } else {
-                assert(left[right[idx]] != no_edge_index_);
-                assert(left[right[idx]] != two_edge_index_);
-                assert(left[right[idx]] != invalid_index_);
-                if(left[right[idx]] == idx) {
-                    // found a loop
+                if(left[right[idx]] == no_edge_index_) {
+                    left[left[idx]] = right[idx];
+                    left[right[idx]] = left[idx];
+                    left[idx] = two_edge_index_;
+                } else if(left[right[idx]] == two_edge_index_) {
                     return false;
+                } else if(left[right[idx]] == invalid_index_) {
+                    left[left[idx]] = invalid_index_;
+                    left[idx] = two_edge_index_;
+                    left[right[idx]] = two_edge_index_;
+                } else {
+                    if(left[right[idx]] == idx) {
+                        // found a loop
+                        return false;
+                    }
+                    left[left[idx]] = left[right[idx]];
+                    left[left[right[idx]]] = left[idx];
+                    left[idx] = two_edge_index_;
+                    left[right[idx]] = two_edge_index_;
                 }
-                left[left[idx]] = left[right[idx]];
-                left[left[right[idx]]] = left[idx];
-                left[idx] = two_edge_index_;
-                left[right[idx]] = two_edge_index_;
             }
         }
     }

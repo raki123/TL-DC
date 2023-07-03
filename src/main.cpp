@@ -32,9 +32,10 @@ int main() {
     // };
     size_t invalid = size_t(-1);
     fpc::AnnotatedDecomposition example = {
-        {1, fpc::NodeType::LEAF, Edge(0,1), std::make_pair(invalid, invalid), {0,1}},
-        {2, fpc::NodeType::PATH_LIKE, Edge(0,2), std::make_pair(0, invalid), {0,1,2}},
-        {3, fpc::NodeType::PATH_LIKE, Edge(1,3), std::make_pair(1, invalid), {1,2,3}},
+        {2, fpc::NodeType::LEAF, Edge(0,1), std::make_pair(invalid, invalid), {0,1}},
+        {2, fpc::NodeType::LEAF, Edge(0,2), std::make_pair(invalid, invalid), {0,2}},
+        {3, fpc::NodeType::JOIN, Edge(invalid,invalid), std::make_pair(1, 0), {0,1,2}},
+        {4, fpc::NodeType::PATH_LIKE, Edge(1,3), std::make_pair(3, invalid), {1,2,3}},
         {invalid, fpc::NodeType::PATH_LIKE, Edge(2,3), std::make_pair(2, invalid), {2,3}},
     };
 
