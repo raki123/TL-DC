@@ -85,6 +85,8 @@ class TreewidthSearch {
     void take(Frontier& frontier, size_t bag_idx);
     void skip(Frontier& frontier, size_t bag_idx);
 
+    bool merge(Frontier& left, Frontier const& right, size_t bag_idx, std::vector<Edge_weight>& left_result, std::vector<Edge_weight> const& right_result);
+
     void advance(Frontier& frontier, size_t bag_idx);
 
         // stats
