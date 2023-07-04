@@ -17,6 +17,8 @@ struct AnnotatedNode {
     Edge edge; // if LEAF or PATH_LIKE
     std::pair<size_t, size_t> children; // if JOIN the indices of the child nodes in the annotated decomposition
     std::vector<vertex_t> bag;
+
+    void stats() const;
 };
 
 

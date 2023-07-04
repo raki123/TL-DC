@@ -15,22 +15,27 @@ Decomposer::Decomposer(const char* const decomposer, const char* params)
 
 #define BUF_SIZE 1024
 
-std::pair<int, int> Decomposer::insertEdges(AnnotatedDecomposition& r, std::vector<vertex_t>& bag, std::vector<Edge>& edges, size_t child, NodeType type)
+std::pair<int, int> Decomposer::insertEdges(AnnotatedDecomposition& r, std::vector<vertex_t>& bag, std::vector<Edge>& edges,  std::set<Edge>&used, size_t child, NodeType type)
 {
 	int first = -1;
 	int idx = -1;
 	for(auto it = edges.begin(); it != edges.end(); ++it) 
 	{
+		if (used.count(*it) > 0)
+			continue;
+		used.insert(*it);
+		//std::cerr << it->first << "," << it->second << std::endl;
 		AnnotatedNode c;
 		c.type = type;
-		c.parent = idx;
+		c.parent = (size_t)-1;
 		c.edge = (*it);
 		c.bag = bag;
         	idx = r.size();
 		if (first < 0)	//link to the outside world
 		{
 			c.children = std::make_pair(child, (size_t)-1);
-			r[child].parent = idx;
+			if (child != (size_t)-1)
+				r[child].parent = idx;
 			
 			first = idx;
 			type = PATH_LIKE;
@@ -38,7 +43,7 @@ std::pair<int, int> Decomposer::insertEdges(AnnotatedDecomposition& r, std::vect
 		else	//linking from within
 		{
 			c.children = std::make_pair(idx - 1, (size_t)-1);
-			r[idx - 1].parent = idx;
+			r[idx-1].parent = idx;
 		}
 		r.push_back(std::move(c));
 	}
@@ -73,6 +78,7 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 
     std::unordered_map<int, int> td2r;
     std::vector<std::pair<int, int>> stack;
+    std::set<Edge> used;
     //leaves
     //stack.insert(stack.end(), std::get<1>(td).begin(), std::get<1>(td).end());
 
@@ -92,19 +98,23 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 
     //int cur = std::get<1>(td)[0];	//FIXME: just take any leave for now
     //std::cerr << "leaf " << cur << std::endl;
-    while (true) { //actual_td.count(cur) != 0) {
+    while (stack.size() > 0) { //actual_td.count(cur) != 0) {
 	auto cur = stack.front();
 	stack.erase(stack.begin());
     	
         auto edges = actual_td[cur.second].first;
         auto bag = actual_td[cur.second].second;
        
-	auto idx = insertEdges(r, bag, edges, (size_t)cur.first, cur.first < 0 ? LEAF : PATH_LIKE);
+	auto idx = insertEdges(r, bag, edges, used, (size_t)cur.first, cur.first < 0 ? LEAF : PATH_LIKE);
 
 	if (idx.first == -1)	//no edges, skip it then
 	{
-		assert(succ.count(cur.second));
-		stack.push_back(std::make_pair(cur.first, succ[cur.second][0]));	
+		assert(idx.second == -1);
+		if (succ.count(cur.second) > 0)	//only non-empty tds
+			stack.push_back(std::make_pair(cur.first, succ[cur.second][0]));	
+		else
+			std::cerr << cur.first << " DIES OUT" << std::endl;
+		//otherwise this branch dies out. maybe a good thing?
 	}
 	else
 	{
@@ -113,19 +123,32 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 		if (succ.count(cur.second) > 0)
 		{
 			auto par = succ[cur.second][0];
-			stack.push_back(std::make_pair(idx.second, par));	
 			if (td2r.count(par) > 0)	//parent already exists, can only be a join node, right?
 			{
 				auto ridx = td2r[par];
 				assert(r[ridx].children.first != (size_t)-1);
 				{	//add intermediate join node
-
+					assert(r[ridx].children.second == (size_t)-1);
 					int pos = r.size();
 
 					AnnotatedNode c;
 					c.type = JOIN;
+					c.edge = std::make_pair((size_t)-1, (size_t)-1);
 					c.parent = ridx;
-					c.bag = bag;
+
+					auto& cn = r[r[ridx].children.first];	//join child 1 bag
+					std::set<vertex_t> c1 = std::set<vertex_t>(cn.bag.begin(), cn.bag.end());
+					std::set<vertex_t> c2 = std::set<vertex_t>(bag.begin(), bag.end());
+					
+					//parent bag, compute a better one; more suited for join
+					c.bag = r[ridx].bag; //bag;
+					for (auto it = c.bag.begin(); it != c.bag.end(); ) {
+						if (c1.count(*it) == 0 && c2.count(*it) == 0)	//new one, don't need in join node
+							it = c.bag.erase(it);
+						else
+							++it;
+					}
+
 					c.children = std::make_pair(r[ridx].children.first, idx.second);
 					r[r[ridx].children.first].parent = pos;
 					r[idx.second].parent = pos;	
@@ -139,6 +162,9 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 				{
 					r[ridx].children.first = idx.second;
 				}*/
+			}
+			else {	//parent requires building
+				stack.push_back(std::make_pair(idx.second, par));	
 			}
 		}	//otherwise: root
 	}
@@ -162,6 +188,7 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 		//FIXME: extend to TDs (first element / one successor sufficient for PDs)
         	cur = std::get<2>(td)[cur][0];*/
     }
+    stats(r);
     return std::move(r);
 }
 
@@ -191,6 +218,27 @@ std::vector<std::pair<Edge, std::vector<vertex_t>>> Decomposer::path_decompose(/
     return std::move(r);
 }
 
+
+void AnnotatedNode::stats() const
+{
+	std::cerr << "TYPE " << type << ", parent: " << parent << ", edge: (" << edge.first << "," << edge.second << ") children: (" << children.first << "," << children.second << ") bag {";
+	for (auto it = bag.begin(); it != bag.end(); ++it)
+		std::cerr << *it << ",";
+	std::cerr << "}" << std::endl;
+}
+
+void Decomposer::stats(const AnnotatedDecomposition& td)
+{
+	int pos = 0;
+	std::cerr << "decomposed & annotated" << std::endl;
+	for (auto it = td.begin(); it != td.end(); ++it)
+	{
+		std::cerr << "<" << (pos) << "> ";
+		it->stats();
+		++pos;
+	}
+}
+
 void Decomposer::stats(const Td_t& td)
 {
 	std::cerr << "decomposed, root " << std::get<0>(td) << std::endl;
@@ -205,12 +253,12 @@ void Decomposer::stats(const Td_t& td)
 	for (auto it = std::get<3>(td).begin(); it != std::get<3>(td).end(); ++it)
 	{	
 		std::cerr << "bag " << it->first << std::endl;
-		std::cerr << "edges { ";
+		std::cerr << "edges (" << it->second.first.size() << ") { ";
 		for (auto jt = it->second.first.begin(); jt != it->second.first.end(); ++jt)
 			std::cerr << jt->first << "," << jt->second << "; ";
 		std::cerr << "}" << std::endl;
 	
-		std::cerr << "bag { ";
+		std::cerr << "bag (" << it->second.second.size() << ") { ";
 		for (auto jt = it->second.second.begin(); jt != it->second.second.end(); ++jt)
 			std::cerr << *jt << "; ";
 		std::cerr << "}" << std::endl;

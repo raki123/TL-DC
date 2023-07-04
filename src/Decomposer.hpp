@@ -10,8 +10,8 @@ using namespace fpc;
 #ifndef _DECOMPOSER_HPP_
 #define _DECOMPOSER_HPP_
 
-//#define DEF_DECOMPOSER "../utils/htd"
-#define DEF_DECOMPOSER "../path_decomp.py"
+#define DEF_DECOMPOSER "../utils/htd"
+//#define DEF_DECOMPOSER "../path_decomp.py"
 #define DEF_DECOMP_PARAMS "SEE popen2.cpp"
 
 typedef std::tuple<int, std::vector<int>, std::map<int, std::vector<int>>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>> Td_t;
@@ -33,6 +33,7 @@ class Decomposer {
 
 
 		void stats(const Td_t&);
+		void stats(const AnnotatedDecomposition&);
 
 		Td_t	
 		decompose(/*const*/ Graph& graph);
@@ -40,7 +41,7 @@ class Decomposer {
 		const char* decomposer, *params;
 
 
-		std::pair<int, int> insertEdges(AnnotatedDecomposition& r, std::vector<vertex_t>& bag, std::vector<Edge>& edges, size_t child, NodeType type);
+		std::pair<int, int> insertEdges(AnnotatedDecomposition& r, std::vector<vertex_t>& bag, std::vector<Edge>& edges, std::set<Edge>&used, size_t child, NodeType type);
 };
 
 
