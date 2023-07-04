@@ -22,8 +22,8 @@ std::pair<int, int> Decomposer::insertEdges(AnnotatedDecomposition& r, std::vect
 	for(auto it = edges.begin(); it != edges.end(); ++it) 
 	{
 		if (used.count(*it) > 0) {
-			continue;
 			std::cerr << "SKIP " << it->first << "," << it->second << std::endl;
+			continue;
 		}
 		used.insert(*it);
 		//std::cerr << it->first << "," << it->second << std::endl;
@@ -106,10 +106,16 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
     	
         auto edges = actual_td[cur.second].first;
         auto bag = actual_td[cur.second].second;
-       
-	auto idx = insertEdges(r, bag, edges, used, (size_t)cur.first, cur.first < 0 ? LEAF : PATH_LIKE);
+      
+      	std::pair<int,int> idx = std::make_pair(-1, -1);
 
 	std::cerr << cur.second << " pred: " << cur.first << std::endl;
+	
+	if (td2r.count(cur.second) == 0)
+		idx = insertEdges(r, bag, edges, used, (size_t)cur.first, cur.first < 0 ? LEAF : PATH_LIKE);
+	else
+		std::cerr << "already inserted!" << std::endl;
+
 
 	/*if (idx.first == -1)	//no edges, skip it then
 	{
@@ -124,22 +130,37 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 	}
 	else*/
 	{
-		if (idx.first != -1)
+		if (idx.first != -1) {
 			// map tdidx to r idx
 			td2r[cur.second] = idx.first;
-		else
+		}
+		else {
 			idx.second = (size_t)cur.first;
+			std::cerr << "no insert " << cur.second << "," << idx.first << std::endl;
+			//cur.second = cur.first;
+			//assert(cur.first > 0);
+		}
 		if (succ.count(cur.second) > 0)
 		{
-			auto par = succ[cur.second][0];
+			std::cerr << "count ok" << std::endl;
+			//node already exists if idx.first == -1 AND it actually had edges
+			auto par = idx.first == -1 && td2r.count(cur.second) > 0 ? cur.second : succ[cur.second][0];
 			if (td2r.count(par) > 0)	//parent already exists, can only be a join node, right?
 			{
+				std::cerr << "map ok" << std::endl;
 				auto ridx = td2r[par];
 				assert(r[ridx].children.first != (size_t)-1);
 				{	//add intermediate join node
 					assert(r[ridx].children.second == (size_t)-1);
 					int pos = r.size();
 
+					if (idx.first == -1)
+						// map tdidx to r idx
+						td2r[cur.second] = pos;
+				//	else	//update successor
+					//	td2r[par] = pos;
+
+					std::cerr << "JOIN " << pos  << std::endl;
 					AnnotatedNode c;
 					c.type = JOIN;
 					c.edge = std::make_pair((size_t)-1, (size_t)-1);
