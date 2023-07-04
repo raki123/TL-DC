@@ -21,8 +21,10 @@ std::pair<int, int> Decomposer::insertEdges(AnnotatedDecomposition& r, std::vect
 	int idx = -1;
 	for(auto it = edges.begin(); it != edges.end(); ++it) 
 	{
-		if (used.count(*it) > 0)
+		if (used.count(*it) > 0) {
 			continue;
+			std::cerr << "SKIP " << it->first << "," << it->second << std::endl;
+		}
 		used.insert(*it);
 		//std::cerr << it->first << "," << it->second << std::endl;
 		AnnotatedNode c;
@@ -107,19 +109,26 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
        
 	auto idx = insertEdges(r, bag, edges, used, (size_t)cur.first, cur.first < 0 ? LEAF : PATH_LIKE);
 
-	if (idx.first == -1)	//no edges, skip it then
+	std::cerr << cur.second << " pred: " << cur.first << std::endl;
+
+	/*if (idx.first == -1)	//no edges, skip it then
 	{
 		assert(idx.second == -1);
-		if (succ.count(cur.second) > 0)	//only non-empty tds
+		if (succ.count(cur.second) > 0) {	//only non-empty tds
+			assert(td2r.count(succ[cur.second][0])==0);
 			stack.push_back(std::make_pair(cur.first, succ[cur.second][0]));	
-		else
-			std::cerr << cur.first << " DIES OUT" << std::endl;
+		} else {
+			std::cerr << cur.second << " DIES OUT, pred: " << cur.first  << std::endl;
+		}
 		//otherwise this branch dies out. maybe a good thing?
 	}
-	else
+	else*/
 	{
-		// map tdidx to r idx
-		td2r[cur.second] = idx.first;
+		if (idx.first != -1)
+			// map tdidx to r idx
+			td2r[cur.second] = idx.first;
+		else
+			idx.second = (size_t)cur.first;
 		if (succ.count(cur.second) > 0)
 		{
 			auto par = succ[cur.second][0];
@@ -163,10 +172,14 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 					r[ridx].children.first = idx.second;
 				}*/
 			}
-			else {	//parent requires building
+			else //if (idx.first != -1) {	//parent requires building
 				stack.push_back(std::make_pair(idx.second, par));	
-			}
+			/*} else
+				stack.push_back(std::make_pair(cur.first, par));*/	
+
 		}	//otherwise: root
+		else
+			std::cerr << cur.second << " DIES OUT, pred: " << cur.first  << std::endl;
 	}
 
 	
@@ -252,7 +265,7 @@ void Decomposer::stats(const Td_t& td)
 
 	for (auto it = std::get<3>(td).begin(); it != std::get<3>(td).end(); ++it)
 	{	
-		std::cerr << "bag " << it->first << std::endl;
+		std::cerr << "node " << it->first << std::endl;
 		std::cerr << "edges (" << it->second.first.size() << ") { ";
 		for (auto jt = it->second.first.begin(); jt != it->second.first.end(); ++jt)
 			std::cerr << jt->first << "," << jt->second << "; ";
