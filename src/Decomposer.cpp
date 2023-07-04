@@ -15,22 +15,32 @@ Decomposer::Decomposer(const char* const decomposer, const char* params)
 
 #define BUF_SIZE 1024
 
-std::pair<int, int> Decomposer::insertEdges(AnnotatedDecomposition& r, std::vector<vertex_t>& bag, std::vector<Edge>& edges,  std::set<Edge>&used, size_t child, NodeType type)
+std::pair<int, int> Decomposer::insertEdges(AnnotatedDecomposition& r, std::vector<vertex_t>& bag, std::vector<Edge>& edges,  std::set<Edge>&used, size_t child, NodeType type, bool join)
 {
 	int first = -1;
 	int idx = -1;
-	for(auto it = edges.begin(); it != edges.end(); ++it) 
+	for(auto it = edges.begin(); (join && it == edges.end() && first < 0) || it != edges.end();) 
 	{
-		if (used.count(*it) > 0) {
-			std::cerr << "SKIP " << it->first << "," << it->second << std::endl;
-			continue;
-		}
-		used.insert(*it);
-		//std::cerr << it->first << "," << it->second << std::endl;
 		AnnotatedNode c;
-		c.type = type;
+		
+		if (it != edges.end()) 
+		{
+			if (used.count(*it) > 0) {
+				std::cerr << "SKIP " << it->first << "," << it->second << std::endl;
+				continue;
+			}
+			used.insert(*it);
+			c.edge = (*it);
+			c.type = type;
+		}
+		else
+		{
+			std::cerr << "CREATE EMPTY JOIN " << child << std::endl;
+			c.type = JOIN;	
+			c.edge = std::make_pair((size_t)-1, (size_t)-1);
+		}
+		//std::cerr << it->first << "," << it->second << std::endl;
 		c.parent = (size_t)-1;
-		c.edge = (*it);
 		c.bag = bag;
         	idx = r.size();
 		if (first < 0)	//link to the outside world
@@ -48,6 +58,9 @@ std::pair<int, int> Decomposer::insertEdges(AnnotatedDecomposition& r, std::vect
 			r[idx-1].parent = idx;
 		}
 		r.push_back(std::move(c));
+
+		if (it != edges.end())
+			++it;
 	}
 	//first and last
 	return std::make_pair(first, idx);
@@ -68,6 +81,20 @@ std::pair<int, int> Decomposer::insertEdges(AnnotatedDecomposition& r, std::vect
 	return r.size()-1;
 }*/
 
+void Decomposer::update_Join_bag(AnnotatedNode& c, std::vector<vertex_t> &b1, std::vector<vertex_t> &b2)
+{
+	std::set<vertex_t> c1 = std::set<vertex_t>(b1.begin(), b1.end());
+	std::set<vertex_t> c2 = std::set<vertex_t>(b2.begin(), b2.end());
+						
+	//parent bag, compute a better one; more suited for join
+	for (auto it = c.bag.begin(); it != c.bag.end(); ) {
+		if (c1.count(*it) == 0 && c2.count(*it) == 0)	//new one, don't need in join node
+			it = c.bag.erase(it);
+		else
+			++it;
+	}
+}
+
 AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 {
     auto td = std::move(decompose(graph));
@@ -83,6 +110,22 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
     std::set<Edge> used;
     //leaves
     //stack.insert(stack.end(), std::get<1>(td).begin(), std::get<1>(td).end());
+
+    std::unordered_map<int, int> joins;
+
+    for (auto it = succ.begin(); it != succ.end(); ++it)
+    {
+    	auto f = joins.find(it->second[0]);
+	if (f == joins.end())
+		joins.emplace(it->second[0],1);
+	else
+		f->second = f->second + 1;
+    	//if (joins.count(it->first) > 0)
+		//joins[it->second]++;
+	/*else
+    		joins[it->first]*/
+    }
+
 
 	//leaves
     for (auto it = std::get<1>(td).begin(); it != std::get<1>(td).end(); ++it)
@@ -109,10 +152,10 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
       
       	std::pair<int,int> idx = std::make_pair(-1, -1);
 
-	std::cerr << cur.second << " pred: " << cur.first << std::endl;
+	std::cerr << cur.second << " pred: " << cur.first << " join: " << joins[cur.second] << std::endl;
 	
 	if (td2r.count(cur.second) == 0)
-		idx = insertEdges(r, bag, edges, used, (size_t)cur.first, cur.first < 0 ? LEAF : PATH_LIKE);
+		idx = insertEdges(r, bag, edges, used, (size_t)cur.first, cur.first < 0 ? LEAF : PATH_LIKE, joins[cur.second] > 1);
 	else
 		std::cerr << "already inserted!" << std::endl;
 
@@ -152,41 +195,50 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 				assert(r[ridx].children.first != (size_t)-1);
 				{	//add intermediate join node
 					assert(r[ridx].children.second == (size_t)-1);
-					int pos = r.size();
-
-					if (idx.first == -1)
-						// map tdidx to r idx
-						td2r[cur.second] = pos;
-				//	else	//update successor
-					//	td2r[par] = pos;
-
-					std::cerr << "JOIN " << pos  << std::endl;
-					AnnotatedNode c;
-					c.type = JOIN;
-					c.edge = std::make_pair((size_t)-1, (size_t)-1);
-					c.parent = ridx;
 
 					auto& cn = r[r[ridx].children.first];	//join child 1 bag
-					std::set<vertex_t> c1 = std::set<vertex_t>(cn.bag.begin(), cn.bag.end());
-					std::set<vertex_t> c2 = std::set<vertex_t>(bag.begin(), bag.end());
-					
-					//parent bag, compute a better one; more suited for join
-					c.bag = r[ridx].bag; //bag;
-					for (auto it = c.bag.begin(); it != c.bag.end(); ) {
-						if (c1.count(*it) == 0 && c2.count(*it) == 0)	//new one, don't need in join node
-							it = c.bag.erase(it);
-						else
-							++it;
+					if (r[ridx].type != JOIN)	//create edge-empty JOIN node
+					{
+						int pos = r.size();
+
+						if (idx.first == -1)
+							// map tdidx to r idx
+							td2r[cur.second] = pos;
+						//	else	//update successor
+							//	td2r[par] = pos;
+
+						std::cerr << "ADD EMPTY JOIN " << pos  << std::endl;
+						AnnotatedNode c;
+						c.type = JOIN;
+						c.edge = std::make_pair((size_t)-1, (size_t)-1);
+						c.parent = ridx;
+
+						/*std::set<vertex_t> c1 = std::set<vertex_t>(cn.bag.begin(), cn.bag.end());
+						std::set<vertex_t> c2 = std::set<vertex_t>(bag.begin(), bag.end());*/
+						
+						//parent bag, compute a better one; more suited for join
+						c.bag = r[ridx].bag; //bag;
+						update_Join_bag(c, cn.bag, bag);
+						/*for (auto it = c.bag.begin(); it != c.bag.end(); ) {
+							if (c1.count(*it) == 0 && c2.count(*it) == 0)	//new one, don't need in join node
+								it = c.bag.erase(it);
+							else
+								++it;
+						}*/
+
+						c.children = std::make_pair(r[ridx].children.first, idx.second);
+						r[r[ridx].children.first].parent = pos;
+						r[idx.second].parent = pos;	
+
+						r.push_back(std::move(c));
+
+
+						r[ridx].children = std::make_pair(pos, (size_t)-1);
+					} else {	//already (edge-empty) JOIN node created
+						r[ridx].children.second = idx.second;
+						r[idx.second].parent = ridx;
+						update_Join_bag(r[ridx], cn.bag, bag);
 					}
-
-					c.children = std::make_pair(r[ridx].children.first, idx.second);
-					r[r[ridx].children.first].parent = pos;
-					r[idx.second].parent = pos;	
-
-					r.push_back(std::move(c));
-
-
-					r[ridx].children = std::make_pair(pos, (size_t)-1);
 				}
 				/*else //first child or not a join node
 				{

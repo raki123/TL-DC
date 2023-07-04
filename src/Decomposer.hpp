@@ -41,7 +41,9 @@ class Decomposer {
 		const char* decomposer, *params;
 
 
-		std::pair<int, int> insertEdges(AnnotatedDecomposition& r, std::vector<vertex_t>& bag, std::vector<Edge>& edges, std::set<Edge>&used, size_t child, NodeType type);
+		void update_Join_bag(AnnotatedNode& c, std::vector<vertex_t> &b1, std::vector<vertex_t> &b2);
+
+		std::pair<int, int> insertEdges(AnnotatedDecomposition& r, std::vector<vertex_t>& bag, std::vector<Edge>& edges, std::set<Edge>&used, size_t child, NodeType type, bool join);
 };
 
 
