@@ -39,6 +39,46 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
             }
         }
     }
+
+    std::map<size_t, size_t> idx_remap;
+    size_t invalid_td_idx = -1;
+    idx_remap[invalid_td_idx] = invalid_td_idx;
+    size_t cur = decomposition_.size() - 1;
+    size_t root = 0;
+    while(root < decomposition_.size() && decomposition_[root].parent != invalid_td_idx) {
+        root++;
+    }
+    assert(root < decomposition_.size());
+    std::vector<size_t> remap_stack = {root};
+    AnnotatedDecomposition ordered;
+    while(!remap_stack.empty()) {
+        size_t top = remap_stack.back();
+        idx_remap[top] = cur--;
+        remap_stack.pop_back();
+        auto &top_node = decomposition_[top];
+        switch (top_node.type) {
+        case NodeType::LEAF:
+            ordered.push_back(top_node);
+            break;
+        case NodeType::PATH_LIKE:
+            assert(top > 0);
+            ordered.push_back(top_node);
+            remap_stack.push_back(top_node.children.first);
+            break;
+        case NodeType::JOIN:
+            ordered.push_back(top_node);
+            remap_stack.push_back(top_node.children.first);
+            remap_stack.push_back(top_node.children.second);
+            break;
+        }
+    }
+    decomposition_ = AnnotatedDecomposition(ordered.rbegin(), ordered.rend());
+    for(auto &node : decomposition_) {
+        node.parent = idx_remap[node.parent];
+        node.children.first = idx_remap[node.children.first];
+        node.children.second = idx_remap[node.children.second];
+    }
+
     std::set<vertex_t> empty;
     std::vector<vertex_t> all;
     for(vertex_t i = 0; i < graph_.adjacency_.size(); i++) {
@@ -81,14 +121,11 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
             break;
         }
         for(size_t i = 0; i < node.bag.size(); i++) {
-            if(node.type != NodeType::JOIN) {
-                if(cur_graph.neighbors(node.bag[i]).size() == 0) {
+            if(node.type != NodeType::JOIN && cur_graph.neighbors(node.bag[i]).size() == 0) {
                     std::swap(node.bag[i], node.bag.back());
                     node.bag.pop_back();
                     i--;
-                }
-            }
-            if(is_all_pair_ || (node.bag[i] != terminals_[0] && node.bag[i] != terminals_[1])) {
+            } else if(is_all_pair_ || (node.bag[i] != terminals_[0] && node.bag[i] != terminals_[1])) {
                 if(cur_graph.neighbors(node.bag[i]).size() == graph_.neighbors(node.bag[i]).size() 
                     && node.bag[i] != node.edge.first && node.bag[i] != node.edge.second) {
                     std::swap(node.bag[i], node.bag.back());
@@ -497,7 +534,7 @@ std::vector<Edge_weight> TreewidthSearch::search() {
         }
 
         cache_[bag_idx] = {};
-        std::cerr << bag_idx << std::endl;
+        std::cerr << "\r" << bag_idx << " / " << decomposition_.size() - 1;
         // std::cerr << results() << std::endl;
         // print_stats();
     }
@@ -506,6 +543,7 @@ std::vector<Edge_weight> TreewidthSearch::search() {
             result_[length] += thread_local_result_[id][length];
         }
     }
+    std::cerr << std::endl;
     return result_;
 }
 
