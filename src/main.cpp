@@ -41,7 +41,7 @@ int main() {
     //     {invalid, fpc::NodeType::PATH_LIKE, Edge(2,3), std::make_pair(2, invalid), {2,3}},
     // };
 
-    fpc::TreewidthSearch search(initial_graph, r2, 1);
+    fpc::TreewidthSearch search(initial_graph, r2, 4);
     auto res = search.search();
     search.print_stats();
     fpc::Edge_weight final_result = 0;
