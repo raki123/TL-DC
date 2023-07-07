@@ -25,7 +25,7 @@ popen2(const char *command, const char* pars, int *infp, int *outfp)
         //execl("/bin/sh", "sh" "-c", //"../htd --child-limit 1", NULL);
 	//const char* addr[] = {command, "--child-limit", "1", "--opt", "width", "--iterations", "50"};
         execl(
-		command, command, /*const_cast<char* const *>(addr)); //command,*/ "--child-limit", "2", 
+		command, command, /*const_cast<char* const *>(addr)); //command,*/ "--child-limit", "1", 
 		"--opt", "width", "--iterations", "5000",  NULL);
 	//std::cerr << command << std::endl;
         perror("execl");

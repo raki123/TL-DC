@@ -97,6 +97,8 @@ class TreewidthSearch {
 
     std::vector<size_t> edges_;
     std::vector<size_t> propagations_;
+    std::vector<size_t> merges_;
+    std::vector<size_t> unsuccessful_merges_;
 
 };
 
