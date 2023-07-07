@@ -949,6 +949,18 @@ bool TreewidthSearch::merge(Frontier& left, Frontier const& right, size_t bag_id
     // merge the frontiers
     bool found_solution = false;
     for(size_t idx = 0; idx < right.size(); idx++) {
+        // start goal case
+        if(!is_all_pair_ && (bag_local_idx_map_[bag_idx][terminals_[0]] == idx || bag_local_idx_map_[bag_idx][terminals_[1]] == idx)) {
+            assert(left[idx] == invalid_index_ || left[idx] == two_edge_index_);
+            assert(right[idx] == invalid_index_ || right[idx] == two_edge_index_);
+            if(left[idx] == invalid_index_) {
+                left[idx] = right[idx];
+            } else if(right[idx] == two_edge_index_) {
+                return false;
+            }
+            continue;
+        }
+        // rest
         if(right[idx] == no_edge_index_) {
             continue;
         } else if(right[idx] == two_edge_index_) {
@@ -1039,6 +1051,17 @@ bool TreewidthSearch::merge(Frontier& left, Frontier const& right, size_t bag_id
     std::vector<frontier_index_t> paths;
     std::vector<frontier_index_t> cut_paths;
     for(frontier_index_t idx = 0; idx < right.size(); idx++) {
+        // start goal case
+        if(!is_all_pair_ && (bag_local_idx_map_[bag_idx][terminals_[0]] == idx || bag_local_idx_map_[bag_idx][terminals_[1]] == idx)) {
+            if(left[idx] == invalid_index_) {
+                if(!remaining_edges_after_this_[bag_idx][idx]) {
+                    return false;
+                }
+                cut_paths.push_back(idx);
+            }
+            continue;
+        }
+        // rest
         if(left[idx] == invalid_index_) {
             if(!remaining_edges_after_this_[bag_idx][idx]) {
                 if(found_solution) {
