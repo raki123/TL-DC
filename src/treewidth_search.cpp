@@ -825,7 +825,6 @@ bool TreewidthSearch::distancePrune(
         std::vector<frontier_index_t> const& cut_paths, 
         size_t bag_idx, 
         size_t offset) {
-    return true;
     // advanced length based pruning
     auto &distance = bag_local_distance_[bag_idx];
     if(cut_paths.size() == 2 && paths.size() == 0) {
