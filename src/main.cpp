@@ -11,7 +11,7 @@ int main() {
     initial_graph.print_stats();
 
     Decomposer d;
-    std::vector<std::pair<Edge, std::vector<vertex_t>>> r = std::move(d.path_decompose(initial_graph));
+    // std::vector<std::pair<Edge, std::vector<vertex_t>>> r = std::move(d.path_decompose(initial_graph));
     auto r2 = std::move(d.tree_decompose(initial_graph));
 
 

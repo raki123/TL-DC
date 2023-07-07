@@ -26,7 +26,7 @@ std::pair<int, int> Decomposer::insertEdges(AnnotatedDecomposition& r, std::vect
 		if (it != edges.end()) 
 		{
 			if (used.count(*it) > 0) {
-				std::cerr << "SKIP " << it->first << "," << it->second << std::endl;
+				// std::cerr << "SKIP " << it->first << "," << it->second << std::endl;
 				continue;
 			}
 			used.insert(*it);
@@ -35,7 +35,7 @@ std::pair<int, int> Decomposer::insertEdges(AnnotatedDecomposition& r, std::vect
 		}
 		else
 		{
-			std::cerr << "CREATE EMPTY JOIN " << child << std::endl;
+			// std::cerr << "CREATE EMPTY JOIN " << child << std::endl;
 			c.type = JOIN;	
 			c.edge = std::make_pair((size_t)-1, (size_t)-1);
 		}
@@ -98,7 +98,7 @@ void Decomposer::update_Join_bag(AnnotatedNode& c, std::vector<vertex_t> &b1, st
 AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 {
     auto td = std::move(decompose(graph));
-    stats(td);
+    // stats(td);
     
     AnnotatedDecomposition r;
     auto actual_td = std::get<3>(td);
@@ -147,17 +147,18 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 	auto cur = stack.front();
 	stack.erase(stack.begin());
     	
-        auto edges = actual_td[cur.second].first;
-        auto bag = actual_td[cur.second].second;
-      
-      	std::pair<int,int> idx = std::make_pair(-1, -1);
+	auto edges = actual_td[cur.second].first;
+	auto bag = actual_td[cur.second].second;
+	
+	std::pair<int,int> idx = std::make_pair(-1, -1);
 
-	std::cerr << cur.second << " pred: " << cur.first << " join: " << joins[cur.second] << std::endl;
+	// std::cerr << cur.second << " pred: " << cur.first << " join: " << joins[cur.second] << std::endl;
 	
 	if (td2r.count(cur.second) == 0)
 		idx = insertEdges(r, bag, edges, used, (size_t)cur.first, cur.first < 0 ? LEAF : PATH_LIKE, joins[cur.second] > 1);
-	else
-		std::cerr << "already inserted!" << std::endl;
+	else {
+		// std::cerr << "already inserted!" << std::endl;
+	}
 
 
 	/*if (idx.first == -1)	//no edges, skip it then
@@ -179,18 +180,18 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 		}
 		else {
 			idx.second = (size_t)cur.first;
-			std::cerr << "no insert " << cur.second << "," << idx.first << std::endl;
+			// std::cerr << "no insert " << cur.second << "," << idx.first << std::endl;
 			//cur.second = cur.first;
 			//assert(cur.first > 0);
 		}
 		if (succ.count(cur.second) > 0)
 		{
-			std::cerr << "count ok" << std::endl;
+			// std::cerr << "count ok" << std::endl;
 			//node already exists if idx.first == -1 AND it actually had edges
 			auto par = idx.first == -1 && td2r.count(cur.second) > 0 ? cur.second : succ[cur.second][0];
 			if (td2r.count(par) > 0)	//parent already exists, can only be a join node, right?
 			{
-				std::cerr << "map ok" << std::endl;
+				// std::cerr << "map ok" << std::endl;
 				auto ridx = td2r[par];
 				assert(r[ridx].children.first != (size_t)-1);
 				{	//add intermediate join node
@@ -207,7 +208,7 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 						//	else	//update successor
 							//	td2r[par] = pos;
 
-						std::cerr << "ADD EMPTY JOIN " << pos  << std::endl;
+						// std::cerr << "ADD EMPTY JOIN " << pos  << std::endl;
 						AnnotatedNode c;
 						c.type = JOIN;
 						c.edge = std::make_pair((size_t)-1, (size_t)-1);
@@ -245,14 +246,15 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 					r[ridx].children.first = idx.second;
 				}*/
 			}
-			else //if (idx.first != -1) {	//parent requires building
+			else {//if (idx.first != -1) {	//parent requires building 
 				stack.push_back(std::make_pair(idx.second, par));	
-			/*} else
+			}/*} else
 				stack.push_back(std::make_pair(cur.first, par));*/	
 
 		}	//otherwise: root
-		else
-			std::cerr << cur.second << " DIES OUT, pred: " << cur.first  << std::endl;
+		else {
+			// std::cerr << cur.second << " DIES OUT, pred: " << cur.first  << std::endl;
+		}
 	}
 
 	
@@ -274,14 +276,14 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 		//FIXME: extend to TDs (first element / one successor sufficient for PDs)
         	cur = std::get<2>(td)[cur][0];*/
     }
-    stats(r);
+    // stats(r);
     return std::move(r);
 }
 
 std::vector<std::pair<Edge, std::vector<vertex_t>>> Decomposer::path_decompose(/*const*/ Graph& graph)
 {
     auto td = std::move(decompose(graph));
-    stats(td);
+    // stats(td);
     std::vector<std::pair<Edge, std::vector<vertex_t>>> r;
     auto actual_td = std::get<3>(td);
     //int cur = std::get<0>(td);
@@ -420,7 +422,7 @@ Decomposer::decompose(/*const*/ Graph& graph)
 			std::set<Edge> edges; //only cover an edge at most once
 			//std::cerr << "read " << std::endl;
 			//sscanf(buf, "s td %d %d %d\n", &bags, &width, &verts);
-			std::cerr << bags << ",w: " << width << "," << verts << std::endl;
+			std::cerr << "TD with " << bags << " bags, width " << width << " and " << verts << " vertices" << std::endl;
 			int b = 1;
 			for (; b <= bags && fgets(buf, BUF_SIZE-1, fout) != NULL; ++b)
 			{
@@ -518,14 +520,14 @@ Decomposer::decompose(/*const*/ Graph& graph)
 			assert(edges.size() == nr_edges);
 			int b1, b2;
 			b = bags - 1;
-			std::cerr << "root " << root << std::endl;
+			// std::cerr << "root " << root << std::endl;
 			std::map<int, std::vector<int>> neighs;
 			for (; b > 0 && fgets(buf, BUF_SIZE-1, fout) != NULL && sscanf(buf, "%d %d\n", &b1, &b2); --b)
 			//for (; b > 0 && !feof(fout) && fscanf(fout, "%d %d\n", &b1, &b2) == 2; --b)
 			{
 				neighs[b1].push_back(b2);
 				neighs[b2].push_back(b1);
-				std::cerr << b << "," << b1 << "," << b2 << std::endl;
+				// std::cerr << b << "," << b1 << "," << b2 << std::endl;
 			}
 			for(root = 1; neighs[root].size() > 1; root++){}
 			std::set<int> seen;
