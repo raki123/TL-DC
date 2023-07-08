@@ -107,9 +107,25 @@ def eliminate(graph):
 
 	return bags, bsize
 
+def other_eliminate(graph):
+	bags = []
+	bsize = 0
+	active = set()
+	degree = { i : len(list(graph.neighbors(i))) for i in graph.nodes() }
+	order = sorted(graph.nodes())
+	for v in order:
+		rem_edges_from = active.intersection(graph.neighbors(v))
+		for rem in rem_edges_from:
+			degree[rem] -= 1
+		degree[v] -= len(rem_edges_from)
+		active.add(v)
+		bags.append(active)
+		bsize = max(bsize, len(active))
+		active = { x for x in active if degree[x] > 0 }
 
+	return bags, bsize
 
-bags, bsize = eliminate(graph)
+bags, bsize = other_eliminate(graph)
 
 print("s td {} {} {}".format(len(bags), bsize, len(graph.nodes())))
 

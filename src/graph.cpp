@@ -76,24 +76,28 @@ void Graph::preprocess() {
     bool found = true;
     while(found) {
         found = false;
+        preprocess_start_goal_edges();
         Vertex cur_isolated_removed = preprocess_isolated();
         found |= cur_isolated_removed > 0;
         isolated_removed += cur_isolated_removed;
+        preprocess_start_goal_edges();
         Vertex cur_unreachable_removed = preprocess_unreachable();
         found |= cur_unreachable_removed > 0;
         unreachable_removed += cur_unreachable_removed;
         if(!found) {
+            preprocess_start_goal_edges();
             Vertex cur_unusable_edge_removed = preprocess_unusable_edge();
             found |= cur_unusable_edge_removed > 0;
             unusable_edge_removed += cur_unusable_edge_removed;
         }
         if(!found && max_length_decrease == 0) {
+            preprocess_start_goal_edges();
             Vertex cur_max_length_decrease = limit_max_length();
             found |= cur_max_length_decrease > 0;
             max_length_decrease += cur_max_length_decrease;
         }
-        preprocess_start_goal_edges();
     }
+    preprocess_start_goal_edges();
     assert(all_pair_ || neighbors(terminals_[0]).count(terminals_[1]) == 0);
     assert(all_pair_ || neighbors(terminals_[1]).count(terminals_[0]) == 0);
 }
@@ -120,6 +124,7 @@ void Graph::print_stats() {
     std::cerr << "#vertices " << adjacency_.size() << " #edges " << nr_edges;
     if(!all_pair_) {
         std::cerr << " max. length " << static_cast<size_t>(max_length_) << " min. length " << static_cast<size_t>(distance_to_goal[terminals_[0]]) << std::endl;
+        std::cerr << "terminals: " << terminals_[0] << "," << terminals_[1] << std::endl;
     } else {
         std::cerr << std::endl;
     }
@@ -128,13 +133,9 @@ void Graph::print_stats() {
 void Graph::normalize() {
     Vertex unnamed = std::numeric_limits<Vertex>::max();
     std::vector<Vertex> new_name(adjacency_.size(), unnamed);
-    if(!all_pair_) {
-        new_name[terminals_[0]] = 0;
-        new_name[terminals_[1]] = 1;
-    }
     Vertex cur_name = 0;
     for(Vertex v = 0; v < adjacency_.size(); v++) {
-        if(neighbors(v).empty() || (!all_pair_ && (v == terminals_[0] || v == terminals_[1]))) {
+        if(neighbors(v).empty()) {
             continue;
         }
         if(new_name[v] == unnamed) {
@@ -158,6 +159,8 @@ void Graph::normalize() {
     adjacency_ = new_adjacency;
     neighbors_ = new_neighbors;
     if(!all_pair_) {
+        assert(new_name[terminals_[0]] != unnamed);
+        assert(new_name[terminals_[1]] != unnamed);
         terminals_[0] = new_name[terminals_[0]];
         terminals_[1] = new_name[terminals_[1]];
     }
@@ -441,7 +444,10 @@ std::vector<Vertex> Graph::find_separator(size_t size, size_t min_component_size
 }
 
 Vertex Graph::preprocess_start_goal_edges() {
-    assert(terminals_.size() > 0);
+    if(all_pair_) {
+        return 0;
+    }
+    assert(terminals_.size() == 2);
     Vertex found = 0;
     if(adjacency_[terminals_[0]].size() > 0) {
         for(auto &[length, weight] : adjacency_[terminals_[0]][terminals_[1]]) {
@@ -456,16 +462,26 @@ Vertex Graph::preprocess_start_goal_edges() {
 }
 
 Vertex Graph::preprocess_isolated() {
+    if(all_pair_) {
+        return 0;
+    }
+    assert(terminals_.size() == 2);
     Vertex found = 0;
     for(size_t v = 0; v < adjacency_.size(); v++) {
-        if(fixed(v)) {
-            continue;
-        }
         auto cur_neighbors = neighbors(v);
         if(cur_neighbors.size() == 1) {
             Vertex neighbor = *cur_neighbors.begin();
-            if(terminals_.size() > 0 && (terminals_[0] == v || terminals_[1] == v || terminals_[0] == neighbor || terminals_[1] == neighbor) ) {
-                continue;
+            if(terminals_[0] == v || terminals_[1] == v) {
+                assert(neighbor != terminals_[0] && neighbor != terminals_[1]);
+                assert(max_length_ > 0);
+                found++;
+                remove_vertex(v);
+                if(terminals_[0] == v) {
+                    terminals_[0] = neighbor;
+                } else {
+                    terminals_[1] = neighbor;
+                }
+                max_length_--;
             } else {
                 found++;
                 remove_vertex(v);
@@ -503,7 +519,10 @@ Vertex Graph::preprocess_forwarder() {
 }
 
 Vertex Graph::preprocess_unreachable() {
-    assert(terminals_.size() > 0);
+    if(all_pair_) {
+        return 0;
+    }
+    assert(terminals_.size() == 2);
     std::vector<Edge_length> distance_from_start(adjacency_.size(), std::numeric_limits<Edge_length>::max());
     dijkstra(terminals_[0], distance_from_start, {});
 
@@ -619,7 +638,10 @@ Vertex Graph::preprocess_twins() {
 }
 
 Vertex Graph::preprocess_unusable_edge() {
-    assert(terminals_.size() > 0);
+    if(all_pair_) {
+        return 0;
+    }
+    assert(terminals_.size() == 2);
     std::vector<std::vector<Edge_length>> distances_from_start(adjacency_.size(), std::vector<Edge_length>(adjacency_.size(), std::numeric_limits<Edge_length>::max()));
     std::vector<std::vector<Edge_length>> distances_to_goal(adjacency_.size(), std::vector<Edge_length>(adjacency_.size(), std::numeric_limits<Edge_length>::max()));
     Vertex found = 0;
@@ -1188,6 +1210,10 @@ Vertex Graph::preprocess_three_separator() {
 }
 
 Vertex Graph::limit_max_length() {
+    if(all_pair_) {
+        return 0;
+    }
+    assert(terminals_.size() == 2);
     // build the program
     std::stringstream prog_str;
     prog_str << "reach(X, 0) :- start(X).\n";

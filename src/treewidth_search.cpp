@@ -187,7 +187,7 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
     }
     for(size_t bag_idx = 0; bag_idx < decomposition_.size(); bag_idx++) {
         auto &node = decomposition_[bag_idx];
-        std::cerr << "<" << bag_idx << ">"; node.stats();
+        // std::cerr << "<" << bag_idx << ">"; node.stats();
         if(node.type == NodeType::LEAF) {
             Frontier initial_frontier(decomposition_[bag_idx].bag.size(), no_edge_index_);
             if(!is_all_pair_) {
@@ -199,7 +199,7 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
             // cached vectors are {offset, results}
             std::vector<Edge_weight> initial_result = {0, 1};
             cache_[bag_idx].first[initial_frontier] = initial_result;
-            includeSolutions(initial_frontier, 0, initial_result);
+            includeSolutions(initial_frontier, bag_idx, initial_result);
         }
     }
 }
@@ -234,20 +234,20 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                         // propagate while only one of the two is possible
                         while((takeable ^ skippable) && new_idx + 1 < decomposition_.size() && decomposition_[new_idx].type != JOIN) {
                             propagations_[thread_id]++;
-                            Edge edge = decomposition_[new_idx].edge;
-                            auto v_idx = bag_local_idx_map_[new_idx][edge.first];
-                            auto w_idx = bag_local_idx_map_[new_idx][edge.second];
-                            std::cerr << "Edge: (" << size_t(v_idx) << "," << size_t(w_idx) << ") Idx:" << size_t(new_idx) << std::endl;
-                            for(auto idx : new_frontier) {
-                                std::cerr << size_t(idx) << " ";
-                            }
-                            std::cerr << std::endl;
-                            std::cerr << "Remaining: ";
-                            for(auto i = 0; i < new_frontier.size(); i++) {
-                                std::cerr << size_t(remaining_edges_after_this_[new_idx][i]) << " ";
-                            }
-                            std::cerr << std::endl;
-                            std::cerr << takeable << " " << skippable << std::endl;
+                            // Edge edge = decomposition_[new_idx].edge;
+                            // auto v_idx = bag_local_idx_map_[new_idx][edge.first];
+                            // auto w_idx = bag_local_idx_map_[new_idx][edge.second];
+                            // std::cerr << "Edge: (" << size_t(v_idx) << "," << size_t(w_idx) << ") Idx:" << size_t(new_idx) << std::endl;
+                            // for(auto idx : new_frontier) {
+                            //     std::cerr << size_t(idx) << " ";
+                            // }
+                            // std::cerr << std::endl;
+                            // std::cerr << "Remaining: ";
+                            // for(auto i = 0; i < new_frontier.size(); i++) {
+                            //     std::cerr << size_t(remaining_edges_after_this_[new_idx][i]) << " ";
+                            // }
+                            // std::cerr << std::endl;
+                            // std::cerr << takeable << " " << skippable << std::endl;
                             if(takeable) {
                                 take(new_frontier, new_idx);
                                 new_result[0]++;

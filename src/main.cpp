@@ -6,8 +6,8 @@
 
 int main() {
     fpc::Graph initial_graph(std::cin);
-    // initial_graph.preprocess();
-    // initial_graph.normalize();
+    initial_graph.preprocess();
+    initial_graph.normalize();
     initial_graph.print_stats();
 
     Decomposer d;
