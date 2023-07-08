@@ -27,6 +27,10 @@ class TreewidthSearch {
 
     std::vector<Edge_weight> search();
     void print_stats();
+
+  static const frontier_index_t invalid_index_ = std::numeric_limits<frontier_index_t>::max();
+  static const frontier_index_t no_edge_index_ = std::numeric_limits<frontier_index_t>::max() - 1;
+  static const frontier_index_t two_edge_index_ = std::numeric_limits<frontier_index_t>::max() - 2;
   private:
     size_t nthreads_;
     Graph graph_;
@@ -36,9 +40,6 @@ class TreewidthSearch {
     AnnotatedDecomposition decomposition_;
     std::vector<std::vector<vertex_t>> remaining_edges_after_this_;
 
-    frontier_index_t invalid_index_ = std::numeric_limits<frontier_index_t>::max();
-    frontier_index_t no_edge_index_ = std::numeric_limits<frontier_index_t>::max() - 1;
-    frontier_index_t two_edge_index_ = std::numeric_limits<frontier_index_t>::max() - 2;
     std::vector<std::vector<frontier_index_t>> bag_local_idx_map_;
     std::vector<std::vector<vertex_t>> bag_local_vertex_map_;
     Edge_length invalid_distance_ = std::numeric_limits<Edge_length>::max();
