@@ -71,6 +71,8 @@ class TreewidthSearch {
       {true, true, true, false, true, true, true, true}
     };
 
+    void propagateLoop(Frontier &frontier, size_t bag_idx, size_t last_idx, std::vector<Edge_weight>& partial_results, bool takeable, bool skippable, size_t thread_id);
+
     void includeSolutions(Frontier const& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result);
 
     bool canTake(Frontier& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result);
