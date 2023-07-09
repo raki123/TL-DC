@@ -844,113 +844,22 @@ void TreewidthSearch::skip(Frontier& frontier, size_t bag_idx) {
 bool TreewidthSearch::merge(Frontier& left, Frontier const& right, size_t bag_idx, std::vector<Edge_weight>& left_result, std::vector<Edge_weight> const& right_result) {
     bool left_empty = left_result[0] == 0;
     bool right_empty = right_result[0] == 0;
-    // merge the frontiers
+    // merge the frontiers and mark out of scope edge ends and populate paths, cut_paths
     bool found_solution = false;
+    std::vector<frontier_index_t> paths;
+    std::vector<frontier_index_t> cut_paths;
     for(size_t idx = 0; idx < right.size(); idx++) {
         // start goal case
         if(!is_all_pair_ && (bag_local_idx_map_[bag_idx][terminals_[0]] == idx || bag_local_idx_map_[bag_idx][terminals_[1]] == idx)) {
             assert(left[idx] == invalid_index_ || left[idx] == two_edge_index_);
             assert(right[idx] == invalid_index_ || right[idx] == two_edge_index_);
+            // merge
             if(left[idx] == invalid_index_) {
                 left[idx] = right[idx];
             } else if(right[idx] == two_edge_index_) {
                 return false;
             }
-            continue;
-        }
-        // rest
-        if(right[idx] == no_edge_index_) {
-            continue;
-        } else if(right[idx] == two_edge_index_) {
-            if(left[idx] != no_edge_index_) {
-                return false;
-            }
-            left[idx] = two_edge_index_;
-        } else if(right[idx] == invalid_index_) {
-            if(left[idx] == no_edge_index_) {
-                left[idx] = invalid_index_;
-            } else if(left[idx] == two_edge_index_) {
-                return false;
-            } else if(left[idx] == invalid_index_) {
-                if(found_solution) {
-                    return false;
-                }
-                left[idx] = two_edge_index_;
-                found_solution = true;
-            } else {
-                assert(left[left[idx]] == idx);
-                left[left[idx]] = invalid_index_;
-                left[idx] = two_edge_index_;
-            }
-        } else if(right[idx] > idx) {
-            assert(right[right[idx]] == idx);
-            if(left[idx] == no_edge_index_) {
-                if(left[right[idx]] == no_edge_index_) {
-                    left[idx] = right[idx];
-                    left[right[idx]] = idx;
-                } else if(left[right[idx]] == two_edge_index_) {
-                    return false;
-                } else if(left[right[idx]] == invalid_index_) {
-                    left[idx] = invalid_index_;
-                    left[right[idx]] = two_edge_index_;
-                } else {
-                    left[idx] = left[right[idx]];
-                    left[left[right[idx]]] = idx;
-                    left[right[idx]] = two_edge_index_;
-                }
-            } else if(left[idx] == two_edge_index_) {
-                return false;
-            } else if(left[idx] == invalid_index_) {
-                if(left[right[idx]] == no_edge_index_) {
-                    left[idx] = two_edge_index_;
-                    left[right[idx]] = invalid_index_;
-                } else if(left[right[idx]] == two_edge_index_) {
-                    return false;
-                } else if(left[right[idx]] == invalid_index_) {
-                    if(found_solution) {
-                        return false;
-                    }
-                    left[idx] = two_edge_index_;
-                    left[right[idx]] = two_edge_index_;
-                    found_solution = true;
-                } else {
-                    left[idx] = two_edge_index_;
-                    left[left[right[idx]]] = invalid_index_;
-                    left[right[idx]] = two_edge_index_;
-                }
-            } else {
-                if(left[right[idx]] == no_edge_index_) {
-                    left[left[idx]] = right[idx];
-                    left[right[idx]] = left[idx];
-                    left[idx] = two_edge_index_;
-                } else if(left[right[idx]] == two_edge_index_) {
-                    return false;
-                } else if(left[right[idx]] == invalid_index_) {
-                    left[left[idx]] = invalid_index_;
-                    left[idx] = two_edge_index_;
-                    left[right[idx]] = two_edge_index_;
-                } else {
-                    if(left[right[idx]] == idx) {
-                        assert(left[idx] == right[idx]);
-                        assert(right[left[idx]] == idx);
-                        // found a loop
-                        return false;
-                    }
-                    left[left[idx]] = left[right[idx]];
-                    left[left[right[idx]]] = left[idx];
-                    left[idx] = two_edge_index_;
-                    left[right[idx]] = two_edge_index_;
-                }
-            }
-        }
-    }
-    assert(!left_empty || !right_empty || !found_solution);
-    // mark out of scope edge ends and populate paths, cut_paths
-    std::vector<frontier_index_t> paths;
-    std::vector<frontier_index_t> cut_paths;
-    for(frontier_index_t idx = 0; idx < right.size(); idx++) {
-        // start goal case
-        if(!is_all_pair_ && (bag_local_idx_map_[bag_idx][terminals_[0]] == idx || bag_local_idx_map_[bag_idx][terminals_[1]] == idx)) {
+            // paths
             if(left[idx] == invalid_index_) {
                 if(!remaining_edges_after_this_[bag_idx][idx]) {
                     return false;
@@ -960,6 +869,182 @@ bool TreewidthSearch::merge(Frontier& left, Frontier const& right, size_t bag_id
             continue;
         }
         // rest
+        if(right[idx] == no_edge_index_) {
+            // standard path tracking
+        } else if(right[idx] == two_edge_index_) {
+            if(left[idx] != no_edge_index_) {
+                return false;
+            }
+            left[idx] = two_edge_index_;
+            // no path tracking
+        } else if(right[idx] == invalid_index_) {
+            if(left[idx] == no_edge_index_) {
+                left[idx] = invalid_index_;
+                // standard path tracking
+            } else if(left[idx] == two_edge_index_) {
+                return false;
+            } else if(left[idx] == invalid_index_) {
+                if(found_solution) {
+                    return false;
+                }
+                left[idx] = two_edge_index_;
+                found_solution = true;
+                // no path tracking
+            } else {
+                assert(left[left[idx]] == idx);
+                if(left[idx] < idx) {
+                    // time travel path tracking!
+                    frontier_index_t aux_idx = left[idx]; 
+                    left[left[idx]] = invalid_index_;
+                    left[idx] = two_edge_index_;
+                    if(!remaining_edges_after_this_[bag_idx][aux_idx]) {
+                        if(found_solution) {
+                            return false;
+                        }
+                        left[aux_idx] = two_edge_index_;
+                        found_solution = true;
+                    } else {
+                        cut_paths.push_back(aux_idx);
+                    }
+                } else {
+                    // otherwise standard path tracking
+                    left[left[idx]] = invalid_index_;
+                    left[idx] = two_edge_index_;
+                }
+            }
+        } else if(right[idx] > idx) {
+            assert(right[right[idx]] == idx);
+            if(left[idx] == no_edge_index_) {
+                if(left[right[idx]] == no_edge_index_) {
+                    left[idx] = right[idx];
+                    left[right[idx]] = idx;
+                    // standard path tracking
+                } else if(left[right[idx]] == two_edge_index_) {
+                    return false;
+                } else if(left[right[idx]] == invalid_index_) {
+                    left[idx] = invalid_index_;
+                    left[right[idx]] = two_edge_index_;
+                    // standard path tracking
+                } else {
+                    left[idx] = left[right[idx]];
+                    left[left[right[idx]]] = idx;
+                    left[right[idx]] = two_edge_index_;
+                    // standard path tracking
+                }
+            } else if(left[idx] == two_edge_index_) {
+                return false;
+            } else if(left[idx] == invalid_index_) {
+                if(left[right[idx]] == no_edge_index_) {
+                    left[idx] = two_edge_index_;
+                    left[right[idx]] = invalid_index_;
+                    // standard path tracking
+                } else if(left[right[idx]] == two_edge_index_) {
+                    return false;
+                } else if(left[right[idx]] == invalid_index_) {
+                    if(found_solution) {
+                        return false;
+                    }
+                    left[idx] = two_edge_index_;
+                    left[right[idx]] = two_edge_index_;
+                    found_solution = true;
+                    // no path tracking
+                } else {
+                    if(left[right[idx]] < idx) {
+                        // time travel path tracking!
+                        frontier_index_t aux_idx = left[right[idx]]; 
+                        left[idx] = two_edge_index_;
+                        left[left[right[idx]]] = invalid_index_;
+                        left[right[idx]] = two_edge_index_;
+                        if(!remaining_edges_after_this_[bag_idx][aux_idx]) {
+                            if(found_solution) {
+                                return false;
+                            }
+                            left[aux_idx] = two_edge_index_;
+                            found_solution = true;
+                        } else {
+                            cut_paths.push_back(aux_idx);
+                        }
+                    } else {
+                        // otherwise standard path tracking
+                        left[idx] = two_edge_index_;
+                        left[left[right[idx]]] = invalid_index_;
+                        left[right[idx]] = two_edge_index_;
+                    }
+                }
+            } else {
+                if(left[right[idx]] == no_edge_index_) {
+                    left[left[idx]] = right[idx];
+                    left[right[idx]] = left[idx];
+                    left[idx] = two_edge_index_;
+                    // standard path tracking
+                } else if(left[right[idx]] == two_edge_index_) {
+                    return false;
+                } else if(left[right[idx]] == invalid_index_) {
+                    if(left[idx] < idx) {
+                        // time travel path tracking!
+                        frontier_index_t aux_idx = left[idx]; 
+                        left[left[idx]] = invalid_index_;
+                        left[idx] = two_edge_index_;
+                        left[right[idx]] = two_edge_index_;
+                        if(!remaining_edges_after_this_[bag_idx][aux_idx]) {
+                            if(found_solution) {
+                                return false;
+                            }
+                            left[aux_idx] = two_edge_index_;
+                            found_solution = true;
+                        } else {
+                            cut_paths.push_back(aux_idx);
+                        }
+                    } else {
+                        // otherwise standard path tracking
+                        left[left[idx]] = invalid_index_;
+                        left[idx] = two_edge_index_;
+                        left[right[idx]] = two_edge_index_;
+                    }
+                } else {
+                    if(left[right[idx]] == idx) {
+                        assert(left[idx] == right[idx]);
+                        assert(right[left[idx]] == idx);
+                        // found a loop
+                        return false;
+                    }
+                    if(left[right[idx]] < idx && left[idx] < idx) {
+                        frontier_index_t aux_idx = left[idx];
+                        left[left[idx]] = left[right[idx]];
+                        left[left[right[idx]]] = left[idx];
+                        left[idx] = two_edge_index_;
+                        left[right[idx]] = two_edge_index_;
+                        // time travel path tracking!
+                        if(!remaining_edges_after_this_[bag_idx][aux_idx] && !remaining_edges_after_this_[bag_idx][left[aux_idx]]) {
+                            if(found_solution) {
+                                return false;
+                            }
+                            left[left[aux_idx]] = two_edge_index_;
+                            left[aux_idx] = two_edge_index_;
+                            found_solution = true;
+                        } else if(!remaining_edges_after_this_[bag_idx][aux_idx] && remaining_edges_after_this_[bag_idx][left[aux_idx]]) {
+                            left[left[aux_idx]] = invalid_index_;
+                            cut_paths.push_back(left[aux_idx]);
+                            left[aux_idx] = two_edge_index_;
+                        } else if(remaining_edges_after_this_[bag_idx][aux_idx] && !remaining_edges_after_this_[bag_idx][left[aux_idx]]) {
+                            left[left[aux_idx]] = two_edge_index_;
+                            left[aux_idx] = invalid_index_;
+                            cut_paths.push_back(aux_idx);
+                        } else {
+                            paths.push_back(aux_idx);
+                            paths.push_back(left[aux_idx]);
+                        }
+                    } else {
+                        left[left[idx]] = left[right[idx]];
+                        left[left[right[idx]]] = left[idx];
+                        left[idx] = two_edge_index_;
+                        left[right[idx]] = two_edge_index_;
+                        // standard path tracking
+                    }
+                }
+            }
+        }
+        // standard path tracking
         if(left[idx] == invalid_index_) {
             if(!remaining_edges_after_this_[bag_idx][idx]) {
                 if(found_solution) {
@@ -993,6 +1078,7 @@ bool TreewidthSearch::merge(Frontier& left, Frontier const& right, size_t bag_id
             }
         }
     }
+    assert(!left_empty || !right_empty || !found_solution);
 
     assert(paths.size() % 2 == 0);
     // adapt result

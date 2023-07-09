@@ -15,7 +15,7 @@ TreeNode TreeNode::construct_tree(
         size_t cur = root_idx;
         for(size_t idx = 0; idx < frontier.size(); idx++) {
             size_t type = std::max(frontier[idx], frontier_index_t(252)) - 252;
-            assert(type >= 0 && type < 4);
+            assert(type < 4);
             if(nodes[cur].children[type] == size_t(-1)) {
                 nodes[cur].children[type] = nodes.size();
                 nodes.push_back(TreeNode());
