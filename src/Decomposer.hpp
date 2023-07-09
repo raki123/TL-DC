@@ -10,8 +10,10 @@ using namespace fpc;
 #ifndef _DECOMPOSER_HPP_
 #define _DECOMPOSER_HPP_
 
-#define DEF_DECOMPOSER "../utils/htd"
-//#define DEF_DECOMPOSER "../path_decomp.py"
+//#define DEF_DECOMPOSER "../flow_cutter_pace17" //../utils/htd_custom"
+//#define DEF_DECOMPOSER "../htd" //../utils/htd_custom"
+#define DEF_DECOMPOSER "../utils/htd" //../utils/htd_custom"
+#define DEF_PATH_DECOMPOSER "../path_decomp.py"
 #define DEF_DECOMP_PARAMS "SEE popen2.cpp"
 
 typedef std::tuple<int, std::vector<int>, std::map<int, std::vector<int>>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>> Td_t;
@@ -19,14 +21,14 @@ typedef std::tuple<int, std::vector<int>, std::map<int, std::vector<int>>, std::
 
 class Decomposer {
 	public:
-		Decomposer(const char* const decomposer=DEF_DECOMPOSER, const char* const params=DEF_DECOMP_PARAMS);
+		Decomposer(const char* const decomposer=DEF_DECOMPOSER, const char* const path_decomposer=DEF_PATH_DECOMPOSER, const char* const params=DEF_DECOMP_PARAMS);
 		virtual ~Decomposer() {}
 
 		//std::pair<Graph, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>
 		//std::pair<int, std::pair<std::map<int, std::vector<int>>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>>
 		//std::vector<std::pair<Edge, std::vector<vertex_t>>> 
 
-		AnnotatedDecomposition tree_decompose(/*const*/ Graph& graph);
+		AnnotatedDecomposition tree_decompose(/*const*/ Graph& graph, bool path=false);
 
 		std::vector<std::pair<Edge, std::vector<vertex_t>>> path_decompose(/*const*/ Graph& graph);
 
@@ -36,9 +38,9 @@ class Decomposer {
 		void stats(const AnnotatedDecomposition&);
 
 		Td_t	
-		decompose(/*const*/ Graph& graph);
+		decompose(/*const*/ Graph& graph, bool path=false);
 	protected:
-		const char* decomposer, *params;
+		const char* decomposer, *path_decomposer, *params;
 
 
 		void update_Join_bag(AnnotatedNode& c, std::vector<vertex_t> &b1, std::vector<vertex_t> &b2);
