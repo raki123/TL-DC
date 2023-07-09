@@ -4,16 +4,33 @@
 #include <iostream>
 #include "Decomposer.hpp"
 
+void details(size_t bags, size_t nr_bags, size_t joinch, size_t max_join, size_t nr_joins)
+{
+	std::cerr << "max bag size " << bags << ", nr bags " << nr_bags << ", max join child bags " << joinch << ", max join bag size " << max_join << ", nr of joins " << nr_joins << std::endl;
+}
+
 int main() {
     fpc::Graph initial_graph(std::cin);
     initial_graph.preprocess();
     initial_graph.normalize();
     initial_graph.print_stats();
 
+
+    size_t max_bagsize, max_join_child, max_join, nr_joins, nr_bags;
+
     Decomposer d;
     // std::vector<std::pair<Edge, std::vector<vertex_t>>> r = std::move(d.path_decompose(initial_graph));
-    auto r2 = std::move(d.tree_decompose(initial_graph));
+    //path
+    auto rp = std::move(d.tree_decompose(initial_graph, true, &max_bagsize, &nr_bags, &max_join_child, &max_join, &nr_joins));
 
+    std::cerr << "PATH: ";
+    details(max_bagsize, nr_bags, max_join_child, max_join, nr_joins);
+
+    //tree
+    auto r2 = std::move(d.tree_decompose(initial_graph, false, &max_bagsize, &nr_bags, &max_join_child, &max_join, &nr_joins));
+
+    std::cerr << "TREE: ";
+    details(max_bagsize, nr_bags, max_join_child, max_join, nr_joins);
 
     //std::vector<std::pair<Edge, std::vector<vertex_t>>> r = std::move(d.tree_decompose(initial_graph));
 

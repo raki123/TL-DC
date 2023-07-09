@@ -28,7 +28,7 @@ class Decomposer {
 		//std::pair<int, std::pair<std::map<int, std::vector<int>>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>>>
 		//std::vector<std::pair<Edge, std::vector<vertex_t>>> 
 
-		AnnotatedDecomposition tree_decompose(/*const*/ Graph& graph, bool path=false);
+		AnnotatedDecomposition tree_decompose(/*const*/ Graph& graph,  bool path=false, size_t* width=nullptr, size_t* nr_bags = nullptr, size_t* max_join_child_bags=nullptr, size_t* max_join_bag=nullptr, size_t* nr_joins=nullptr);
 
 		std::vector<std::pair<Edge, std::vector<vertex_t>>> path_decompose(/*const*/ Graph& graph);
 
