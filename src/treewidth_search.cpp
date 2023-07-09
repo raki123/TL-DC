@@ -89,6 +89,8 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
     Graph cur_graph = graph_.subgraph(all);;
     for(size_t bag_idx = 0; bag_idx < decomposition_.size(); bag_idx++) {
         auto &node = decomposition_[bag_idx];
+	//std::cerr << bag_idx << " ";
+	//node.stats();
         auto &idx = bag_local_idx_map_[bag_idx];
         auto &vertex = bag_local_vertex_map_[bag_idx];
         auto &remaining = remaining_edges_after_this_[bag_idx];

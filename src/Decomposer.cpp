@@ -96,10 +96,10 @@ void Decomposer::update_Join_bag(AnnotatedNode& c, std::vector<vertex_t> &b1, st
 	}
 }
 
-AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph, bool path)
+AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph, bool path, size_t* width, size_t* nr_bags, size_t* max_join_child_bags, size_t* max_join_bag, size_t* nr_joins)
 {
     auto td = std::move(decompose(graph,path));
-    stats(td);
+    //stats(td);
     
     AnnotatedDecomposition r;
     auto actual_td = std::get<3>(td);
@@ -113,6 +113,17 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph, bool p
     //stack.insert(stack.end(), std::get<1>(td).begin(), std::get<1>(td).end());
 
     std::unordered_map<int, int> joins;
+
+    if (width != nullptr)
+    	*width = 0;
+    if (max_join_child_bags != nullptr)
+        *max_join_child_bags = 0;
+    if (max_join_bag != nullptr)
+        *max_join_bag = 0;
+    if (nr_joins != nullptr)
+        *nr_joins = 0;
+    if (nr_bags != nullptr)
+        *nr_bags = actual_td.size();
 
     for (auto it = succ.begin(); it != succ.end(); ++it)
     {
@@ -154,7 +165,10 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph, bool p
 	std::pair<int,int> idx = std::make_pair(-1, -1);
 
 	// std::cerr << cur.second << " pred: " << cur.first << " join: " << joins[cur.second] << std::endl;
-	
+
+	if (width != nullptr)
+		*width = std::max(*width, bag.size());
+
 	if (td2r.count(cur.second) == 0)
 		idx = insertEdges(r, bag, edges, used, (size_t)cur.first, cur.first < 0 ? LEAF : PATH_LIKE, joins[cur.second] > 1);
 	else {
@@ -198,6 +212,9 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph, bool p
 				{	//add intermediate join node
 					assert(r[ridx].children.second == (size_t)-1);
 
+
+					AnnotatedNode* join = nullptr;
+
 					auto& cn = r[r[ridx].children.first];	//join child 1 bag
 					if (r[ridx].type != JOIN)	//create edge-empty JOIN node
 					{
@@ -234,13 +251,24 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph, bool p
 
 						r.push_back(std::move(c));
 
-
 						r[ridx].children = std::make_pair(pos, (size_t)-1);
+
+						join = &r[r.size()-1];						
 					} else {	//already (edge-empty) JOIN node created
 						r[ridx].children.second = idx.second;
 						r[idx.second].parent = ridx;
 						update_Join_bag(r[ridx], cn.bag, bag);
+
+						join = &r[ridx];
 					}
+					if (max_join_child_bags != nullptr)
+						*max_join_child_bags = std::max(*max_join_child_bags, actual_td[join->children.first].second.size() + 
+													actual_td[join->children.second].second.size()); 
+					if (max_join_bag != nullptr)
+						*max_join_bag = std::max(*max_join_bag, join->bag.size());
+					if (nr_joins != nullptr)
+						(*nr_joins)++;
+
 				}
 				/*else //first child or not a join node
 				{

@@ -1,5 +1,6 @@
 #include "popen2.h"
 #include <unistd.h>
+#include <iostream>
 
 pid_t
 popen2(const char *command, const char* pars, int *infp, int *outfp)
