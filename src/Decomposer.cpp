@@ -6,9 +6,10 @@
 #include <algorithm>
 #include <unordered_map>
 
-Decomposer::Decomposer(const char* const decomposer, const char* params)
+Decomposer::Decomposer(const char* const decomposer, const char* const path_decomposer, const char* params)
 {
 	this->decomposer = decomposer;
+	this->path_decomposer = path_decomposer;
 	//this->params = params;
 }
 
@@ -95,10 +96,10 @@ void Decomposer::update_Join_bag(AnnotatedNode& c, std::vector<vertex_t> &b1, st
 	}
 }
 
-AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
+AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph, bool path)
 {
-    auto td = std::move(decompose(graph));
-    // stats(td);
+    auto td = std::move(decompose(graph,path));
+    stats(td);
     
     AnnotatedDecomposition r;
     auto actual_td = std::get<3>(td);
@@ -276,13 +277,13 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph)
 		//FIXME: extend to TDs (first element / one successor sufficient for PDs)
         	cur = std::get<2>(td)[cur][0];*/
     }
-    // stats(r);
+    //stats(r);
     return std::move(r);
 }
 
 std::vector<std::pair<Edge, std::vector<vertex_t>>> Decomposer::path_decompose(/*const*/ Graph& graph)
 {
-    auto td = std::move(decompose(graph));
+    auto td = std::move(decompose(graph,true));
     // stats(td);
     std::vector<std::pair<Edge, std::vector<vertex_t>>> r;
     auto actual_td = std::get<3>(td);
@@ -354,7 +355,7 @@ void Decomposer::stats(const Td_t& td)
 }
 
 Td_t
-Decomposer::decompose(/*const*/ Graph& graph)
+Decomposer::decompose(/*const*/ Graph& graph, bool path)
 {
 
 	std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>> bgs; 
@@ -375,7 +376,7 @@ Decomposer::decompose(/*const*/ Graph& graph)
 
 	int in, out;
 	int root = 0;
-	if (popen2(this->decomposer, NULL /*this->params*/, &in, &out) > 0)
+	if (popen2(path ? this->path_decomposer : this->decomposer, NULL /*this->params*/, &in, &out) > 0)
 	{
 		std::stringstream s;
 		s << "p tw " << graph.neighbors_.size() << " " << //171 << std::endl; //
