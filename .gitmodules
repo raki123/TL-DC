@@ -4,3 +4,6 @@
 [submodule "src/htd"]
 	path = src/htd
 	url = git@github.com:TU-Wien-DBAI/htd.git
+[submodule "src/htd_opt"]
+	path = src/htd_opt
+	url = git@github.com:hmarkus/htd.git
