@@ -262,8 +262,8 @@ AnnotatedDecomposition Decomposer::tree_decompose(/*const*/ Graph& graph, bool p
 						join = &r[ridx];
 					}
 					if (max_join_child_bags != nullptr)
-						*max_join_child_bags = std::max(*max_join_child_bags, actual_td[join->children.first].second.size() + 
-													actual_td[join->children.second].second.size()); 
+						*max_join_child_bags = std::max(*max_join_child_bags, r[join->children.first].bag.size() + 
+													r[join->children.second].bag.size()); 
 					if (max_join_bag != nullptr)
 						*max_join_bag = std::max(*max_join_bag, join->bag.size());
 					if (nr_joins != nullptr)

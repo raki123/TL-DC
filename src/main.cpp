@@ -16,21 +16,34 @@ int main() {
     initial_graph.print_stats();
 
 
-    size_t max_bagsize, max_join_child, max_join, nr_joins, nr_bags;
+    size_t max_bagsize, nr_bags;
+    size_t t_max_bagsize, max_join_child, max_join, nr_joins, t_nr_bags;
 
     Decomposer d;
     // std::vector<std::pair<Edge, std::vector<vertex_t>>> r = std::move(d.path_decompose(initial_graph));
     //path
-    auto rp = std::move(d.tree_decompose(initial_graph, true, &max_bagsize, &nr_bags, &max_join_child, &max_join, &nr_joins));
+    auto rp = std::move(d.tree_decompose(initial_graph, true, &max_bagsize, &nr_bags));
 
     std::cerr << "PATH: ";
-    details(max_bagsize, nr_bags, max_join_child, max_join, nr_joins);
+    details(max_bagsize, nr_bags, 0, 0, 0);
 
     //tree
-    auto r2 = std::move(d.tree_decompose(initial_graph, false, &max_bagsize, &nr_bags, &max_join_child, &max_join, &nr_joins));
+    auto rt = std::move(d.tree_decompose(initial_graph, false, &t_max_bagsize, &t_nr_bags, &max_join_child, &max_join, &nr_joins));
 
     std::cerr << "TREE: ";
-    details(max_bagsize, nr_bags, max_join_child, max_join, nr_joins);
+    details(t_max_bagsize, t_nr_bags, max_join_child, max_join, nr_joins);
+
+
+    AnnotatedDecomposition* r = &rt;
+
+    if (max_bagsize <= max_join_child + 1)
+    {
+        r = &rp;
+	std::cerr << "fallback to PD " << std::endl;
+    }
+
+
+    auto &r2 = *r;
 
     //std::vector<std::pair<Edge, std::vector<vertex_t>>> r = std::move(d.tree_decompose(initial_graph));
 
