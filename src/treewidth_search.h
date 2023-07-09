@@ -115,9 +115,9 @@ class TreewidthSearch {
       Frontier left,
       size_t bag_idx,
       bool found_solution,
-      std::vector<frontier_index_t>& cut_paths,
-      std::vector<frontier_index_t>& paths,
-      std::vector<Edge_weight>& left_result,
+      std::vector<frontier_index_t> const& cut_paths,
+      std::vector<frontier_index_t> const& paths,
+      std::vector<Edge_weight> const& left_result,
       std::vector<Edge_weight> const& right_result
     );
     bool merge(Frontier& left, Frontier const& right, size_t bag_idx, std::vector<Edge_weight>& left_result, std::vector<Edge_weight> const& right_result);

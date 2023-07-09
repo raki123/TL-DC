@@ -2,6 +2,21 @@
 #include <algorithm>
 namespace fpc {
 
+void prettyPrint(Frontier frontier) {
+    for(auto idx : frontier) {
+        if(idx <= 252) {
+            std::cerr << size_t(idx) << " ";
+        } else if(idx == 253) {
+            std::cerr << "-" << " ";
+        } else if(idx == 254) {
+            std::cerr << " " << " ";
+        } else  {
+            std::cerr << "*" << " ";
+        }
+    }
+    std::cerr << std::endl;
+}
+
 TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposition, size_t nthreads) 
     :   nthreads_(nthreads),
         graph_(input),
@@ -206,7 +221,7 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
 
 std::vector<Edge_weight> TreewidthSearch::search() {
     for(size_t bag_idx = 0; bag_idx < decomposition_.size(); bag_idx++) {
-        std::cerr << bag_idx << " / " << decomposition_.size() - 1 << " of type ";
+        std::cerr << "\r" << bag_idx << " / " << decomposition_.size() - 1 << " of type ";
         if(decomposition_[bag_idx].type == NodeType::LEAF) {
             std::cerr << "leaf, with " << cache_[bag_idx].first.size() << " entries.";
         } else if(decomposition_[bag_idx].type == NodeType::PATH_LIKE) {
@@ -214,10 +229,6 @@ std::vector<Edge_weight> TreewidthSearch::search() {
         } else if(decomposition_[bag_idx].type == NodeType::JOIN) {
             std::cerr << "join, with (" << cache_[bag_idx].first.size() << "," << cache_[bag_idx].second.size() << ") entries.";
         }
-        for(auto v : decomposition_[bag_idx].bag) {
-            std::cerr << v << " ";
-        }
-        std::cerr << std::endl;
         if(decomposition_[bag_idx].type == LEAF || decomposition_[bag_idx].type == PATH_LIKE) {
             // PATH_LIKE/LEAF
             #pragma omp parallel for default(shared) shared(edges_) shared(propagations_) shared(bag_idx) shared(max_length_) shared(cache_) shared(decomposition_) shared(thread_local_result_) shared(pos_hits_) shared(neg_hits_) shared(bag_local_idx_map_) shared(bag_local_vertex_map_)
@@ -231,8 +242,45 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                 }
             }
         } else {
+            if(cache_[bag_idx].first.size() > cache_[bag_idx].second.size()) {
+                std::swap(cache_[bag_idx].first, cache_[bag_idx].second);
+            }
             std::vector<std::pair<Frontier, std::vector<Edge_weight>>> right_vector(cache_[bag_idx].second.begin(),cache_[bag_idx].second.end());
             std::sort(right_vector.begin(), right_vector.end());
+            // std::cerr << "Remaining: ";
+            // for(auto i = 0; i < remaining_edges_after_this_[bag_idx].size(); i++) {
+            //     std::cerr << size_t(remaining_edges_after_this_[bag_idx][i]) << " ";
+            // }
+            // std::cerr << std::endl;
+            // std::cerr << std::endl;
+            // for(size_t bucket = 0; bucket < cache_[bag_idx].first.bucket_count(); bucket++) {
+            //     for(auto task_it = cache_[bag_idx].first.begin(bucket); task_it != cache_[bag_idx].first.end(bucket); ++task_it) {
+            //         for(auto [frontier, result] : right_vector) {
+            //             prettyPrint(task_it->first);
+            //             prettyPrint(frontier);
+            //             auto left_copy = task_it->first;
+            //             auto right_copy = frontier;
+            //             auto left_result_copy = task_it->second;
+            //             auto right_result_copy = result;
+            //             if(merge(left_copy, right_copy, bag_idx, left_result_copy, right_result_copy)) {
+            //                 std::cerr << "Merged" << std::endl;
+            //             } else {
+            //                 std::cerr << "Not Merged" << std::endl;
+            //             }
+            //             std::vector<std::pair<Frontier, std::vector<Edge_weight>>> single = {std::make_pair(right_copy, right_result_copy)};
+            //             auto begin = single.begin();
+            //             auto end = single.end();
+            //             std::vector<frontier_index_t> cut_paths;
+            //             std::vector<frontier_index_t> paths;
+            //             bool found_solution = false;
+            //             auto left = task_it->first;
+            //             auto left_result = task_it->second;
+            //             mergeStep(left, bag_idx, 0, found_solution, cut_paths, paths, left_result, begin, end);
+            //         }
+            //     }
+            // }
+            // std::cerr << std::endl;
+            // continue;
             // JOIN
             // FIXME: check if its better to take either bag as the outer one
             #pragma omp parallel for default(shared) shared(merges_) shared(unsuccessful_merges_) shared(edges_) shared(propagations_) shared(bag_idx) shared(max_length_) shared(cache_) shared(decomposition_) shared(thread_local_result_) shared(pos_hits_) shared(neg_hits_) shared(bag_local_idx_map_) shared(bag_local_vertex_map_)
@@ -256,14 +304,20 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                         std::vector<Edge_weight> empty;
                         next.push_back(two_edge_index_);
                         auto middle = std::lower_bound(begin, end, std::make_pair(next, empty));
-                        mergeStep(left, bag_idx, 0, found_solution, cut_paths, paths, left_result, begin, middle);
-                        next.pop_back();
-                        next.push_back(no_edge_index_);
+                        auto value_it = begin;
+                        while(value_it != middle) {
+                            begin = value_it;
+                            frontier_index_t cur = begin->first[0];
+                            assert(cur < 252);
+                            next.back() = cur + 1;
+                            value_it = std::lower_bound(begin, middle, std::make_pair(next, empty));
+                            mergeStep(left, bag_idx, 0, found_solution, cut_paths, paths, left_result, begin, value_it);
+                        }
+                        next.back() = no_edge_index_;
                         begin = middle;
                         middle = std::lower_bound(middle, end, std::make_pair(next, empty));
                         mergeStep(left, bag_idx, 0, found_solution, cut_paths, paths, left_result, begin, middle);
-                        next.pop_back();
-                        next.push_back(invalid_index_);
+                        next.back() = invalid_index_;
                         begin = middle;
                         middle = std::lower_bound(middle, end, std::make_pair(next, empty));
                         mergeStep(left, bag_idx, 0, found_solution, cut_paths, paths, left_result, begin, middle);
@@ -275,8 +329,7 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                         next.push_back(no_edge_index_);
                         auto middle = std::lower_bound(begin, end, std::make_pair(next, empty));
                         mergeStep(left, bag_idx, 0, found_solution, cut_paths, paths, left_result, begin, middle);
-                        next.pop_back();
-                        next.push_back(invalid_index_);
+                        next.back() = invalid_index_;
                         begin = middle;
                         middle = std::lower_bound(middle, end, std::make_pair(next, empty));
                         mergeStep(left, bag_idx, 0, found_solution, cut_paths, paths, left_result, begin, middle);
@@ -919,15 +972,9 @@ void TreewidthSearch::mergeStep(
     size_t cut_paths_size = cut_paths.size();
     size_t paths_size = paths.size();
     auto const& right = begin->first;
-    std::cerr << std::endl;
-    for(size_t i = 0; i < left.size(); i++) {
-        std::cerr << size_t(left[i]) << " ";
-    }
-    std::cerr << std::endl;
-    for(size_t i = 0; i < right.size(); i++) {
-        std::cerr << size_t(right[i]) << " ";
-    }
-    std::cerr << std::endl;
+    // std::cerr << size_t(idx) << std::endl;
+    // prettyPrint(left);
+    // prettyPrint(right);
     // start goal case
     if(!is_all_pair_ && (bag_local_idx_map_[bag_idx][terminals_[0]] == idx || bag_local_idx_map_[bag_idx][terminals_[1]] == idx)) {
         assert(left[idx] == invalid_index_ || left[idx] == two_edge_index_);
@@ -1231,10 +1278,7 @@ void TreewidthSearch::mergeStep(
             }
         }
     }
-    for(size_t i = 0; i < left.size(); i++) {
-        std::cerr << size_t(left[i]) << " ";
-    }
-    std::cerr << std::endl;
+    // prettyPrint(left);
     if(idx + 1 < right.size()) {
         // proceed recursively
         if(right[idx + 1] <= 252) {
@@ -1243,14 +1287,20 @@ void TreewidthSearch::mergeStep(
             std::vector<Edge_weight> empty;
             next.push_back(two_edge_index_);
             auto middle = std::lower_bound(begin, end, std::make_pair(next, empty));
-            mergeStep(left, bag_idx, idx + 1, found_solution, cut_paths, paths, left_result, begin, middle);
-            next.pop_back();
-            next.push_back(no_edge_index_);
+            auto value_it = begin;
+            while(value_it != middle) {
+                begin = value_it;
+                frontier_index_t cur = begin->first[idx + 1];
+                assert(cur < 252);
+                next.back() = cur + 1;
+                value_it = std::lower_bound(begin, middle, std::make_pair(next, empty));
+                mergeStep(left, bag_idx, idx + 1, found_solution, cut_paths, paths, left_result, begin, value_it);
+            }
+            next.back() = no_edge_index_;
             begin = middle;
             middle = std::lower_bound(middle, end, std::make_pair(next, empty));
             mergeStep(left, bag_idx, idx + 1, found_solution, cut_paths, paths, left_result, begin, middle);
-            next.pop_back();
-            next.push_back(invalid_index_);
+            next.back() = invalid_index_;
             begin = middle;
             middle = std::lower_bound(middle, end, std::make_pair(next, empty));
             mergeStep(left, bag_idx, idx + 1, found_solution, cut_paths, paths, left_result, begin, middle);
@@ -1262,8 +1312,7 @@ void TreewidthSearch::mergeStep(
             next.push_back(no_edge_index_);
             auto middle = std::lower_bound(begin, end, std::make_pair(next, empty));
             mergeStep(left, bag_idx, idx + 1, found_solution, cut_paths, paths, left_result, begin, middle);
-            next.pop_back();
-            next.push_back(invalid_index_);
+            next.back() = invalid_index_;
             begin = middle;
             middle = std::lower_bound(middle, end, std::make_pair(next, empty));
             mergeStep(left, bag_idx, idx + 1, found_solution, cut_paths, paths, left_result, begin, middle);
@@ -1283,7 +1332,11 @@ void TreewidthSearch::mergeStep(
         // check if we want to keep the completely merged frontier
         // and if so merge
         assert(begin + 1 == end);
-        finalizeMerge(left, bag_idx, found_solution, cut_paths, paths, left_result, begin->second);
+        size_t thread_id = omp_get_thread_num();
+        merges_[thread_id]++;
+        if(!finalizeMerge(left, bag_idx, found_solution, cut_paths, paths, left_result, begin->second)) {
+            unsuccessful_merges_[thread_id]++;
+        }
     }
     restoreStep(left, cut_paths, paths, restore, cut_paths_size, paths_size);
 }
@@ -1292,9 +1345,9 @@ bool TreewidthSearch::finalizeMerge(
       Frontier left,
       size_t bag_idx,
       bool found_solution,
-      std::vector<frontier_index_t>& cut_paths,
-      std::vector<frontier_index_t>& paths,
-      std::vector<Edge_weight>& left_result,
+      std::vector<frontier_index_t> const& cut_paths,
+      std::vector<frontier_index_t> const& paths,
+      std::vector<Edge_weight> const& left_result,
       std::vector<Edge_weight> const& right_result
     ) {
     bool left_empty = left_result[0] == 0;
