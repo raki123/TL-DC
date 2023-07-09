@@ -28,9 +28,9 @@ class TreewidthSearch {
     std::vector<Edge_weight> search();
     void print_stats();
 
-  static const frontier_index_t invalid_index_ = std::numeric_limits<frontier_index_t>::max();
-  static const frontier_index_t no_edge_index_ = std::numeric_limits<frontier_index_t>::max() - 1;
-  static const frontier_index_t two_edge_index_ = std::numeric_limits<frontier_index_t>::max() - 2;
+  const frontier_index_t invalid_index_ = std::numeric_limits<frontier_index_t>::max();
+  const frontier_index_t no_edge_index_ = std::numeric_limits<frontier_index_t>::max() - 1;
+  const frontier_index_t two_edge_index_ = std::numeric_limits<frontier_index_t>::max() - 2;
   private:
     size_t nthreads_;
     Graph graph_;
@@ -88,6 +88,38 @@ class TreewidthSearch {
     void take(Frontier& frontier, size_t bag_idx);
     void skip(Frontier& frontier, size_t bag_idx);
 
+    using block_iter = std::vector<std::pair<Frontier, std::vector<Edge_weight>>>::const_iterator;
+
+    void restoreStep(
+      Frontier &left, 
+      std::vector<frontier_index_t>& cut_paths,
+      std::vector<frontier_index_t>& paths,
+      std::vector<std::pair<frontier_index_t, frontier_index_t>> restore,
+      size_t cut_paths_size,
+      size_t paths_size
+    );
+
+    void mergeStep(
+      Frontier &left,
+      size_t bag_idx,
+      frontier_index_t idx,
+      bool found_solution,
+      std::vector<frontier_index_t>& cut_paths,
+      std::vector<frontier_index_t>& paths,
+      std::vector<Edge_weight>& left_result,
+      block_iter begin,
+      block_iter end
+    );
+
+    bool finalizeMerge(
+      Frontier left,
+      size_t bag_idx,
+      bool found_solution,
+      std::vector<frontier_index_t>& cut_paths,
+      std::vector<frontier_index_t>& paths,
+      std::vector<Edge_weight>& left_result,
+      std::vector<Edge_weight> const& right_result
+    );
     bool merge(Frontier& left, Frontier const& right, size_t bag_idx, std::vector<Edge_weight>& left_result, std::vector<Edge_weight> const& right_result);
 
     void advance(Frontier& frontier, size_t bag_idx);
