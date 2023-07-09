@@ -1278,6 +1278,27 @@ void TreewidthSearch::mergeStep(
             }
         }
     }
+    if(found_solution && (left_result[0] == 0 || paths.size() + cut_paths.size() != 0)) {
+        restoreStep(left, cut_paths, paths, restore, cut_paths_size, paths_size);
+        return;
+    }
+
+    if(cut_paths.size() > 2) {
+        restoreStep(left, cut_paths, paths, restore, cut_paths_size, paths_size);
+        return;
+    }
+
+    // - 1 since have to take one edge less
+    if(paths.size()/2 + cut_paths.size() > 1) {
+        if(paths.size()/2 + cut_paths.size() + left_result[0] > max_length_ + 1) {
+            restoreStep(left, cut_paths, paths, restore, cut_paths_size, paths_size);
+            return;
+        }
+    } else if(paths.size()/2 + cut_paths.size() + left_result[0] > max_length_) {
+        restoreStep(left, cut_paths, paths, restore, cut_paths_size, paths_size);
+        return;
+    }
+
     // prettyPrint(left);
     if(idx + 1 < right.size()) {
         // proceed recursively
