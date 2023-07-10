@@ -130,10 +130,14 @@ void Graph::print_stats() {
     }
 }
 
-void Graph::normalize() {
+void Graph::normalize(bool for_nauty) {
     Vertex unnamed = std::numeric_limits<Vertex>::max();
     std::vector<Vertex> new_name(adjacency_.size(), unnamed);
     Vertex cur_name = 0;
+    if(for_nauty && !all_pair_) {
+        new_name[terminals_[0]] = cur_name++;
+        new_name[terminals_[1]] = cur_name++;
+    }
     for(Vertex v = 0; v < adjacency_.size(); v++) {
         if(neighbors(v).empty()) {
             continue;
@@ -167,7 +171,7 @@ void Graph::normalize() {
 }
 
 sparsegraph Graph::to_canon_nauty() {
-    normalize();
+    normalize(true);
     DEFAULTOPTIONS_SPARSEGRAPH(options);
     options.getcanon = true;
     options.defaultptn = false;
