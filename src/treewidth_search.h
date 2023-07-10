@@ -11,15 +11,24 @@ namespace fpc {
 
 typedef uint8_t frontier_index_t;
 typedef std::vector<frontier_index_t> Frontier;
+typedef std::pair<sparsegraph, Frontier> TWCacheKey;
 
-struct vec_hash {
+struct twc_hash {
 public:
-    size_t operator()(Frontier const& key) const {
-        return hasher__(key);
+    size_t operator()(TWCacheKey const& key) const {
+      auto const& sg = key.first;
+      return hasher__((const char *)sg.v, sizeof(edge_t)*(sg.nv + sg.nde) + sizeof(degree_t)*sg.nv);
     }  
 };
+struct twc_equal {
+public:
+    bool operator()(TWCacheKey const& lhs, TWCacheKey const& rhs) const {
+        return lhs.first.nv == rhs.first.nv && lhs.first.nde == rhs.first.nde && std::memcmp(lhs.first.v, rhs.first.v, sizeof(edge_t)*(lhs.first.nv + lhs.first.nde) + sizeof(degree_t)*lhs.first.nv) == 0;
+    }
+};
 
-typedef std::unordered_map<Frontier, std::vector<Edge_weight>, vec_hash> Cache;
+
+typedef std::unordered_map<TWCacheKey, std::vector<Edge_weight>, twc_hash, twc_equal> Cache;
 
 class TreewidthSearch {
   public:
@@ -124,6 +133,8 @@ class TreewidthSearch {
     bool merge(Frontier& left, Frontier const& right, size_t bag_idx, std::vector<Edge_weight>& left_result, std::vector<Edge_weight> const& right_result);
 
     void advance(Frontier& frontier, size_t bag_idx);
+
+    sparsegraph construct_sparsegraph(Frontier const& frontier, size_t last_idx);
 
         // stats
     std::vector<size_t> pos_hits_;
