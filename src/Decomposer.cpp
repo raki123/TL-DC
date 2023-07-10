@@ -14,7 +14,7 @@ Decomposer::Decomposer(const char* const decomposer, const char* const path_deco
 }
 
 
-#define BUF_SIZE 1024
+#define BUF_SIZE 4096
 
 std::pair<int, int> Decomposer::insertEdges(AnnotatedDecomposition& r, std::vector<vertex_t>& bag, std::vector<Edge>& edges,  std::set<Edge>&used, size_t child, NodeType type, bool join)
 {
