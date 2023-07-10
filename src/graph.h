@@ -46,6 +46,9 @@ class Graph {
 
     std::vector<vertex_t> terminals() { return terminals_; }
 
+    size_t nr_vertices();
+    size_t nr_edges();
+
     sparsegraph to_canon_nauty();
     private:
     Edge_length max_length_;

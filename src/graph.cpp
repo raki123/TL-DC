@@ -170,6 +170,25 @@ void Graph::normalize(bool for_nauty) {
     }
 }
 
+size_t Graph::nr_vertices() {
+    size_t ret = 0;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(!neighbors(v).empty()) {
+            ret++;
+        }
+    }
+    return ret;
+}
+
+size_t Graph::nr_edges() {
+    size_t nr_edges = 0;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        nr_edges += neighbors(v).size();
+    }
+    assert(nr_edges % 2 == 0);
+    return nr_edges/2;
+}
+
 sparsegraph Graph::to_canon_nauty() {
     normalize(true);
     DEFAULTOPTIONS_SPARSEGRAPH(options);

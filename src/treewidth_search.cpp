@@ -30,6 +30,7 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
             std::vector<frontier_index_t>(graph_.adjacency_.size(), invalid_index_)),
         bag_local_vertex_map_(decomposition_.size()),
         bag_local_distance_(decomposition_.size()),
+        sparsegraph_after_this_(decomposition_.size()),
         result_(max_length_ + 1, 0),
         thread_local_result_(
             nthreads_,
@@ -43,6 +44,7 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
         merges_(nthreads_, 0),
         unsuccessful_merges_(nthreads_, 0) {
     
+    sparsegraph initial_sg = graph_.to_canon_nauty();
     omp_set_num_threads(nthreads_);
 
     if(!is_all_pair_) {
@@ -195,6 +197,55 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
             }
             bag_local_distance_[bag_idx][idx[v]] = local_distance;
         }
+        auto &sg = sparsegraph_after_this_[bag_idx];
+        SG_INIT(sg);
+        size_t nr_vertices = cur_graph.nr_vertices();
+        if(node.type != NodeType::JOIN) {
+            if(cur_graph.neighbors(node.edge.first).empty()) {
+                nr_vertices++;
+            }
+            if(cur_graph.neighbors(node.edge.second).empty()) {
+                nr_vertices++;
+            }
+        }
+        size_t nr_edges = 2*cur_graph.nr_edges();
+        nr_edges += node.bag.size();
+        std::vector<size_t> new_name(graph_.adjacency_.size(), size_t(-1));
+        std::vector<size_t> reverse(nr_vertices, size_t(-1));
+        size_t cur_name = node.bag.size();
+        for(auto v : node.bag) {
+            new_name[v] = bag_local_idx_map_[bag_idx][v];
+            reverse[new_name[v]] = v;
+        }
+        for(Vertex v = 0; v < graph_.adjacency_.size(); v++) {
+            if(cur_graph.neighbors(v).empty() && v != node.edge.first && v != node.edge.second) {
+                continue;
+            }         
+            if(new_name[v] == size_t(-1)) {
+                new_name[v] = cur_name++;
+                reverse[new_name[v]] = v;
+            }
+        }
+        sg.v = (edge_t *)malloc(sizeof(edge_t)*(nr_vertices + nr_edges) + sizeof(degree_t)*nr_vertices);
+        sg.d = (degree_t *)(sg.v + nr_vertices);
+        sg.e = (edge_t *)(sg.d + nr_vertices);
+        sg.vlen = nr_vertices;
+        sg.dlen = nr_vertices;
+        sg.elen = nr_edges;
+        size_t cur_e_idx = 0;
+        for(size_t idx = 0; idx < nr_vertices; idx++) {
+            size_t v = reverse[idx];
+            assert(v != size_t(-1));
+            sg.v[idx] = cur_e_idx;
+            for(auto w : cur_graph.neighbors(v)) {
+                sg.e[cur_e_idx++] = new_name[w];
+            }
+            sg.d[idx] = cur_e_idx - sg.v[idx];
+            if(idx < node.bag.size()) {
+                cur_e_idx++;
+            }
+        }
+        assert(cur_e_idx == nr_edges);
     }
     for(vertex_t v = 0; v < graph_.adjacency_.size(); v++) {
         if(cur_graph.neighbors(v).size() != 0) {

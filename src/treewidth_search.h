@@ -44,6 +44,7 @@ class TreewidthSearch {
     std::vector<std::vector<vertex_t>> bag_local_vertex_map_;
     Edge_length invalid_distance_ = std::numeric_limits<Edge_length>::max();
     std::vector<std::vector<std::vector<Edge_length>>> bag_local_distance_;
+    std::vector<sparsegraph> sparsegraph_after_this_;
 
     std::vector<Edge_weight> result_;
     std::vector<std::vector<Edge_weight>> thread_local_result_;
