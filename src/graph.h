@@ -38,7 +38,7 @@ class Graph {
 
     std::vector<Edge_weight> extra_paths() { return extra_paths_; }
 
-    void normalize();
+    void normalize(bool for_nauty = false);
 
     bool is_all_pair() { return all_pair_; }
 
