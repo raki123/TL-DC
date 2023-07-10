@@ -35,10 +35,14 @@ int main() {
     details(t_max_bagsize, t_nr_bags, max_join_child, max_join, nr_joins);
 
 
+    bool is_all_pair = initial_graph.is_all_pair(), use_pw = false;
+    
     AnnotatedDecomposition* r = &rt;
 
-    if (max_bagsize <= max_join_child + 1)
+    if ((!is_all_pair && max_bagsize < 19) || (is_all_pair && max_bagsize < 22))
+    //if (max_bagsize <= max_join_child + 1)
     {
+    	use_pw = true;
         r = &rp;
 	std::cerr << "fallback to PD " << std::endl;
     }
@@ -47,8 +51,7 @@ int main() {
     auto &r2 = *r;
 
     std::vector<Edge_weight> res;
-    bool use_treewidth = initial_graph.is_all_pair();
-    if(use_treewidth) {
+    if (is_all_pair || use_pw || max_join_child < 19) {
         fpc::TreewidthSearch search(initial_graph, r2, 4);
         res = search.search();
         search.print_stats();
