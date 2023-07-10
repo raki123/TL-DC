@@ -13,8 +13,7 @@ int main() {
     fpc::Graph initial_graph(std::cin);
     initial_graph.preprocess();
     initial_graph.normalize();
-    initial_graph.print_stats();
-
+    // initial_graph.print_stats();
 
     size_t max_bagsize, nr_bags;
     size_t t_max_bagsize, max_join_child, max_join, nr_joins, t_nr_bags;
@@ -24,16 +23,18 @@ int main() {
     //path
     auto rp = std::move(d.tree_decompose(initial_graph, true, &max_bagsize, &nr_bags));
 
-    std::cerr << "PATH: ";
-    details(max_bagsize, nr_bags, 0, 0, 0);
+    // std::cerr << "PATH: ";
+    // details(max_bagsize, nr_bags, 0, 0, 0);
 
     //tree
     auto rt = std::move(d.tree_decompose(initial_graph, false, &t_max_bagsize, &t_nr_bags, &max_join_child, &max_join, &nr_joins));
+    std::cout << max_join_child << " ";
+    std::cout << size_t(initial_graph.max_length()) << " ";
+    std::cout << size_t(initial_graph.min_length()) << std::endl;
+    // std::cerr << "TREE: ";
+    // details(t_max_bagsize, t_nr_bags, max_join_child, max_join, nr_joins);
 
-    std::cerr << "TREE: ";
-    details(t_max_bagsize, t_nr_bags, max_join_child, max_join, nr_joins);
-
-
+    return 0;
     AnnotatedDecomposition* r = &rt;
 
     if (max_bagsize <= max_join_child + 1)

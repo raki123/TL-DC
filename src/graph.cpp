@@ -130,6 +130,14 @@ void Graph::print_stats() {
     }
 }
 
+Edge_length Graph::min_length() {
+    if(all_pair_) { return 1; }
+
+    std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[1], distance_to_goal, {});
+    return distance_to_goal[terminals_[0]];
+}
+
 void Graph::normalize() {
     Vertex unnamed = std::numeric_limits<Vertex>::max();
     std::vector<Vertex> new_name(adjacency_.size(), unnamed);

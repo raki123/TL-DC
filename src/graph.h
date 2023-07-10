@@ -43,6 +43,7 @@ class Graph {
     bool is_all_pair() { return all_pair_; }
 
     Edge_length max_length() { return max_length_; }
+    Edge_length min_length();
 
     std::vector<vertex_t> terminals() { return terminals_; }
 

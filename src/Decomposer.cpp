@@ -14,7 +14,7 @@ Decomposer::Decomposer(const char* const decomposer, const char* const path_deco
 }
 
 
-#define BUF_SIZE 1024
+#define BUF_SIZE 4096
 
 std::pair<int, int> Decomposer::insertEdges(AnnotatedDecomposition& r, std::vector<vertex_t>& bag, std::vector<Edge>& edges,  std::set<Edge>&used, size_t child, NodeType type, bool join)
 {
@@ -452,6 +452,7 @@ Decomposer::decompose(/*const*/ Graph& graph, bool path)
 			//std::cerr << "read " << std::endl;
 			//sscanf(buf, "s td %d %d %d\n", &bags, &width, &verts);
 			std::cerr << "TD with " << bags << " bags, width " << width << " and " << verts << " vertices" << std::endl;
+			std::cout << width << " ";
 			int b = 1;
 			for (; b <= bags && fgets(buf, BUF_SIZE-1, fout) != NULL; ++b)
 			{
