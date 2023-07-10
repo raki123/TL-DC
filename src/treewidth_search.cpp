@@ -228,6 +228,8 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
         sg.v = (edge_t *)calloc(sizeof(edge_t)*(nr_vertices + nr_edges) + sizeof(degree_t)*nr_vertices,1);
         sg.d = (degree_t *)(sg.v + nr_vertices);
         sg.e = (edge_t *)(sg.d + nr_vertices);
+        sg.nv = nr_vertices;
+        sg.nde = nr_edges - node.bag.size();
         sg.vlen = nr_vertices;
         sg.dlen = nr_vertices;
         sg.elen = nr_edges;
@@ -1800,12 +1802,24 @@ sparsegraph TreewidthSearch::construct_sparsegraph(Frontier const& frontier, siz
     sg.dlen = base_sg.vlen;
     sg.elen = base_sg.elen;
     std::memcpy(sg.v, base_sg.v, sizeof(edge_t)*(base_sg.vlen + base_sg.elen) + sizeof(degree_t)*base_sg.dlen);
+    // std::cout << sg.nv << " " << sg.nde << std::endl;
+    // std::cout << sg.vlen << " " << sg.dlen << " " << sg.elen << std::endl;
+    // size_t e_count = 0;
+    // for(size_t v = 0; v < sg.nv; v++) {
+    //     std::vector<int> neighs(sg.nv, 0);
+    //     for(size_t i = sg.v[v]; i < sg.v[v] + sg.d[v]; i++) {
+    //         neighs[sg.e[i]] = 1;
+    //         e_count++;
+    //     }
+    //     for(size_t i = 0; i < sg.nv; i++) {
+    //         std::cout << neighs[i];
+    //     }
+    //     std::cout << std::endl;
+    // }
+    // std::cout << std::endl;
     int *lab = (int *)malloc(sizeof(int)*sg.nv);
     int *ptn = (int *)malloc(sizeof(int)*sg.nv);
     int *orbits = (int *)malloc(sizeof(int)*sg.nv);
-    ptn[0] = 0;
-    ptn[1] = 0;
-    std::fill(ptn + 2, ptn + sg.nv, 1);
     int cur_lab_idx = 0;
     int cur_reverse_lab_idx = decomposition_[last_idx].bag.size() - 1;
     std::vector<frontier_index_t> to_remove;
@@ -1821,8 +1835,8 @@ sparsegraph TreewidthSearch::construct_sparsegraph(Frontier const& frontier, siz
         }
         if(frontier[idx] == no_edge_index_) {
             // old_v_idx is like any other vertex in the graph
-            assert(cur_reverse_lab_idx > 0);
-            assert(cur_reverse_lab_idx > cur_lab_idx);
+            assert(cur_reverse_lab_idx >= 0);
+            assert(cur_reverse_lab_idx >= cur_lab_idx);
             ptn[cur_reverse_lab_idx] = 1;
             lab[cur_reverse_lab_idx--] = old_v_idx;
         } else if(frontier[idx] == two_edge_index_) {
@@ -1841,11 +1855,13 @@ sparsegraph TreewidthSearch::construct_sparsegraph(Frontier const& frontier, siz
             auto w = bag_local_vertex_map_[bag_idx][frontier[idx]];
             auto old_w_idx = bag_local_idx_map_[last_idx][w];
             assert(old_w_idx != invalid_index_);
-            sg.nde += 2;
-            sg.e[sg.v[old_v_idx] + sg.d[old_v_idx]] = old_w_idx;
-            sg.e[sg.v[old_w_idx] + sg.d[old_w_idx]] = old_v_idx;
-            sg.d[old_v_idx]++;
-            sg.d[old_w_idx]++;
+            if(std::find(&sg.e[sg.v[old_v_idx]], &sg.e[sg.v[old_v_idx] + sg.d[old_v_idx]], old_w_idx) == &sg.e[sg.v[old_v_idx] + sg.d[old_v_idx]]) {
+                sg.nde += 2;
+                sg.e[sg.v[old_v_idx] + sg.d[old_v_idx]] = old_w_idx;
+                sg.e[sg.v[old_w_idx] + sg.d[old_w_idx]] = old_v_idx;
+                sg.d[old_v_idx]++;
+                sg.d[old_w_idx]++;
+            }
             active.push_back(old_v_idx);
             active.push_back(old_w_idx);
         }
@@ -1894,9 +1910,34 @@ sparsegraph TreewidthSearch::construct_sparsegraph(Frontier const& frontier, siz
         sg.nde -= 2*sg.d[old_v_idx];
         sg.d[old_v_idx] = 0;
     }
+    // std::cout << sg.nv << " " << sg.nde << std::endl;
+    // std::cout << sg.vlen << " " << sg.dlen << " " << sg.elen << std::endl;
+    // e_count = 0;
+    // for(size_t v = 0; v < sg.nv; v++) {
+    //     std::vector<int> neighs(sg.nv, 0);
+    //     for(size_t i = sg.v[v]; i < sg.v[v] + sg.d[v]; i++) {
+    //         neighs[sg.e[i]] = 1;
+    //         e_count++;
+    //     }
+    //     for(size_t i = 0; i < sg.nv; i++) {
+    //         std::cout << neighs[i];
+    //     }
+    //     std::cout << std::endl;
+    // }
+    // for(size_t v = 0; v < sg.nv; v++) {
+    //     std::cout << lab[v] << " ";
+    // }
+    // std::cout << std::endl;
+    // for(size_t v = 0; v < sg.nv; v++) {
+    //     std::cout << ptn[v] << " ";
+    // }
+    // std::cout << std::endl;
+    // assert(e_count == sg.nde);
     DEFAULTOPTIONS_SPARSEGRAPH(options);
     options.getcanon = true;
     options.defaultptn = false;
+    // options.schreier = true;
+    // options.tc_level = 1000;
     statsblk stats;
     SG_DECL(canon_sg);
     canon_sg.v = (edge_t *)malloc(sizeof(edge_t)*(sg.nv + sg.nde) + sizeof(degree_t)*sg.nv);

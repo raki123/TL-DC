@@ -49,7 +49,7 @@ int main() {
     std::vector<Edge_weight> res;
     bool use_treewidth = initial_graph.is_all_pair();
     if(use_treewidth) {
-        fpc::TreewidthSearch search(initial_graph, r2, 4);
+        fpc::TreewidthSearch search(initial_graph, r2, 1);
         res = search.search();
         search.print_stats();
     } else {
