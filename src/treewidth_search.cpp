@@ -199,23 +199,21 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
         auto &sg = sparsegraph_after_this_[bag_idx];
         SG_INIT(sg);
         size_t nr_vertices = cur_graph.nr_vertices();
-        if(node.type != NodeType::JOIN) {
-            if(cur_graph.neighbors(node.edge.first).empty()) {
-                nr_vertices++;
-            }
-            if(cur_graph.neighbors(node.edge.second).empty()) {
+        for(auto v : node.bag) {
+            if(cur_graph.neighbors(v).empty()) {
                 nr_vertices++;
             }
         }
+        nr_vertices += node.bag.size();
         size_t nr_edges = 2*cur_graph.nr_edges();
-        nr_edges += node.bag.size();
+        nr_edges += 3*node.bag.size();
         std::vector<size_t> new_name(graph_.adjacency_.size(), size_t(-1));
         std::vector<size_t> reverse(nr_vertices, size_t(-1));
-        size_t cur_name = node.bag.size();
         for(auto v : node.bag) {
-            new_name[v] = bag_local_idx_map_[bag_idx][v];
+            new_name[v] = bag_local_idx_map_[bag_idx][v] + node.bag.size();
             reverse[new_name[v]] = v;
         }
+        size_t cur_name = 2*node.bag.size();
         for(Vertex v = 0; v < graph_.adjacency_.size(); v++) {
             if(cur_graph.neighbors(v).empty()) {// && v != node.edge.first && v != node.edge.second) {
                 continue;
@@ -229,12 +227,17 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
         sg.d = (degree_t *)(sg.v + nr_vertices);
         sg.e = (edge_t *)(sg.d + nr_vertices);
         sg.nv = nr_vertices;
-        sg.nde = nr_edges - node.bag.size();
+        sg.nde = nr_edges - 3*node.bag.size();
         sg.vlen = nr_vertices;
         sg.dlen = nr_vertices;
         sg.elen = nr_edges;
         size_t cur_e_idx = 0;
-        for(size_t i = 0; i < nr_vertices; i++) {
+        for(size_t i = 0; i < node.bag.size(); i++) {
+            sg.v[i] = cur_e_idx;
+            sg.d[i] = 0;
+            cur_e_idx += 2;
+        }
+        for(size_t i = node.bag.size(); i < nr_vertices; i++) {
             size_t v = reverse[i];
             assert(v != size_t(-1));
             sg.v[i] = cur_e_idx;
@@ -242,7 +245,7 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
                 sg.e[cur_e_idx++] = new_name[w];
             }
             sg.d[i] = cur_e_idx - sg.v[i];
-            if(i < node.bag.size()) {
+            if(i < 2*node.bag.size()) {
                 cur_e_idx++;
             }
         }
@@ -286,14 +289,17 @@ std::vector<Edge_weight> TreewidthSearch::search() {
         }
         if(decomposition_[bag_idx].type == LEAF || decomposition_[bag_idx].type == PATH_LIKE) {
             // PATH_LIKE/LEAF
-            #pragma omp parallel for default(shared) shared(edges_) shared(propagations_) shared(bag_idx) shared(max_length_) shared(cache_) shared(decomposition_) shared(thread_local_result_) shared(pos_hits_) shared(neg_hits_) shared(bag_local_idx_map_) shared(bag_local_vertex_map_)
+            #pragma omp parallel for default(shared) //shared(edges_) shared(propagations_) shared(bag_idx) shared(max_length_) shared(cache_) shared(decomposition_) shared(thread_local_result_) shared(pos_hits_) shared(neg_hits_) shared(bag_local_idx_map_) shared(bag_local_vertex_map_)
             for(size_t bucket = 0; bucket < cache_[bag_idx].first.bucket_count(); bucket++) {
                 size_t thread_id = omp_get_thread_num();
                 for(auto task_it = cache_[bag_idx].first.begin(bucket); task_it != cache_[bag_idx].first.end(bucket); ++task_it) {
                     auto copy_frontier = task_it->first.second;
                     auto copy_result = task_it->second;
                     propagateLoop(copy_frontier, bag_idx, -1, copy_result, true, false, thread_id);
-                    propagateLoop(const_cast<Frontier&>(task_it->first.second), bag_idx, -1, const_cast<std::vector<Edge_weight>&>(task_it->second), false, true, thread_id);
+                    copy_frontier = task_it->first.second;
+                    copy_result = task_it->second;
+                    propagateLoop(copy_frontier, bag_idx, -1, copy_result, false, true, thread_id);
+                    free(task_it->first.first.v);
                 }
             }
         } else {
@@ -1820,10 +1826,8 @@ sparsegraph TreewidthSearch::construct_sparsegraph(Frontier const& frontier, siz
     int *lab = (int *)malloc(sizeof(int)*sg.nv);
     int *ptn = (int *)malloc(sizeof(int)*sg.nv);
     int *orbits = (int *)malloc(sizeof(int)*sg.nv);
-    int cur_lab_idx = 0;
-    int cur_reverse_lab_idx = decomposition_[last_idx].bag.size() - 1;
     std::vector<frontier_index_t> to_remove;
-    std::vector<frontier_index_t> active;
+    size_t offset = decomposition_[last_idx].bag.size();
     // now sg is just a copy of base_sg
     // we add the edges of the frontier 
     for(frontier_index_t idx = 0; idx < frontier.size(); idx++) {
@@ -1834,81 +1838,68 @@ sparsegraph TreewidthSearch::construct_sparsegraph(Frontier const& frontier, siz
             continue;
         }
         if(frontier[idx] == no_edge_index_) {
-            // old_v_idx is like any other vertex in the graph
-            assert(cur_reverse_lab_idx >= 0);
-            assert(cur_reverse_lab_idx >= cur_lab_idx);
-            ptn[cur_reverse_lab_idx] = 1;
-            lab[cur_reverse_lab_idx--] = old_v_idx;
+            // dont do anything
         } else if(frontier[idx] == two_edge_index_) {
-            // after removing the edges with old_v this is like any other vertex in the graph
-            assert(cur_reverse_lab_idx > 0);
-            assert(cur_reverse_lab_idx > cur_lab_idx);
-            ptn[cur_reverse_lab_idx] = 1;
-            lab[cur_reverse_lab_idx--] = old_v_idx;
+            // remove adjacent
             to_remove.push_back(old_v_idx);
         } else if(frontier[idx] == invalid_index_) {
-            // add old_v_idx to invalid_index partition
-            ptn[cur_lab_idx] = 1;
-            lab[cur_lab_idx++] = old_v_idx;
+            // single connect fake node to real node
+            assert(sg.d[old_v_idx] == 0);
+            assert(sg.e[sg.v[old_v_idx]] == 0);
+            sg.e[sg.v[old_v_idx]] = old_v_idx + offset;
+            sg.d[old_v_idx]++;
+            assert(sg.d[old_v_idx + offset] > 0);
+            assert(sg.e[sg.v[old_v_idx + offset] + sg.d[old_v_idx + offset]] == 0);
+            sg.e[sg.v[old_v_idx + offset] + sg.d[old_v_idx + offset]] = old_v_idx;
+            sg.d[old_v_idx + offset]++;
+            sg.nde += 2;
         } else if(idx < frontier[idx]) {
-            // add the edge
+            // add the edges
             auto w = bag_local_vertex_map_[bag_idx][frontier[idx]];
             auto old_w_idx = bag_local_idx_map_[last_idx][w];
             assert(old_w_idx != invalid_index_);
-            if(std::find(&sg.e[sg.v[old_v_idx]], &sg.e[sg.v[old_v_idx] + sg.d[old_v_idx]], old_w_idx) == &sg.e[sg.v[old_v_idx] + sg.d[old_v_idx]]) {
-                sg.nde += 2;
-                sg.e[sg.v[old_v_idx] + sg.d[old_v_idx]] = old_w_idx;
-                sg.e[sg.v[old_w_idx] + sg.d[old_w_idx]] = old_v_idx;
-                sg.d[old_v_idx]++;
-                sg.d[old_w_idx]++;
-            }
-            active.push_back(old_v_idx);
-            active.push_back(old_w_idx);
+            sg.nde += 4;
+            assert(sg.e[sg.v[old_v_idx] + sg.d[old_v_idx]] == 0);
+            sg.e[sg.v[old_v_idx] + sg.d[old_v_idx]++] = old_w_idx + offset;
+            assert(sg.e[sg.v[old_v_idx] + sg.d[old_v_idx]] == 0);
+            sg.e[sg.v[old_v_idx] + sg.d[old_v_idx]++] = old_v_idx + offset;
+            assert(sg.e[sg.v[old_v_idx + offset] + sg.d[old_v_idx + offset]] == 0);
+            assert(sg.e[sg.v[old_w_idx + offset] + sg.d[old_w_idx + offset]] == 0);
+            sg.e[sg.v[old_v_idx + offset] + sg.d[old_v_idx + offset]++] = old_v_idx;
+            sg.e[sg.v[old_w_idx + offset] + sg.d[old_w_idx + offset]++] = old_v_idx;
         }
-    }
-    if(cur_lab_idx > 0) {
-        // mark the end of the invalid_idx partition
-        ptn[cur_lab_idx - 1] = 0;
-    }
-    // mark all active vertices as the same
-    for(auto old_v_idx : active) {
-        ptn[cur_lab_idx] = 1;
-        lab[cur_lab_idx++] = old_v_idx;
     }
 
-    // we might have removed the last two vertices with the edge
-    // FIXME do this based on the edge instead
-    for(size_t idx = 0; idx < remaining_edges_after_this_[last_idx].size(); idx++) {
-        if(remaining_edges_after_this_[last_idx][idx] == 0) {
-            ptn[cur_reverse_lab_idx] = 1;
-            lab[cur_reverse_lab_idx--] = idx;
-        }
-    }
-    assert(cur_lab_idx == cur_reverse_lab_idx + 1);
-    if(cur_lab_idx > 0) {
-        // mark the end of the active vertices
-        ptn[cur_lab_idx - 1] = 0;
-    }
-    for(size_t j = decomposition_[last_idx].bag.size(); j < sg.nv; j++) {
+    for(size_t j = 0; j < sg.nv; j++) {
         lab[j] = j;
         ptn[j] = 1;
     }
+    ptn[offset - 1] = 0;
     // remove the edges that are incident to two_edge vertices
     for(auto old_v_idx : to_remove) {
+        auto actual = old_v_idx + offset;
         // for all neighbors remove old_v_idx
-        for(size_t i = 0; i < sg.d[old_v_idx]; i++) {
-            auto neigh = sg.e[sg.v[old_v_idx] + i];
+        for(size_t i = 0; i < sg.d[actual]; i++) {
+            auto neigh = sg.e[sg.v[actual] + i];
             for(size_t j = 0; j < sg.d[neigh]; j++) {
-                if(sg.e[sg.v[neigh] + j] == old_v_idx) {
+                if(sg.e[sg.v[neigh] + j] == actual) {
                     std::swap(sg.e[sg.v[neigh] + j], sg.e[sg.v[neigh] + sg.d[neigh] - 1]);
                     sg.e[sg.v[neigh] + --sg.d[neigh]] = 0;
                     break;
                 }
             }
-            sg.e[sg.v[old_v_idx] + i] = 0;
+            sg.e[sg.v[actual] + i] = 0;
         }
-        sg.nde -= 2*sg.d[old_v_idx];
-        sg.d[old_v_idx] = 0;
+        sg.nde -= 2*sg.d[actual];
+        sg.d[actual] = 0;
+        assert(sg.d[old_v_idx] == 0);
+        assert(sg.e[sg.v[old_v_idx]] == 0);
+        sg.e[sg.v[old_v_idx]] = actual;
+        sg.d[old_v_idx]++;
+        assert(sg.e[sg.v[actual]] == 0);
+        sg.e[sg.v[actual]] = old_v_idx;
+        sg.d[actual]++;
+        sg.nde += 2;
     }
     // std::cout << sg.nv << " " << sg.nde << std::endl;
     // std::cout << sg.vlen << " " << sg.dlen << " " << sg.elen << std::endl;
