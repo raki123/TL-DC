@@ -355,6 +355,7 @@ std::vector<Edge_weight> TreewidthSearch::search() {
             for(size_t bucket = 0; bucket < cache_[bag_idx].first.bucket_count(); bucket++) {
                 size_t thread_id = omp_get_thread_num();
                 for(auto task_it = cache_[bag_idx].first.begin(bucket); task_it != cache_[bag_idx].first.end(bucket); ++task_it) {
+                    free(task_it->first.first.v);
                     if(right_vector.size() == 0) {
                         continue;
                     }
@@ -492,6 +493,9 @@ std::vector<Edge_weight> TreewidthSearch::search() {
             result_[length] += thread_local_result_[id][length];
         }
     }
+    for(size_t bag_idx = 0; bag_idx < decomposition_.size(); bag_idx++) {
+        free(sparsegraph_after_this_[bag_idx].v);
+    }
     std::cerr << std::endl;
     return result_;
 }
@@ -580,6 +584,7 @@ void TreewidthSearch::propagateLoop(Frontier &frontier, size_t bag_idx, size_t l
                 std::make_pair(std::make_pair(sg,frontier), partial_results)
             );
             if(!ins.second) {
+                free(sg.v);
                 pos_hits_[thread_id]++;
                 // there is already an element with that key
                 // instead increase the partial result for that key
@@ -617,6 +622,7 @@ void TreewidthSearch::propagateLoop(Frontier &frontier, size_t bag_idx, size_t l
                 std::make_pair(std::make_pair(sg,frontier), partial_results)
             );
             if(!ins.second) {
+                free(sg.v);
                 pos_hits_[thread_id]++;
                 // there is already an element with that key
                 // instead increase the partial result for that key
