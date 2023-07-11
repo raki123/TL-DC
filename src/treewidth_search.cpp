@@ -272,7 +272,6 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
             std::vector<Edge_weight> initial_result = {0, 1};
             auto sg = construct_sparsegraph(initial_frontier, size_t(-1));
             cache_[bag_idx].first[std::make_pair(sg, initial_frontier)] = initial_result;
-            includeSolutions(initial_frontier, bag_idx, initial_result);
         }
     }
 }
@@ -523,6 +522,19 @@ void TreewidthSearch::propagateLoop(Frontier &frontier, size_t bag_idx, size_t l
         if(takeable) {
             take(frontier, new_idx);
             partial_results[0]++;
+            size_t paths = 0;
+            for(frontier_index_t idx : frontier) {
+                if(idx <= 252) {
+                    paths++;
+                } else if(idx == invalid_index_) {
+                    paths += 2;
+                }
+            }
+            if(paths/2 == 1) {
+                for(Edge_length res_length = 1; res_length < partial_results.size() && partial_results[0] + res_length - 1 <= max_length_; res_length++) {
+                    thread_local_result_[thread_id][partial_results[0] + res_length - 1] += partial_results[res_length];
+                }
+            } 
         } else {
             skip(frontier, new_idx);
         }
@@ -549,7 +561,9 @@ void TreewidthSearch::propagateLoop(Frontier &frontier, size_t bag_idx, size_t l
             // std::cerr << std::endl;
             takeable = canTake(frontier, new_idx, partial_results);
             skippable = canSkip(frontier, new_idx, partial_results);
-            includeSolutions(frontier, new_idx, partial_results);
+            if(!takeable) {
+                includeSolutions(frontier, new_idx, partial_results);
+            }
             // std::cerr << takeable << " " << skippable << std::endl;
         }
     }
@@ -1507,7 +1521,9 @@ bool TreewidthSearch::finalizeMerge(
     if(decomposition_[new_idx].type != JOIN) {
         takeable = canTake(left, new_idx, new_result);
         skippable = canSkip(left, new_idx, new_result);
-        includeSolutions(left, new_idx, new_result);
+        if(!takeable) {
+            includeSolutions(left, new_idx, new_result);
+        }
     }
     propagateLoop(left, new_idx, last_idx, new_result, takeable, skippable, thread_id);
     return true;
