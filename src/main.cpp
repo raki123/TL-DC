@@ -3,6 +3,7 @@
 #include "parallel_search.h"
 
 #include <iostream>
+#include <chrono>
 #include "Decomposer.hpp"
 
 void details(size_t bags, size_t nr_bags, size_t joinch, size_t max_join, size_t nr_joins)
@@ -11,6 +12,7 @@ void details(size_t bags, size_t nr_bags, size_t joinch, size_t max_join, size_t
 }
 
 int main() {
+    auto start = std::chrono::system_clock::now();
     fpc::Graph initial_graph(std::cin);
     initial_graph.preprocess();
     initial_graph.normalize();
@@ -49,7 +51,7 @@ int main() {
     std::vector<Edge_weight> res;
     bool use_treewidth = initial_graph.is_all_pair();
     if(true || use_treewidth) {
-        fpc::TreewidthSearch search(initial_graph, r2, 4);
+        fpc::TreewidthSearch search(initial_graph, r2, 1);
         res = search.search();
         search.print_stats();
     } else {
@@ -71,6 +73,7 @@ int main() {
         }
         final_result += res[l];
     }
-    std::cout << final_result << std::endl;
+    auto duration = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start);
+    std::cout << final_result << " " << duration.count() << std::endl;
     return 0;
 }

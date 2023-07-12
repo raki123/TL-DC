@@ -1927,7 +1927,10 @@ sparsegraph TreewidthSearch::construct_sparsegraph(Frontier const& frontier, siz
         ptn[found - 1] = 0;
     }
     for(size_t j = 0; j < offset; j++) {
-        if(remaining_edges_after_this_[last_idx][j] == 0) {
+        if(remaining_edges_after_this_[last_idx][j] == 0 
+            && (is_all_pair_ 
+                || (bag_local_idx_map_[last_idx][terminals_[0]] != j 
+                    && bag_local_idx_map_[last_idx][terminals_[1]] != j))) {
             lab[found] = j;
             ptn[found++] = 0;
         }
