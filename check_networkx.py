@@ -20,6 +20,10 @@ with open(name, 'r') as in_file:
         if line[0] == 't':
             line = [ int(v) for v in line.split(' ')[1:] ]
             terminals = line
-
-gen = nx.all_simple_paths(graph, terminals[0], terminals[1], length)
-print(sum(1 for _ in gen))
+sums = 0
+for i in graph.nodes():
+    for j in graph.nodes():
+        if i < j:
+            gen = nx.all_simple_paths(graph, i, j, length)
+            sums += sum(1 for _ in gen)
+print(sums)

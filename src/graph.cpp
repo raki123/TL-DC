@@ -6,6 +6,7 @@
 #include <limits>
 #include <sstream>
 #include "nauty2_8_6/gtools.h"
+#include <math.h>
 
 namespace fpc {
 

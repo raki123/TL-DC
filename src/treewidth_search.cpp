@@ -9,7 +9,7 @@ void prettyPrint(Frontier frontier) {
         } else if(idx == 253) {
             std::cerr << "-" << " ";
         } else if(idx == 254) {
-            std::cerr << " " << " ";
+            std::cerr << "#" << " ";
         } else  {
             std::cerr << "*" << " ";
         }
@@ -926,7 +926,6 @@ bool TreewidthSearch::distancePrune(
     if(cut_paths.size() + paths.size() <= 1) {
         return offset + 1 <= max_length_;
     }
-
     // there is at least one other path that we have to incorporate
     // connecting the cut paths is not an option
     size_t min_dist = 0;
@@ -1848,7 +1847,10 @@ sparsegraph TreewidthSearch::construct_sparsegraph(Frontier const& frontier, siz
     int *lab = (int *)malloc(sizeof(int)*sg.nv);
     int *ptn = (int *)malloc(sizeof(int)*sg.nv);
     int *orbits = (int *)malloc(sizeof(int)*sg.nv);
-    std::vector<frontier_index_t> to_remove;
+    std::vector<frontier_index_t> two_edge;
+    std::vector<frontier_index_t> no_edge;
+    std::vector<frontier_index_t> invalid;
+    std::vector<frontier_index_t> active;
     size_t offset = decomposition_[last_idx].bag.size();
     // now sg is just a copy of base_sg
     // we add the edges of the frontier 
@@ -1861,9 +1863,10 @@ sparsegraph TreewidthSearch::construct_sparsegraph(Frontier const& frontier, siz
         }
         if(frontier[idx] == no_edge_index_) {
             // dont do anything
+            no_edge.push_back(old_v_idx);
         } else if(frontier[idx] == two_edge_index_) {
             // remove adjacent
-            to_remove.push_back(old_v_idx);
+            two_edge.push_back(old_v_idx);
         } else if(frontier[idx] == invalid_index_) {
             // single connect fake node to real node
             assert(sg.d[old_v_idx] == 0);
@@ -1875,6 +1878,7 @@ sparsegraph TreewidthSearch::construct_sparsegraph(Frontier const& frontier, siz
             sg.e[sg.v[old_v_idx + offset] + sg.d[old_v_idx + offset]] = old_v_idx;
             sg.d[old_v_idx + offset]++;
             sg.nde += 2;
+            invalid.push_back(old_v_idx);
         } else if(idx < frontier[idx]) {
             // add the edges
             auto w = bag_local_vertex_map_[bag_idx][frontier[idx]];
@@ -1889,16 +1893,53 @@ sparsegraph TreewidthSearch::construct_sparsegraph(Frontier const& frontier, siz
             assert(sg.e[sg.v[old_w_idx + offset] + sg.d[old_w_idx + offset]] == 0);
             sg.e[sg.v[old_v_idx + offset] + sg.d[old_v_idx + offset]++] = old_v_idx;
             sg.e[sg.v[old_w_idx + offset] + sg.d[old_w_idx + offset]++] = old_v_idx;
+            active.push_back(old_v_idx);
+            active.push_back(old_w_idx);
         }
     }
-
-    for(size_t j = 0; j < sg.nv; j++) {
+    size_t found = 0;
+    for(auto idx : no_edge) {
+        lab[found] = idx;
+        ptn[found++] = 1;
+    }
+    if(found > 0) {
+        ptn[found - 1] = 0;
+    }
+    for(auto idx : two_edge) {
+        lab[found] = idx;
+        ptn[found++] = 1;
+    }
+    if(found > 0) {
+        ptn[found - 1] = 0;
+    }
+    for(auto idx : invalid) {
+        lab[found] = idx;
+        ptn[found++] = 1;
+    }
+    if(found > 0) {
+        ptn[found - 1] = 0;
+    }
+    for(auto idx : active) {
+        lab[found] = idx;
+        ptn[found++] = 1;
+    }
+    if(found > 0) {
+        ptn[found - 1] = 0;
+    }
+    for(size_t j = 0; j < offset; j++) {
+        if(remaining_edges_after_this_[last_idx][j] == 0) {
+            lab[found] = j;
+            ptn[found++] = 0;
+        }
+    }
+    assert(found == offset);
+    for(size_t j = offset; j < sg.nv; j++) {
         lab[j] = j;
         ptn[j] = 1;
     }
     ptn[offset - 1] = 0;
     // remove the edges that are incident to two_edge vertices
-    for(auto old_v_idx : to_remove) {
+    for(auto old_v_idx : two_edge) {
         auto actual = old_v_idx + offset;
         // for all neighbors remove old_v_idx
         for(size_t i = 0; i < sg.d[actual]; i++) {
@@ -1925,7 +1966,7 @@ sparsegraph TreewidthSearch::construct_sparsegraph(Frontier const& frontier, siz
     }
     // std::cout << sg.nv << " " << sg.nde << std::endl;
     // std::cout << sg.vlen << " " << sg.dlen << " " << sg.elen << std::endl;
-    // e_count = 0;
+    // size_t e_count = 0;
     // for(size_t v = 0; v < sg.nv; v++) {
     //     std::vector<int> neighs(sg.nv, 0);
     //     for(size_t i = sg.v[v]; i < sg.v[v] + sg.d[v]; i++) {
