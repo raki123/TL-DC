@@ -29,6 +29,7 @@ class Graph {
     friend class Search;
     friend class ParallelSearch;
     friend class TreewidthSearch;
+    friend class NautyTreewidthSearch;
     friend class ::Decomposer;
     Graph(std::istream &input);
 
