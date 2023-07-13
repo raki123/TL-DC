@@ -52,6 +52,7 @@ class Graph {
     size_t nr_edges();
 
     sparsegraph to_canon_nauty(bool reorder);
+    double nr_automorphisms();
     private:
     Edge_length max_length_;
     std::vector<std::set<Vertex>> neighbors_;

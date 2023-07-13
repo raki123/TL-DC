@@ -18,6 +18,12 @@ int main() {
     initial_graph.print_stats();
 
 
+
+    // portfolio parameters
+    double nr_automporphisms = initial_graph.nr_automorphisms();
+    Edge_length max_length = initial_graph.max_length();
+    Edge_length min_length = initial_graph.min_length();
+    Edge_length length_diff = max_length - min_length;
     size_t max_bagsize, nr_bags;
     size_t t_max_bagsize, max_join_child, max_join, nr_joins, t_nr_bags;
 
