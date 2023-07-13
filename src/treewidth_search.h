@@ -19,9 +19,8 @@ public:
     }  
 };
 
-typedef std::unordered_map<Frontier, std::vector<Edge_weight>, vec_hash> Cache;
-
 class TreewidthSearch {
+  using Cache = std::unordered_map<Frontier, std::vector<Edge_weight>, vec_hash>;
   public:
     TreewidthSearch(Graph& input, AnnotatedDecomposition decomposition, size_t nthreads);
 

@@ -29,7 +29,7 @@ class Graph {
     friend class Search;
     friend class ParallelSearch;
     friend class TreewidthSearch;
-    friend class NautyTreewidthSearch;
+    friend class NautyPathwidthSearch;
     friend class ::Decomposer;
     Graph(std::istream &input);
 
@@ -39,15 +39,19 @@ class Graph {
 
     std::vector<Edge_weight> extra_paths() { return extra_paths_; }
 
-    void normalize(bool for_nauty = false);
+    void normalize(bool reorder = false);
 
     bool is_all_pair() { return all_pair_; }
 
     Edge_length max_length() { return max_length_; }
+    Edge_length min_length();
 
     std::vector<vertex_t> terminals() { return terminals_; }
 
-    sparsegraph to_canon_nauty();
+    size_t nr_vertices();
+    size_t nr_edges();
+
+    sparsegraph to_canon_nauty(bool reorder);
     private:
     Edge_length max_length_;
     std::vector<std::set<Vertex>> neighbors_;

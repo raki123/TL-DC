@@ -28,11 +28,10 @@ public:
 };
 
 
-typedef std::unordered_map<TWCacheKey, std::vector<Edge_weight>, twc_hash, twc_equal> Cache;
-
-class NautyTreewidthSearch {
+class NautyPathwidthSearch {
+  using Cache = std::unordered_map<TWCacheKey, std::vector<Edge_weight>, twc_hash, twc_equal>;
   public:
-    NautyTreewidthSearch(Graph& input, AnnotatedDecomposition decomposition, size_t nthreads);
+    NautyPathwidthSearch(Graph& input, AnnotatedDecomposition decomposition, size_t nthreads);
 
     std::vector<Edge_weight> search();
     void print_stats();

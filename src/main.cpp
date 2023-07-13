@@ -1,5 +1,6 @@
 #include "graph.h"
 #include "treewidth_search.h"
+#include "nauty_pathwidth_search.h"
 #include "parallel_search.h"
 
 #include <iostream>
@@ -50,13 +51,19 @@ int main() {
 
     auto &r2 = *r;
 
+
     std::vector<Edge_weight> res;
+    if(true) {
+        fpc::NautyPathwidthSearch search(initial_graph, r2, 4);
+        res = search.search();
+        search.print_stats();
+    }
     if (is_all_pair || use_pw || max_join_child < 19) {
         fpc::TreewidthSearch search(initial_graph, r2, 4);
         res = search.search();
         search.print_stats();
     } else {
-        fpc::ParallelSearch search(initial_graph.to_canon_nauty(), initial_graph.max_length(), 4);
+        fpc::ParallelSearch search(initial_graph.to_canon_nauty(true), initial_graph.max_length(), 4);
         res = search.search();
         search.print_stats();
     }

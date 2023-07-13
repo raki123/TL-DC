@@ -130,11 +130,20 @@ void Graph::print_stats() {
     }
 }
 
-void Graph::normalize(bool for_nauty) {
+Edge_length Graph::min_length() {
+    if(all_pair_) {
+        return 1;
+    }
+    std::vector<Edge_length> distance_to_goal(adjacency_.size(), std::numeric_limits<Edge_length>::max());
+    dijkstra(terminals_[1], distance_to_goal, {});
+    return distance_to_goal[terminals_[0]];
+}
+
+void Graph::normalize(bool reorder) {
     Vertex unnamed = std::numeric_limits<Vertex>::max();
     std::vector<Vertex> new_name(adjacency_.size(), unnamed);
     Vertex cur_name = 0;
-    if(for_nauty && !all_pair_) {
+    if(reorder && !all_pair_) {
         new_name[terminals_[0]] = cur_name++;
         new_name[terminals_[1]] = cur_name++;
     }
@@ -170,8 +179,27 @@ void Graph::normalize(bool for_nauty) {
     }
 }
 
-sparsegraph Graph::to_canon_nauty() {
-    normalize(true);
+size_t Graph::nr_vertices() {
+    size_t ret = 0;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        if(!neighbors(v).empty()) {
+            ret++;
+        }
+    }
+    return ret;
+}
+
+size_t Graph::nr_edges() {
+    size_t nr_edges = 0;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        nr_edges += neighbors(v).size();
+    }
+    assert(nr_edges % 2 == 0);
+    return nr_edges/2;
+}
+
+sparsegraph Graph::to_canon_nauty(bool reorder) {
+    normalize(reorder);
     DEFAULTOPTIONS_SPARSEGRAPH(options);
     options.getcanon = true;
     options.defaultptn = false;
@@ -831,7 +859,7 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph.terminals_ = {0, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
-            ParallelSearch search(comp_graph.to_canon_nauty(), c_one_length, OMP_NUM_THREADS);
+            ParallelSearch search(comp_graph.to_canon_nauty(true), c_one_length, OMP_NUM_THREADS);
             auto res = search.search();
             auto res_extra = comp_graph.extra_paths();
             res.resize(max_length_ + 1);
@@ -852,7 +880,7 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph.terminals_ = {0, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
-            search = ParallelSearch(comp_graph.to_canon_nauty(), c_one_length, OMP_NUM_THREADS);
+            search = ParallelSearch(comp_graph.to_canon_nauty(true), c_one_length, OMP_NUM_THREADS);
             res = search.search();
             res_extra = comp_graph.extra_paths();
             res.resize(max_length_ + 1);
@@ -878,7 +906,7 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph.terminals_ = {1, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
-            search = ParallelSearch(comp_graph.to_canon_nauty(), c_two_length, OMP_NUM_THREADS);
+            search = ParallelSearch(comp_graph.to_canon_nauty(true), c_two_length, OMP_NUM_THREADS);
             res = search.search();
             res_extra = comp_graph.extra_paths();
             res.resize(max_length_ + 1);
@@ -899,7 +927,7 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph.terminals_ = {0, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
-            search = ParallelSearch(comp_graph.to_canon_nauty(), c_two_length, OMP_NUM_THREADS);
+            search = ParallelSearch(comp_graph.to_canon_nauty(true), c_two_length, OMP_NUM_THREADS);
             res = search.search();
             res_extra = comp_graph.extra_paths();
             res.resize(max_length_ + 1);
@@ -984,7 +1012,7 @@ Vertex Graph::preprocess_two_separator() {
         comp_graph.preprocess();
         comp_graph.normalize();
         // comp_graph.print_stats();
-        ParallelSearch search(comp_graph.to_canon_nauty(), comp_graph.max_length_, OMP_NUM_THREADS);
+        ParallelSearch search(comp_graph.to_canon_nauty(true), comp_graph.max_length_, OMP_NUM_THREADS);
         auto res = search.search();
         // search.print_stats();
         auto res_extra = comp_graph.extra_paths();
@@ -1124,7 +1152,7 @@ Vertex Graph::preprocess_three_separator() {
                 comp_graph.terminals_ = {0, 1};
                 comp_graph.preprocess();
                 comp_graph.normalize();
-                ParallelSearch search(comp_graph.to_canon_nauty(), comp_graph.max_length_, OMP_NUM_THREADS);
+                ParallelSearch search(comp_graph.to_canon_nauty(true), comp_graph.max_length_, OMP_NUM_THREADS);
                 auto res = search.search();
                 auto res_extra = comp_graph.extra_paths();
                 res.resize(max_length_ + 1);

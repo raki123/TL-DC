@@ -1,4 +1,4 @@
-#include "nauty_treewidth_search.h"
+#include "nauty_pathwidth_search.h"
 #include <algorithm>
 namespace fpc {
 
@@ -17,7 +17,7 @@ void prettyPrint(Frontier frontier) {
     std::cerr << std::endl;
 }
 
-NautyTreewidthSearch::NautyTreewidthSearch(Graph& input, AnnotatedDecomposition decomposition, size_t nthreads) 
+NautyPathwidthSearch::NautyPathwidthSearch(Graph& input, AnnotatedDecomposition decomposition, size_t nthreads) 
     :   nthreads_(nthreads),
         graph_(input),
         max_length_(graph_.max_length()),
@@ -276,7 +276,7 @@ NautyTreewidthSearch::NautyTreewidthSearch(Graph& input, AnnotatedDecomposition 
     }
 }
 
-std::vector<Edge_weight> NautyTreewidthSearch::search() {
+std::vector<Edge_weight> NautyPathwidthSearch::search() {
     for(size_t bag_idx = 0; bag_idx < decomposition_.size(); bag_idx++) {
         std::cerr << "\r" << bag_idx << " / " << decomposition_.size() - 1 << " of type ";
         if(decomposition_[bag_idx].type == NodeType::LEAF) {
@@ -500,7 +500,7 @@ std::vector<Edge_weight> NautyTreewidthSearch::search() {
     return result_;
 }
 
-void NautyTreewidthSearch::propagateLoop(Frontier &frontier, size_t bag_idx, size_t last_idx, std::vector<Edge_weight>& partial_results, bool takeable, bool skippable, size_t thread_id) {
+void NautyPathwidthSearch::propagateLoop(Frontier &frontier, size_t bag_idx, size_t last_idx, std::vector<Edge_weight>& partial_results, bool takeable, bool skippable, size_t thread_id) {
     size_t new_idx = bag_idx;
     if(decomposition_[new_idx].type != JOIN && (takeable ^ skippable)) {
         edges_[thread_id]++;
@@ -653,7 +653,7 @@ void NautyTreewidthSearch::propagateLoop(Frontier &frontier, size_t bag_idx, siz
     }
 }
 
-void NautyTreewidthSearch::includeSolutions(Frontier const& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result) {
+void NautyPathwidthSearch::includeSolutions(Frontier const& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result) {
     assert(partial_result[0] + 1 <= max_length_);
     Edge edge = decomposition_[bag_idx].edge;
     auto v_idx = bag_local_idx_map_[bag_idx][edge.first];
@@ -727,7 +727,7 @@ void NautyTreewidthSearch::includeSolutions(Frontier const& frontier, size_t bag
     thread_local_result_[thread_id][1] += 1;
 }
 
-bool NautyTreewidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result) {
+bool NautyPathwidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result) {
     assert(partial_result[0] + 1 <= max_length_);
     Edge edge = decomposition_[bag_idx].edge;
     auto v_idx = bag_local_idx_map_[bag_idx][edge.first];
@@ -858,7 +858,7 @@ bool NautyTreewidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vect
     return distancePrune(frontier, paths, cut_paths, bag_idx, partial_result[0] + 1);
 }
 
-bool NautyTreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result) {
+bool NautyPathwidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result) {
     assert(partial_result[0] + 1 <= max_length_);
     Edge edge = decomposition_[bag_idx].edge;
     auto v_idx = bag_local_idx_map_[bag_idx][edge.first];
@@ -911,7 +911,7 @@ bool NautyTreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vect
     return distancePrune(frontier, paths, cut_paths, bag_idx, partial_result[0]);
 }
 
-bool NautyTreewidthSearch::distancePrune(
+bool NautyPathwidthSearch::distancePrune(
         Frontier& frontier, 
         std::vector<frontier_index_t> const& paths, 
         std::vector<frontier_index_t> const& cut_paths, 
@@ -974,7 +974,7 @@ bool NautyTreewidthSearch::distancePrune(
     return true;
 }
 
-void NautyTreewidthSearch::take(Frontier& frontier, size_t bag_idx) {
+void NautyPathwidthSearch::take(Frontier& frontier, size_t bag_idx) {
     Edge edge = decomposition_[bag_idx].edge;
     auto v_idx = bag_local_idx_map_[bag_idx][edge.first];
     auto w_idx = bag_local_idx_map_[bag_idx][edge.second];
@@ -1024,11 +1024,11 @@ void NautyTreewidthSearch::take(Frontier& frontier, size_t bag_idx) {
     advance(frontier, bag_idx);
 }
 
-void NautyTreewidthSearch::skip(Frontier& frontier, size_t bag_idx) {
+void NautyPathwidthSearch::skip(Frontier& frontier, size_t bag_idx) {
     advance(frontier, bag_idx);
 }
 
-void NautyTreewidthSearch::restoreStep(
+void NautyPathwidthSearch::restoreStep(
         Frontier &left, 
         std::vector<frontier_index_t>& cut_paths,
         std::vector<frontier_index_t>& paths,
@@ -1043,7 +1043,7 @@ void NautyTreewidthSearch::restoreStep(
     paths.resize(paths_size);
 }
 
-void NautyTreewidthSearch::mergeStep(
+void NautyPathwidthSearch::mergeStep(
         Frontier &left,
         size_t bag_idx,
         frontier_index_t idx,
@@ -1452,7 +1452,7 @@ void NautyTreewidthSearch::mergeStep(
     restoreStep(left, cut_paths, paths, restore, cut_paths_size, paths_size);
 }
 
-bool NautyTreewidthSearch::finalizeMerge(
+bool NautyPathwidthSearch::finalizeMerge(
       Frontier left,
       size_t bag_idx,
       bool found_solution,
@@ -1534,7 +1534,7 @@ bool NautyTreewidthSearch::finalizeMerge(
     return true;
 }
 
-bool NautyTreewidthSearch::merge(Frontier& left, Frontier const& right, size_t bag_idx, std::vector<Edge_weight>& left_result, std::vector<Edge_weight> const& right_result) {
+bool NautyPathwidthSearch::merge(Frontier& left, Frontier const& right, size_t bag_idx, std::vector<Edge_weight>& left_result, std::vector<Edge_weight> const& right_result) {
     // merge the frontiers and mark out of scope edge ends and populate paths, cut_paths
     bool found_solution = false;
     std::vector<frontier_index_t> paths;
@@ -1772,7 +1772,7 @@ bool NautyTreewidthSearch::merge(Frontier& left, Frontier const& right, size_t b
     return finalizeMerge(left, bag_idx, found_solution, cut_paths, paths, left_result, right_result);
 }
 
-void NautyTreewidthSearch::advance(Frontier& frontier, size_t bag_idx) {
+void NautyPathwidthSearch::advance(Frontier& frontier, size_t bag_idx) {
     Frontier old = frontier;
     size_t next_idx = decomposition_[bag_idx].parent;
     auto &bag = decomposition_[next_idx].bag;
@@ -1810,11 +1810,11 @@ void NautyTreewidthSearch::advance(Frontier& frontier, size_t bag_idx) {
     assert(found_invalid <= 2);
 }
 
-sparsegraph NautyTreewidthSearch::construct_sparsegraph(Frontier const& frontier, size_t last_idx) {
+sparsegraph NautyPathwidthSearch::construct_sparsegraph(Frontier const& frontier, size_t last_idx) {
     if(last_idx == size_t(-1)) {
         // LEAF
         // just take full graph
-        return graph_.to_canon_nauty();
+        return graph_.to_canon_nauty(false);
     }
     size_t bag_idx = decomposition_[last_idx].parent;
     sparsegraph sg;
@@ -2015,7 +2015,7 @@ sparsegraph NautyTreewidthSearch::construct_sparsegraph(Frontier const& frontier
 }
 
 
-void NautyTreewidthSearch::print_stats() {
+void NautyPathwidthSearch::print_stats() {
     size_t pos_hits = 0, neg_hits = 0;
     for(size_t i = 0; i < nthreads_; i++) {
         pos_hits += pos_hits_[i];
