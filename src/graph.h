@@ -48,6 +48,7 @@ class Graph {
     std::vector<vertex_t> terminals() { return terminals_; }
 
     sparsegraph to_canon_nauty();
+    double nr_automorphisms();
     private:
     Edge_length max_length_;
     std::vector<std::set<Vertex>> neighbors_;

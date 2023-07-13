@@ -30,7 +30,8 @@ int main() {
     auto rt = std::move(d.tree_decompose(initial_graph, false, &t_max_bagsize, &t_nr_bags, &max_join_child, &max_join, &nr_joins));
     std::cout << max_join_child << " ";
     std::cout << size_t(initial_graph.max_length()) << " ";
-    std::cout << size_t(initial_graph.min_length()) << std::endl;
+    std::cout << size_t(initial_graph.min_length()) << " ";
+    std::cout << initial_graph.nr_automorphisms() << std::endl;
     // std::cerr << "TREE: ";
     // details(t_max_bagsize, t_nr_bags, max_join_child, max_join, nr_joins);
 

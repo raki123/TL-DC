@@ -6,6 +6,7 @@
 #include <limits>
 #include <sstream>
 #include "nauty2_8_6/gtools.h"
+#include "math.h"
 
 namespace fpc {
 
@@ -230,6 +231,64 @@ sparsegraph Graph::to_canon_nauty() {
     free(ptn);
     free(orbits);
     return canon_sg;
+}
+double Graph::nr_automorphisms() {
+    normalize();
+    DEFAULTOPTIONS_SPARSEGRAPH(options);
+    options.getcanon = true;
+    options.defaultptn = false;
+    SG_DECL(sg);
+    int m = SETWORDSNEEDED(adjacency_.size());
+    nauty_check(WORDSIZE,m,adjacency_.size(),NAUTYVERSIONID);
+    size_t nr_edges = 0;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        nr_edges += neighbors(v).size();
+    }
+    sg.v = (edge_t *)malloc(sizeof(edge_t)*(adjacency_.size() + nr_edges) + sizeof(degree_t)*adjacency_.size());
+    sg.d = (degree_t *)(sg.v + adjacency_.size());
+    sg.e = (edge_t *)(sg.d + adjacency_.size());
+    sg.nv = adjacency_.size();
+    sg.nde = nr_edges;
+    sg.vlen = adjacency_.size();
+    sg.dlen = adjacency_.size();
+    sg.elen = nr_edges;
+    nr_edges = 0;
+    for(Vertex v = 0; v < adjacency_.size(); v++) {
+        sg.v[v] = nr_edges;
+        for(Vertex w : neighbors(v)) {
+            sg.e[nr_edges++] = w;
+        }
+        sg.d[v] = neighbors(v).size();
+    }
+    int *lab = (int *)malloc(sg.nv*sizeof(int));
+    int *ptn = (int *)malloc(sg.nv*sizeof(int));
+    int *orbits = (int *)malloc(sg.nv*sizeof(int));
+    ptn[0] = 0;
+    ptn[1] = 0;
+    lab[0] = 0;
+    lab[1] = 1;
+    for(Vertex v = 2; v < adjacency_.size(); v++) {
+        ptn[v] = 1;
+        lab[v] = v;
+    }
+    statsblk stats;
+    SG_DECL(canon_sg);
+    canon_sg.v = (edge_t *)malloc(sizeof(edge_t)*(adjacency_.size() + nr_edges) + sizeof(degree_t)*adjacency_.size());
+    canon_sg.d = (degree_t *)(canon_sg.v + adjacency_.size());
+    canon_sg.e = (edge_t *)(canon_sg.d + adjacency_.size());
+    canon_sg.nv = adjacency_.size();
+    canon_sg.nde = nr_edges;
+    canon_sg.vlen = sg.vlen;
+    canon_sg.dlen = sg.dlen;
+    canon_sg.elen = sg.elen;
+    sparsenauty(&sg,lab,ptn,orbits,&options,&stats,&canon_sg);
+    sortlists_sg(&canon_sg);
+    free(sg.v);
+    free(lab);
+    free(ptn);
+    free(orbits);
+    free(canon_sg.v);
+    return stats.grpsize1*std::pow(10,stats.grpsize2);
 }
 
 void Graph::add_edge(Edge edge, Weight weight) {
