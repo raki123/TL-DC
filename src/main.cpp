@@ -46,7 +46,7 @@ int main() {
     
     AnnotatedDecomposition* r = &rt;
 
-    if ((!is_all_pair && max_bagsize < 19) || (is_all_pair && max_bagsize < 22))
+    if ((!is_all_pair && max_bagsize < 19) || (is_all_pair && max_bagsize <= 22))
     //if (max_bagsize <= max_join_child + 1)
     {
     	use_pw = true;
@@ -59,12 +59,14 @@ int main() {
 
 
     std::vector<Edge_weight> res;
-    if(true) {
-        fpc::NautyPathwidthSearch search(initial_graph, r2, 4);
+    if((!is_all_pair && max_bagsize >= 16 && max_bagsize <= 25 && nr_automporphisms >= 1e+16 && nr_automporphisms <= 1e+50) || 
+    	(is_all_pair && use_pw && max_bagsize >= 21)) {
+        //fpc::NautyPathwidthSearch search(initial_graph, r2, 4);
+        fpc::NautyPathwidthSearch search(initial_graph, rp, 4);
         res = search.search();
         search.print_stats();
     }
-    if (is_all_pair || use_pw || std::max(max_join_child,t_max_bagsize) < 21) {
+    else if (is_all_pair || use_pw || std::max(max_join_child,t_max_bagsize) < 21) {
         fpc::TreewidthSearch search(initial_graph, r2, 4);
         res = search.search();
         search.print_stats();
