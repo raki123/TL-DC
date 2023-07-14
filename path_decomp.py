@@ -1,5 +1,4 @@
-#!/home/rafael/miniconda3/bin/python
-#!/home/hecher/minconda34/bin/python
+#!/usr/bin/env python
 
 import random
 import networkx as nx
@@ -126,6 +125,7 @@ def other_eliminate(graph):
 	return bags, bsize
 
 bags, bsize = other_eliminate(graph)
+#bags, bsize = eliminate(graph)
 
 print("s td {} {} {}".format(len(bags), bsize, len(graph.nodes())))
 
