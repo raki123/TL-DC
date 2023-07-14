@@ -7,7 +7,7 @@ src/nauty2_8_6/nauty.a:
 	cd src/nauty2_8_6/; ./configure --enable-tls --disable-interrupt; make -j12 nauty.a
 
 utils/htd:
-	cmake -S src/htd_opt/ -B src/htd_opt/build
+	cmake -S src/htd_opt/ -B src/htd_opt/build -DBUILD_SHARED_LIBS=OFF
 	cmake --build src/htd_opt/build -j 12
 	cp src/htd_opt/build/bin/htd_main-1.2.0 utils/htd
 
