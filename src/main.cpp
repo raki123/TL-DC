@@ -1,3 +1,19 @@
+// TLDC "Too long; Didn't Count" A length limited path counter.
+// Copyright (C) 2023 Rafael Kiesel, Markus Hecher
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 #include "graph.h"
 #include "treewidth_search.h"
 #include "nauty_pathwidth_search.h"
@@ -22,8 +38,6 @@ int main() {
     // portfolio parameters
     double nr_automporphisms = initial_graph.nr_automorphisms();
     Edge_length max_length = initial_graph.max_length();
-    Edge_length min_length = initial_graph.min_length();
-    Edge_length length_diff = max_length - min_length;
     size_t max_bagsize, nr_bags;
     size_t t_max_bagsize, max_join_child, max_join, nr_joins, t_nr_bags;
 
@@ -47,7 +61,6 @@ int main() {
     AnnotatedDecomposition* r = &rt;
 
     if ((!is_all_pair && max_bagsize < 19) || (is_all_pair && max_bagsize <= 22))
-    //if (max_bagsize <= max_join_child + 1)
     {
     	use_pw = true;
         r = &rp;

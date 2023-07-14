@@ -1,3 +1,19 @@
+// TLDC "Too long; Didn't Count" A length limited path counter.
+// Copyright (C) 2023 Rafael Kiesel, Markus Hecher
+
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+
 #include "treewidth_search.h"
 #include <algorithm>
 namespace fpc {
@@ -89,8 +105,6 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
     Graph cur_graph = graph_.subgraph(all);;
     for(size_t bag_idx = 0; bag_idx < decomposition_.size(); bag_idx++) {
         auto &node = decomposition_[bag_idx];
-	//std::cerr << bag_idx << " ";
-	//node.stats();
         auto &idx = bag_local_idx_map_[bag_idx];
         auto &vertex = bag_local_vertex_map_[bag_idx];
         auto &remaining = remaining_edges_after_this_[bag_idx];
@@ -189,7 +203,6 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
     }
     for(size_t bag_idx = 0; bag_idx < decomposition_.size(); bag_idx++) {
         auto &node = decomposition_[bag_idx];
-        // std::cerr << "<" << bag_idx << ">"; node.stats();
         if(node.type == NodeType::LEAF) {
             Frontier initial_frontier(decomposition_[bag_idx].bag.size(), no_edge_index_);
             if(!is_all_pair_) {
