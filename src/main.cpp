@@ -64,7 +64,7 @@ int main() {
         res = search.search();
         search.print_stats();
     }
-    if (is_all_pair || use_pw || max_join_child < 19) {
+    if (is_all_pair || use_pw || std::max(max_join_child,t_max_bagsize) < 21) {
         fpc::TreewidthSearch search(initial_graph, r2, 4);
         res = search.search();
         search.print_stats();
