@@ -59,7 +59,7 @@ int main() {
 
 
     std::vector<Edge_weight> res;
-    if((!is_all_pair && max_bagsize >= 16 && max_bagsize <= 25 && nr_automporphisms >= 1e+16 && nr_automporphisms <= 1e+50) || 
+    if((!is_all_pair && max_bagsize >= 16 && max_bagsize <= 25 && nr_automporphisms >= 1e+11 && nr_automporphisms <= 1e+45) || 
     	(is_all_pair && use_pw && max_bagsize >= 21)) {
         //fpc::NautyPathwidthSearch search(initial_graph, r2, 4);
         fpc::NautyPathwidthSearch search(initial_graph, rp, 4);
