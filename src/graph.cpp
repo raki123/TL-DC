@@ -936,7 +936,7 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph.terminals_ = {0, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
-            ParallelSearch search(comp_graph.to_canon_nauty(true), c_one_length, OMP_NUM_THREADS);
+            ParallelSearch search(comp_graph.to_canon_nauty(true), c_one_length, 12);
             auto res = search.search();
             auto res_extra = comp_graph.extra_paths();
             res.resize(max_length_ + 1);
@@ -957,7 +957,7 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph.terminals_ = {0, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
-            search = ParallelSearch(comp_graph.to_canon_nauty(true), c_one_length, OMP_NUM_THREADS);
+            search = ParallelSearch(comp_graph.to_canon_nauty(true), c_one_length, 12);
             res = search.search();
             res_extra = comp_graph.extra_paths();
             res.resize(max_length_ + 1);
@@ -983,7 +983,7 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph.terminals_ = {1, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
-            search = ParallelSearch(comp_graph.to_canon_nauty(true), c_two_length, OMP_NUM_THREADS);
+            search = ParallelSearch(comp_graph.to_canon_nauty(true), c_two_length, 12);
             res = search.search();
             res_extra = comp_graph.extra_paths();
             res.resize(max_length_ + 1);
@@ -1004,7 +1004,7 @@ Vertex Graph::preprocess_two_separator() {
             comp_graph.terminals_ = {0, (Vertex)term_index};
             comp_graph.preprocess();
             comp_graph.normalize();
-            search = ParallelSearch(comp_graph.to_canon_nauty(true), c_two_length, OMP_NUM_THREADS);
+            search = ParallelSearch(comp_graph.to_canon_nauty(true), c_two_length, 12);
             res = search.search();
             res_extra = comp_graph.extra_paths();
             res.resize(max_length_ + 1);
@@ -1089,7 +1089,7 @@ Vertex Graph::preprocess_two_separator() {
         comp_graph.preprocess();
         comp_graph.normalize();
         // comp_graph.print_stats();
-        ParallelSearch search(comp_graph.to_canon_nauty(true), comp_graph.max_length_, OMP_NUM_THREADS);
+        ParallelSearch search(comp_graph.to_canon_nauty(true), comp_graph.max_length_, 12);
         auto res = search.search();
         // search.print_stats();
         auto res_extra = comp_graph.extra_paths();
@@ -1229,7 +1229,7 @@ Vertex Graph::preprocess_three_separator() {
                 comp_graph.terminals_ = {0, 1};
                 comp_graph.preprocess();
                 comp_graph.normalize();
-                ParallelSearch search(comp_graph.to_canon_nauty(true), comp_graph.max_length_, OMP_NUM_THREADS);
+                ParallelSearch search(comp_graph.to_canon_nauty(true), comp_graph.max_length_, 12);
                 auto res = search.search();
                 auto res_extra = comp_graph.extra_paths();
                 res.resize(max_length_ + 1);
