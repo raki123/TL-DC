@@ -21,9 +21,6 @@ int main() {
 
     // portfolio parameters
     double nr_automporphisms = initial_graph.nr_automorphisms();
-    Edge_length max_length = initial_graph.max_length();
-    Edge_length min_length = initial_graph.min_length();
-    Edge_length length_diff = max_length - min_length;
     size_t max_bagsize, nr_bags;
     size_t t_max_bagsize, max_join_child, max_join, nr_joins, t_nr_bags;
 
@@ -47,7 +44,6 @@ int main() {
     AnnotatedDecomposition* r = &rt;
 
     if ((!is_all_pair && max_bagsize < 19) || (is_all_pair && max_bagsize <= 22))
-    //if (max_bagsize <= max_join_child + 1)
     {
     	use_pw = true;
         r = &rp;
