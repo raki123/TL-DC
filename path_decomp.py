@@ -1,11 +1,50 @@
 #!/usr/bin/env python3
 
-import random
-import networkx as nx
+#import random
+#import networkx as nx
 import sys
 
+class Graph:
+	def __init__(self):
+		self._adj = {}
+		self._nodes = set()
+
+	def edges(self):
+		return self._adj
+
+	def nodes(self):
+		return self._nodes
+
+	def _add(self, x, y):
+		if x not in self._adj:
+			self._adj[x] = set()
+		self._adj[x].add(y)
+
+	def add_edge(self, x, y):
+		self._add(x,y)
+		self._add(y,x)
+		self._nodes.add(x)
+		self._nodes.add(y)
+
+	def neighbors(self, x):
+		return self._adj[x]
+
+#x=Graph()
+#x.add_edge(2,3)
+#print(x.neighbors(2))
+#print(x.neighbors(3))
+#
+#x.add_edge(4,2)
+#
+#print(x.neighbors(2))
+#print(x.neighbors(4))
+#print(x.neighbors(3))
+#
+#print(x.nodes())
+#
 #name = sys.argv[1]
-graph = nx.Graph()
+#graph = nx.Graph()
+graph = Graph()
 length = -1
 terminals = []
 #with open(name, 'r') as in_file:
@@ -27,27 +66,29 @@ with sys.stdin as in_file:
             line = [ int(v) for v in line.split(' ')[0:] ]
             graph.add_edge(line[0], line[1])
 
+#print(graph.nodes())
+#print(graph.edges())
 
-# print(length, terminals)
-bef = len(graph.nodes())
-def preprocess(graph, terminals):
-    found = True
-    while found:
-        found = False
-        nodes = list(graph.nodes())
-        for node in nodes:
-            if node in terminals:
-                continue
-            if len(graph.edges(node)) <= 2:
-                if len(graph.edges(node)) <= 1:
-                    graph.remove_node(node)
-                # else:
-                #     neigh = list(graph.neighbors(node))
-                #     graph.remove_node(node)
-                #     graph.add_edge(neigh[0], neigh[1])
-                # found = True
-
-
+## print(length, terminals)
+#bef = len(graph.nodes())
+#def preprocess(graph, terminals):
+#    found = True
+#    while found:
+#        found = False
+#        nodes = list(graph.nodes())
+#        for node in nodes:
+#            if node in terminals:
+#                continue
+#            if len(graph.edges(node)) <= 2:
+#                if len(graph.edges(node)) <= 1:
+#                    graph.remove_node(node)
+#                # else:
+#                #     neigh = list(graph.neighbors(node))
+#                #     graph.remove_node(node)
+#                #     graph.add_edge(neigh[0], neigh[1])
+#                # found = True
+#
+#
 def eliminate(graph):
 	bags = []
 	pbag = []
