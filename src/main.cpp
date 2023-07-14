@@ -21,6 +21,7 @@ int main() {
 
     // portfolio parameters
     double nr_automporphisms = initial_graph.nr_automorphisms();
+    Edge_length max_length = initial_graph.max_length();
     size_t max_bagsize, nr_bags;
     size_t t_max_bagsize, max_join_child, max_join, nr_joins, t_nr_bags;
 
