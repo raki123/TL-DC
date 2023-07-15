@@ -27,6 +27,7 @@ extern "C" {
 #include <unordered_set>
 #include <queue>
 
+#include "gmpxx.h"
 
 class Decomposer;
 
@@ -35,9 +36,11 @@ namespace fpc {
 typedef uint16_t Vertex;
 typedef std::pair<Vertex,Vertex> Edge;
 typedef uint8_t Edge_length;
-typedef uint64_t Edge_weight;
+typedef mpz_class Edge_weight;
 typedef std::pair<Edge_length, Edge_weight> Weight;
 typedef std::priority_queue<std::pair<Edge_length, Vertex>, std::vector<std::pair<Edge_length, Vertex>>, std::greater<std::pair<Edge_length, Vertex>>> DijkstraQueue;
+
+size_t get_offset(std::vector<Edge_weight> const& result);
 
 class Graph {
 

@@ -311,8 +311,8 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                                     pos_hits_[thread_id]++;
                                     // there is already an element with that key
                                     // instead increase the partial result for that key
-                                    auto old_offset = ins.first->second[0];
-                                    auto new_offset = new_result[0];
+                                    auto old_offset = get_offset(ins.first->second);
+                                    auto new_offset = get_offset(new_result);
                                     if(old_offset > new_offset) {
                                         // we reached this state with a smaller offset
                                         // add the paths we currently cached to the new result
@@ -347,8 +347,8 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                                     pos_hits_[thread_id]++;
                                     // there is already an element with that key
                                     // instead increase the partial result for that key
-                                    auto old_offset = ins.first->second[0];
-                                    auto new_offset = new_result[0];
+                                    auto old_offset = get_offset(ins.first->second);
+                                    auto new_offset = get_offset(new_result);
                                     if(old_offset > new_offset) {
                                         // we reached this state with a smaller offset
                                         // add the paths we currently cached to the new result
@@ -504,8 +504,8 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                                     pos_hits_[thread_id]++;
                                     // there is already an element with that key
                                     // instead increase the partial result for that key
-                                    auto old_offset = ins.first->second[0];
-                                    auto new_offset = left_result[0];
+                                    auto old_offset = get_offset(ins.first->second);
+                                    auto new_offset = get_offset(left_result);
                                     if(old_offset > new_offset) {
                                         // we reached this state with a smaller offset
                                         // add the paths we currently cached to the new result
@@ -540,8 +540,8 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                                     pos_hits_[thread_id]++;
                                     // there is already an element with that key
                                     // instead increase the partial result for that key
-                                    auto old_offset = ins.first->second[0];
-                                    auto new_offset = left_result[0];
+                                    auto old_offset = get_offset(ins.first->second);
+                                    auto new_offset = get_offset(left_result);
                                     if(old_offset > new_offset) {
                                         // we reached this state with a smaller offset
                                         // add the paths we currently cached to the new result
@@ -627,9 +627,10 @@ void TreewidthSearch::includeSolutions(Frontier const& frontier, size_t bag_idx,
         }
         // we connected them
         // add the partial result
-        for(Edge_length res_length = 1; res_length < partial_result.size() && partial_result[0] + res_length <= max_length_; res_length++) {
+        auto offset = get_offset(partial_result);
+        for(Edge_length res_length = 1; res_length < partial_result.size() && offset + res_length <= max_length_; res_length++) {
             // current offset + 1 for the additional edge
-            thread_local_result_[thread_id][partial_result[0] + res_length] += partial_result[res_length];
+            thread_local_result_[thread_id][offset + res_length] += partial_result[res_length];
         }
         return;
     }
@@ -644,9 +645,10 @@ void TreewidthSearch::includeSolutions(Frontier const& frontier, size_t bag_idx,
         }
         // we connected them
         // add the partial result
-        for(Edge_length res_length = 1; res_length < partial_result.size() && partial_result[0] + res_length <= max_length_; res_length++) {
+        auto offset = get_offset(partial_result);
+        for(Edge_length res_length = 1; res_length < partial_result.size() && offset + res_length <= max_length_; res_length++) {
             // current offset + 1 for the additional edge
-            thread_local_result_[thread_id][partial_result[0] + res_length] += partial_result[res_length];
+            thread_local_result_[thread_id][offset + res_length] += partial_result[res_length];
         }
         return;
     }
@@ -783,7 +785,7 @@ bool TreewidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vector<Ed
         return false;
     }
 
-    return distancePrune(frontier, paths, cut_paths, bag_idx, partial_result[0] + 1);
+    return distancePrune(frontier, paths, cut_paths, bag_idx, get_offset(partial_result) + 1);
 }
 
 bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result) {
@@ -836,7 +838,7 @@ bool TreewidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Ed
         }
     }
 
-    return distancePrune(frontier, paths, cut_paths, bag_idx, partial_result[0]);
+    return distancePrune(frontier, paths, cut_paths, bag_idx, get_offset(partial_result));
 }
 
 bool TreewidthSearch::distancePrune(
@@ -1124,7 +1126,7 @@ bool TreewidthSearch::merge(Frontier& left, Frontier const& right, size_t bag_id
         }
     }
     left_result = new_result;
-    left_result.resize(std::min(left_result.size(), max_length_ - left_result[0] + 2));
+    left_result.resize(std::min(left_result.size(), max_length_ - get_offset(left_result) + 2));
 
     // possibly include solutions
     size_t thread_id = omp_get_thread_num();
@@ -1133,9 +1135,10 @@ bool TreewidthSearch::merge(Frontier& left, Frontier const& right, size_t bag_id
             return false;
         }
         // we cannot continue this either way but if there are not other partial paths we have to include the solution
+        auto offset = get_offset(left_result);
         if(paths.size() + cut_paths.size() == 0) {
-            for(Edge_length res_length = 1; res_length < left_result.size() && left_result[0] + res_length - 1 <= max_length_; res_length++) {
-                thread_local_result_[thread_id][left_result[0] + res_length - 1] += left_result[res_length];
+            for(Edge_length res_length = 1; res_length < left_result.size() && offset + res_length - 1 <= max_length_; res_length++) {
+                thread_local_result_[thread_id][offset + res_length - 1] += left_result[res_length];
             }
         }
         return false;
@@ -1143,8 +1146,9 @@ bool TreewidthSearch::merge(Frontier& left, Frontier const& right, size_t bag_id
     if(!left_empty && !right_empty && paths.size()/2 + cut_paths.size() == 1) {
         // if either is empty then we already counted the solutions
         // this way there is currently exactly one path and we have not seen it yet
-        for(Edge_length res_length = 1; res_length < left_result.size() && left_result[0] + res_length - 1 <= max_length_; res_length++) {
-            thread_local_result_[thread_id][left_result[0] + res_length - 1] += left_result[res_length];
+        auto offset = get_offset(left_result);
+        for(Edge_length res_length = 1; res_length < left_result.size() && offset + res_length - 1 <= max_length_; res_length++) {
+            thread_local_result_[thread_id][offset + res_length - 1] += left_result[res_length];
         }
     }
 
@@ -1161,7 +1165,7 @@ bool TreewidthSearch::merge(Frontier& left, Frontier const& right, size_t bag_id
         return false;
     }
 
-    if(!distancePrune(left, paths, cut_paths, bag_idx, left_result[0])) {
+    if(!distancePrune(left, paths, cut_paths, bag_idx, get_offset(left_result))) {
         return false;
     }
     advance(left, bag_idx);

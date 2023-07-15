@@ -179,7 +179,7 @@ std::vector<Edge_weight> Search::search(Vertex start, Edge_length budget) {
         }
         // we start with one path of length 0
         std::vector<Edge_weight> result = {1};
-        Edge_weight used_budget = 0;
+        Edge_length used_budget = 0;
         for(int i = cur_ap_components.size() - 1; i >= 0; i--) {
             terminals_[1] = cur_ap_start_goal[i].second;
             std::fill(visited_.begin(), visited_.end(), true);

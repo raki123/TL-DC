@@ -551,8 +551,9 @@ void NautyPathwidthSearch::propagateLoop(Frontier &frontier, size_t bag_idx, siz
                 }
             }
             if(paths/2 == 1) {
-                for(Edge_length res_length = 1; res_length < partial_results.size() && partial_results[0] + res_length - 1 <= max_length_; res_length++) {
-                    thread_local_result_[thread_id][partial_results[0] + res_length - 1] += partial_results[res_length];
+                auto offset = get_offset(partial_results);
+                for(Edge_length res_length = 1; res_length < partial_results.size() && offset + res_length - 1 <= max_length_; res_length++) {
+                    thread_local_result_[thread_id][offset + res_length - 1] += partial_results[res_length];
                 }
             } 
         } else {
@@ -604,8 +605,8 @@ void NautyPathwidthSearch::propagateLoop(Frontier &frontier, size_t bag_idx, siz
                 pos_hits_[thread_id]++;
                 // there is already an element with that key
                 // instead increase the partial result for that key
-                auto old_offset = ins.first->second[0];
-                auto new_offset = partial_results[0];
+                auto old_offset = get_offset(ins.first->second);
+                auto new_offset = get_offset(partial_results);
                 if(old_offset > new_offset) {
                     // we reached this state with a smaller offset
                     // add the paths we currently cached to the new result
@@ -642,8 +643,8 @@ void NautyPathwidthSearch::propagateLoop(Frontier &frontier, size_t bag_idx, siz
                 pos_hits_[thread_id]++;
                 // there is already an element with that key
                 // instead increase the partial result for that key
-                auto old_offset = ins.first->second[0];
-                auto new_offset = partial_results[0];
+                auto old_offset = get_offset(ins.first->second);
+                auto new_offset = get_offset(partial_results);
                 if(old_offset > new_offset) {
                     // we reached this state with a smaller offset
                     // add the paths we currently cached to the new result
@@ -715,9 +716,10 @@ void NautyPathwidthSearch::includeSolutions(Frontier const& frontier, size_t bag
         }
         // we connected them
         // add the partial result
-        for(Edge_length res_length = 1; res_length < partial_result.size() && partial_result[0] + res_length <= max_length_; res_length++) {
+        auto offset = get_offset(partial_result);
+        for(Edge_length res_length = 1; res_length < partial_result.size() && offset + res_length <= max_length_; res_length++) {
             // current offset + 1 for the additional edge
-            thread_local_result_[thread_id][partial_result[0] + res_length] += partial_result[res_length];
+            thread_local_result_[thread_id][offset + res_length] += partial_result[res_length];
         }
         return;
     }
@@ -732,9 +734,10 @@ void NautyPathwidthSearch::includeSolutions(Frontier const& frontier, size_t bag
         }
         // we connected them
         // add the partial result
-        for(Edge_length res_length = 1; res_length < partial_result.size() && partial_result[0] + res_length <= max_length_; res_length++) {
+        auto offset = get_offset(partial_result);
+        for(Edge_length res_length = 1; res_length < partial_result.size() && offset + res_length <= max_length_; res_length++) {
             // current offset + 1 for the additional edge
-            thread_local_result_[thread_id][partial_result[0] + res_length] += partial_result[res_length];
+            thread_local_result_[thread_id][offset + res_length] += partial_result[res_length];
         }
         return;
     }
@@ -871,7 +874,7 @@ bool NautyPathwidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vect
         return false;
     }
 
-    return distancePrune(frontier, paths, cut_paths, bag_idx, partial_result[0] + 1);
+    return distancePrune(frontier, paths, cut_paths, bag_idx, get_offset(partial_result) + 1);
 }
 
 bool NautyPathwidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vector<Edge_weight> const& partial_result) {
@@ -924,7 +927,7 @@ bool NautyPathwidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vect
         }
     }
 
-    return distancePrune(frontier, paths, cut_paths, bag_idx, partial_result[0]);
+    return distancePrune(frontier, paths, cut_paths, bag_idx, get_offset(partial_result));
 }
 
 bool NautyPathwidthSearch::distancePrune(
@@ -1492,7 +1495,7 @@ bool NautyPathwidthSearch::finalizeMerge(
             new_result[l_length + r_length - 1] += left_result[l_length]*right_result[r_length];
         }
     }
-    new_result.resize(std::min(new_result.size(), max_length_ - new_result[0] + 2));
+    new_result.resize(std::min(new_result.size(), max_length_ - get_offset(new_result) + 2));
 
     // possibly include solutions
     size_t thread_id = omp_get_thread_num();
@@ -1502,8 +1505,9 @@ bool NautyPathwidthSearch::finalizeMerge(
         }
         // we cannot continue this either way but if there are not other partial paths we have to include the solution
         if(paths.size() + cut_paths.size() == 0) {
-            for(Edge_length res_length = 1; res_length < new_result.size() && new_result[0] + res_length - 1 <= max_length_; res_length++) {
-                thread_local_result_[thread_id][new_result[0] + res_length - 1] += new_result[res_length];
+            auto offset = get_offset(new_result);
+            for(Edge_length res_length = 1; res_length < new_result.size() && offset + res_length - 1 <= max_length_; res_length++) {
+                thread_local_result_[thread_id][offset + res_length - 1] += new_result[res_length];
             }
         }
         return false;
@@ -1511,8 +1515,9 @@ bool NautyPathwidthSearch::finalizeMerge(
     if(!left_empty && !right_empty && paths.size()/2 + cut_paths.size() == 1) {
         // if either is empty then we already counted the solutions
         // this way there is currently exactly one path and we have not seen it yet
-        for(Edge_length res_length = 1; res_length < new_result.size() && new_result[0] + res_length - 1 <= max_length_; res_length++) {
-            thread_local_result_[thread_id][new_result[0] + res_length - 1] += new_result[res_length];
+        auto offset = get_offset(new_result);
+        for(Edge_length res_length = 1; res_length < new_result.size() && offset + res_length - 1 <= max_length_; res_length++) {
+            thread_local_result_[thread_id][offset + res_length - 1] += new_result[res_length];
         }
     }
 
@@ -1529,7 +1534,7 @@ bool NautyPathwidthSearch::finalizeMerge(
         return false;
     }
 
-    if(!distancePrune(left, paths, cut_paths, bag_idx, new_result[0])) {
+    if(!distancePrune(left, paths, cut_paths, bag_idx, get_offset(new_result))) {
         return false;
     }
     // incorporate into cache

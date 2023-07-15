@@ -26,6 +26,10 @@
 
 namespace fpc {
 
+size_t get_offset(std::vector<Edge_weight> const& result) {
+    return result[0].get_ui();
+}
+
 Graph::Graph(std::istream &input) {
     char dec;
     input >> dec;

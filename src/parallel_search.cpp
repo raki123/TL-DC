@@ -74,14 +74,15 @@ std::vector<Edge_weight> ParallelSearch::search() {
             for(auto task_it = cache_[remaining_size].begin(bucket); task_it != cache_[remaining_size].end(bucket); ++task_it) {
                 auto const& old_sg = task_it->first;
                 auto const& result = task_it->second;
-                Edge_length budget = max_length_ - result[0];
+                Edge_length budget = max_length_ - get_offset(result);
                 for(int o = 0; o < old_sg.d[0]; o++) {
                     Vertex last = 0;
                     if(old_sg.e[o] == 1) {
                         // update the partial result
-                        for(Edge_length res_length = 1; res_length < result.size() && result[0] + res_length <= max_length_; res_length++) {
+                        auto offset = get_offset(result);
+                        for(Edge_length res_length = 1; res_length < result.size() && offset + res_length <= max_length_; res_length++) {
                             // current offset + 1 for the additional edge
-                            thread_local_result_[thread_id][result[0] + res_length] += result[res_length];
+                            thread_local_result_[thread_id][offset + res_length] += result[res_length];
                         }
                         continue;
                     }
@@ -114,9 +115,10 @@ std::vector<Edge_weight> ParallelSearch::search() {
                             Vertex w = old_sg.e[old_sg.v[cur] + i];
                             if(w == 1) {
                                 // update the partial result
-                                for(Edge_length res_length = 1; res_length < new_result.size() && new_result[0] + res_length <= max_length_; res_length++) {
+                                auto offset = get_offset(new_result);
+                                for(Edge_length res_length = 1; res_length < new_result.size() && offset + res_length <= max_length_; res_length++) {
                                     // current offset + 1 for the additional edge
-                                    thread_local_result_[thread_id][new_result[0] + res_length] += new_result[res_length];
+                                    thread_local_result_[thread_id][offset + res_length] += new_result[res_length];
                                 }
                             } else if(v_budget == distance_to_goal[w] + 1) {
                                 extra.push_back(w);
@@ -286,8 +288,9 @@ std::vector<Edge_weight> ParallelSearch::search() {
                     //     }
                     // }
                     sortlists_sg(&canon_sg);
-                    if(new_result.size() + new_result[0] - 1 > max_length_) {
-                        new_result.resize(max_length_ - new_result[0] + 1);
+                    auto offset = get_offset(new_result);
+                    if(new_result.size() + offset - 1 > max_length_) {
+                        new_result.resize(max_length_ - offset + 1);
                     }
                     #pragma omp critical
                     {
@@ -298,8 +301,8 @@ std::vector<Edge_weight> ParallelSearch::search() {
                             pos_hits_[thread_id]++;
                             // there is already an element with that key
                             // instead increase the partial result for that key
-                            auto old_offset = ins.first->second[0];
-                            auto new_offset = new_result[0];
+                            auto old_offset = get_offset(ins.first->second);
+                            auto new_offset = get_offset(new_result);
                             if(old_offset > new_offset) {
                                 // we reached this state with a smaller offset
                                 // add the paths we currently cached to the new result

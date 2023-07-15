@@ -32,6 +32,8 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+find_library(GMP_LIB gmp)
+find_library(GMPXX_LIB gmpxx)
 add_library(nauty STATIC IMPORTED)
 set_target_properties(nauty PROPERTIES
     IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/src/nauty2_8_6/nauty.a
@@ -51,4 +53,4 @@ add_executable (read src/main.cpp ${SOURCES})
 if(STATIC)
 SET_TARGET_PROPERTIES (read PROPERTIES LINK_SEARCH_START_STATIC 1)
 endif(STATIC)
-target_link_libraries (read libclingo nauty)
+target_link_libraries (read libclingo nauty ${GMP_LIB} ${GMPXX_LIB})
