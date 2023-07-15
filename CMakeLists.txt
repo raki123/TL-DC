@@ -2,7 +2,7 @@ cmake_minimum_required (VERSION 3.1)
 
 project (icgca) 
 
-# set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Release)
 
 option(STATIC "STATIC" OFF)
 set(CMAKE_VERBOSE_MAKEFILE on)

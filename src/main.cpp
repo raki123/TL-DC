@@ -27,6 +27,13 @@ void details(size_t bags, size_t nr_bags, size_t joinch, size_t max_join, size_t
 	std::cerr << "max bag size " << bags << ", nr bags " << nr_bags << ", max join child bags " << joinch << ", max join bag size " << max_join << ", nr of joins " << nr_joins << std::endl;
 }
 
+
+std::ostream& operator<<(std::ostream& o, const unsigned __int128& x) {
+    if (x < 10) return o << (char)(x + '0');
+    return o << x / 10 << (char)(x % 10 + '0');
+}
+
+
 int main() {
     fpc::Graph initial_graph(std::cin);
     initial_graph.preprocess();

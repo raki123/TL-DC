@@ -36,11 +36,12 @@ namespace fpc {
 typedef uint16_t Vertex;
 typedef std::pair<Vertex,Vertex> Edge;
 typedef uint8_t Edge_length;
-typedef mpz_class Edge_weight;
+typedef unsigned __int128 Edge_weight;
 typedef std::pair<Edge_length, Edge_weight> Weight;
 typedef std::priority_queue<std::pair<Edge_length, Vertex>, std::vector<std::pair<Edge_length, Vertex>>, std::greater<std::pair<Edge_length, Vertex>>> DijkstraQueue;
 
-size_t get_offset(std::vector<Edge_weight> const& result);
+size_t get_offset(std::vector<unsigned __int128> const& result);
+size_t get_offset(std::vector<mpz_class> const& result);
 
 class Graph {
 

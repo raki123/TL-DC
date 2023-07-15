@@ -1,5 +1,5 @@
 all: utils/htd src/nauty2_8_6/nauty.a
-	cmake -S . -B build
+	cmake -S . -B build -DCMAKE_CXX_COMPILER=g++
 	cmake --build build -j 12
 	cp build/read ./a.out
 
