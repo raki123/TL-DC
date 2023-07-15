@@ -59,8 +59,13 @@ int main() {
     bool is_all_pair = initial_graph.is_all_pair(), use_pw = false;
     
     AnnotatedDecomposition* r = &rt;
-
-    if ((!is_all_pair && max_bagsize < 19) || (is_all_pair && max_bagsize <= 22))
+    // decide whether we prefer a path decomposition over a tree decomposition.
+    // tree decompositions perform worse at the same width since joins are quadratic in the 
+    // number of entries so if we have low enough width the path decomposition will 
+    // be faster
+    // all pair instances have more entries therefore we prefer path decompositions
+    // for higher widths here 
+    if ((!is_all_pair && max_bagsize <= 18) || (is_all_pair && max_bagsize <= 22))
     {
     	use_pw = true;
         r = &rp;
@@ -72,18 +77,42 @@ int main() {
 
 
     std::vector<Edge_weight> res;
-    if((!is_all_pair && max_bagsize >= 16 && max_bagsize <= 25 && nr_automporphisms >= 1e+11 && nr_automporphisms <= 1e+45) || 
-    	(is_all_pair && use_pw && max_bagsize >= 21)) {
-        //fpc::NautyPathwidthSearch search(initial_graph, r2, 4);
+    // case one pair:
+    // we can increase our performance on high (but doable) path width
+    // if there are many automorphisms by doing caching modulo automorphism
+    // if there are too many automorphisms though computing a canonical representation becomes expensive
+    // case all pair:
+    // if we want to use path width but it is high we have a better chance
+    // when we reduce the number of entries by caching modulo automorphism
+    if((!is_all_pair && max_bagsize >= 16 && max_bagsize <= 25 && nr_automporphisms >= 1e+11 && nr_automporphisms <= 1e+45) 
+        || (is_all_pair && use_pw && max_bagsize >= 21)) {
         fpc::NautyPathwidthSearch search(initial_graph, rp, 4);
         res = search.search();
         search.print_stats();
     }
-    else if (is_all_pair || use_pw || (max_length > 59 && std::max(max_join_child,t_max_bagsize) < 23) || std::max(max_join_child,t_max_bagsize) < 21) {
+    // case all pair:
+    // we have to use tree width search because parallel search only works for one pair instances
+    // case use pw:
+    // we want to exploit low path width
+    // again this is our last chance to do so
+    // case high length:
+    // when the length is high we cannot prune based on it
+    // this is highly relevant for the last solver
+    // therefore if the width and join width is reasonable use a tree decomposition
+    // case low tree width:
+    // tree width and join size are low
+    // we have a good chance using treewidth based search
+    else if (is_all_pair 
+        || use_pw 
+        || (max_length >= 60 && std::max(max_join_child,t_max_bagsize) <= 22) 
+        || std::max(max_join_child,t_max_bagsize) <= 20) {
         fpc::TreewidthSearch search(initial_graph, r2, 4);
         res = search.search();
         search.print_stats();
-    } else {
+    } 
+    // last resort, when none of the other cases we are good at trigger
+    // do backtracking search with caching modulo automorphisms
+    else {
         fpc::ParallelSearch search(initial_graph.to_canon_nauty(true), initial_graph.max_length(), 4);
         res = search.search();
         search.print_stats();
