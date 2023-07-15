@@ -1824,6 +1824,14 @@ void NautyPathwidthSearch::advance(Frontier& frontier, size_t bag_idx) {
     assert(found_path % 2 == 0);
     assert(!found_two || found_invalid || found_path);
     assert(found_invalid <= 2);
+    if(found_invalid == 2) {
+        for(frontier_index_t idx = 0; idx < old.size(); idx++) {
+            if(old[idx] == no_edge_index_ && remaining_edges_after_this_[bag_idx][idx] == 1) {
+                auto advanced_idx = new_idx[old_vertex[idx]];
+                frontier[advanced_idx] = two_edge_index_;
+            }
+        }
+    }
 }
 
 sparsegraph NautyPathwidthSearch::construct_sparsegraph(Frontier const& frontier, size_t last_idx) {
@@ -2009,8 +2017,8 @@ sparsegraph NautyPathwidthSearch::construct_sparsegraph(Frontier const& frontier
     DEFAULTOPTIONS_SPARSEGRAPH(options);
     options.getcanon = true;
     options.defaultptn = false;
-    // options.schreier = true;
-    // options.tc_level = 1000;
+    options.schreier = true;
+    options.tc_level = 1000;
     statsblk stats;
     SG_DECL(canon_sg);
     canon_sg.v = (edge_t *)malloc(sizeof(edge_t)*(sg.nv + sg.nde) + sizeof(degree_t)*sg.nv);
