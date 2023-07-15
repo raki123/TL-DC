@@ -31,6 +31,7 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
             std::vector<frontier_index_t>(graph_.adjacency_.size(), invalid_index_)),
         bag_local_vertex_map_(decomposition_.size()),
         bag_local_distance_(decomposition_.size()),
+        bag_lock_(decomposition_.size()),
         result_(max_length_ + 1, 0),
         thread_local_result_(
             nthreads_,
@@ -104,6 +105,7 @@ TreewidthSearch::TreewidthSearch(Graph& input, AnnotatedDecomposition decomposit
     }
     Graph cur_graph = graph_.subgraph(all);;
     for(size_t bag_idx = 0; bag_idx < decomposition_.size(); bag_idx++) {
+        omp_init_lock(&bag_lock_[bag_idx]);
         auto &node = decomposition_[bag_idx];
         auto &idx = bag_local_idx_map_[bag_idx];
         auto &vertex = bag_local_vertex_map_[bag_idx];
@@ -302,8 +304,9 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                             && (
                                     (takeable && skippable)
                                 ||  (decomposition_[new_idx].type == JOIN && last_idx == decomposition_[new_idx].children.first))) {
-                            #pragma omp critical 
+                            // #pragma omp critical 
                             {
+                                omp_set_lock(&bag_lock_[new_idx]);
                                 auto ins = cache_[new_idx].first.insert(
                                     std::make_pair(new_frontier, new_result)
                                 );
@@ -334,12 +337,14 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                                 } else {
                                     neg_hits_[thread_id]++;
                                 }
+                                omp_unset_lock(&bag_lock_[new_idx]);
                             }
                         } else if(new_idx < decomposition_.size() 
                             && decomposition_[new_idx].type == JOIN) {
                             assert(last_idx == decomposition_[new_idx].children.second);
-                            #pragma omp critical 
+                            // #pragma omp critical 
                             {
+                                omp_set_lock(&bag_lock_[new_idx]);
                                 auto ins = cache_[new_idx].second.insert(
                                     std::make_pair(new_frontier, new_result)
                                 );
@@ -370,6 +375,7 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                                 } else {
                                     neg_hits_[thread_id]++;
                                 }
+                                omp_unset_lock(&bag_lock_[new_idx]);
                             }
                         }
                     }
@@ -495,8 +501,9 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                             && (
                                     (takeable && skippable)
                                 ||  (decomposition_[new_idx].type == JOIN && last_idx == decomposition_[new_idx].children.first))) {
-                            #pragma omp critical 
+                            // #pragma omp critical 
                             {
+                                omp_set_lock(&bag_lock_[new_idx]);
                                 auto ins = cache_[new_idx].first.insert(
                                     std::make_pair(left_frontier, left_result)
                                 );
@@ -527,12 +534,14 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                                 } else {
                                     neg_hits_[thread_id]++;
                                 }
+                                omp_unset_lock(&bag_lock_[new_idx]);
                             }
                         } else if(new_idx < decomposition_.size() 
                             && decomposition_[new_idx].type == JOIN) {
                             assert(last_idx == decomposition_[new_idx].children.second);
-                            #pragma omp critical 
+                            // #pragma omp critical 
                             {
+                                omp_set_lock(&bag_lock_[new_idx]);
                                 auto ins = cache_[new_idx].second.insert(
                                     std::make_pair(left_frontier, left_result)
                                 );
@@ -563,6 +572,7 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                                 } else {
                                     neg_hits_[thread_id]++;
                                 }
+                                omp_set_lock(&bag_lock_[new_idx]);
                             }
                         }
                     }
