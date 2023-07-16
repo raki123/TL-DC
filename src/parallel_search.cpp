@@ -68,7 +68,7 @@ std::vector<Edge_weight> ParallelSearch::search() {
     cache_[initial_.nv][initial_] = {0, 1};
     Vertex nr_vertices = initial_.nv;
     for(Vertex remaining_size = nr_vertices + 1; remaining_size-- > 0; ) {
-        #pragma omp parallel for /*default(none)*/ shared(max_length_) shared(std::cerr) shared(remaining_size) shared(cache_) shared(invalid_) shared(thread_local_result_) shared(thread_local_sg_) shared(thread_local_ptn_) shared(thread_local_lab_) shared(thread_local_orbits_) shared(thread_local_bridges_) shared(dispatch_sparse)
+        #pragma omp parallel for /*default(none)*/ shared(max_length_) shared(remaining_size) shared(cache_) shared(invalid_) shared(thread_local_result_) shared(thread_local_sg_) shared(thread_local_ptn_) shared(thread_local_lab_) shared(thread_local_orbits_) shared(thread_local_bridges_) shared(dispatch_sparse)
         for(size_t bucket = 0; bucket < cache_[remaining_size].bucket_count(); bucket++) {
             size_t thread_id = omp_get_thread_num();
             for(auto task_it = cache_[remaining_size].begin(bucket); task_it != cache_[remaining_size].end(bucket); ++task_it) {

@@ -121,8 +121,6 @@ NautyPathwidthSearch::NautyPathwidthSearch(Graph& input, AnnotatedDecomposition 
     Graph cur_graph = graph_.subgraph(all);;
     for(size_t bag_idx = 0; bag_idx < decomposition_.size(); bag_idx++) {
         auto &node = decomposition_[bag_idx];
-	//std::cerr << bag_idx << " ";
-	//node.stats();
         auto &idx = bag_local_idx_map_[bag_idx];
         auto &vertex = bag_local_vertex_map_[bag_idx];
         auto &remaining = remaining_edges_after_this_[bag_idx];
@@ -268,14 +266,10 @@ NautyPathwidthSearch::NautyPathwidthSearch(Graph& input, AnnotatedDecomposition 
         assert(cur_e_idx == nr_edges);
     }
     for(vertex_t v = 0; v < graph_.adjacency_.size(); v++) {
-        if(cur_graph.neighbors(v).size() != 0) {
-            std::cerr << v << std::endl;
-        }
         assert(cur_graph.neighbors(v).size() == 0);
     }
     for(size_t bag_idx = 0; bag_idx < decomposition_.size(); bag_idx++) {
         auto &node = decomposition_[bag_idx];
-        // std::cerr << "<" << bag_idx << ">"; node.stats();
         if(node.type == NodeType::LEAF) {
             Frontier initial_frontier(decomposition_[bag_idx].bag.size(), no_edge_index_);
             if(!is_all_pair_) {
@@ -294,14 +288,14 @@ NautyPathwidthSearch::NautyPathwidthSearch(Graph& input, AnnotatedDecomposition 
 
 std::vector<Edge_weight> NautyPathwidthSearch::search() {
     for(size_t bag_idx = 0; bag_idx < decomposition_.size(); bag_idx++) {
-        std::cerr << "\r" << bag_idx << " / " << decomposition_.size() - 1 << " of type ";
-        if(decomposition_[bag_idx].type == NodeType::LEAF) {
-            std::cerr << "leaf, with " << cache_[bag_idx].first.size() << " entries.";
-        } else if(decomposition_[bag_idx].type == NodeType::PATH_LIKE) {
-            std::cerr << "path, with " << cache_[bag_idx].first.size() << " entries.";
-        } else if(decomposition_[bag_idx].type == NodeType::JOIN) {
-            std::cerr << "join, with (" << cache_[bag_idx].first.size() << "," << cache_[bag_idx].second.size() << ") entries.";
-        }
+        // std::cerr << "\r" << bag_idx << " / " << decomposition_.size() - 1 << " of type ";
+        // if(decomposition_[bag_idx].type == NodeType::LEAF) {
+        //     std::cerr << "leaf, with " << cache_[bag_idx].first.size() << " entries.";
+        // } else if(decomposition_[bag_idx].type == NodeType::PATH_LIKE) {
+        //     std::cerr << "path, with " << cache_[bag_idx].first.size() << " entries.";
+        // } else if(decomposition_[bag_idx].type == NodeType::JOIN) {
+        //     std::cerr << "join, with (" << cache_[bag_idx].first.size() << "," << cache_[bag_idx].second.size() << ") entries.";
+        // }
         if(decomposition_[bag_idx].type == LEAF || decomposition_[bag_idx].type == PATH_LIKE) {
             // PATH_LIKE/LEAF
             #pragma omp parallel for default(shared) //shared(edges_) shared(propagations_) shared(bag_idx) shared(max_length_) shared(cache_) shared(decomposition_) shared(thread_local_result_) shared(pos_hits_) shared(neg_hits_) shared(bag_local_idx_map_) shared(bag_local_vertex_map_)
@@ -331,40 +325,6 @@ std::vector<Edge_weight> NautyPathwidthSearch::search() {
                     return std::make_pair(key.first.second, key.second);
             });
             std::sort(right_vector.begin(), right_vector.end());
-            // std::cerr << "Remaining: ";
-            // for(auto i = 0; i < remaining_edges_after_this_[bag_idx].size(); i++) {
-            //     std::cerr << size_t(remaining_edges_after_this_[bag_idx][i]) << " ";
-            // }
-            // std::cerr << std::endl;
-            // std::cerr << std::endl;
-            // for(size_t bucket = 0; bucket < cache_[bag_idx].first.bucket_count(); bucket++) {
-            //     for(auto task_it = cache_[bag_idx].first.begin(bucket); task_it != cache_[bag_idx].first.end(bucket); ++task_it) {
-            //         for(auto [frontier, result] : right_vector) {
-            //             prettyPrint(task_it->first);
-            //             prettyPrint(frontier);
-            //             auto left_copy = task_it->first;
-            //             auto right_copy = frontier;
-            //             auto left_result_copy = task_it->second;
-            //             auto right_result_copy = result;
-            //             if(merge(left_copy, right_copy, bag_idx, left_result_copy, right_result_copy)) {
-            //                 std::cerr << "Merged" << std::endl;
-            //             } else {
-            //                 std::cerr << "Not Merged" << std::endl;
-            //             }
-            //             std::vector<std::pair<Frontier, std::vector<Edge_weight>>> single = {std::make_pair(right_copy, right_result_copy)};
-            //             auto begin = single.begin();
-            //             auto end = single.end();
-            //             std::vector<frontier_index_t> cut_paths;
-            //             std::vector<frontier_index_t> paths;
-            //             bool found_solution = false;
-            //             auto left = task_it->first;
-            //             auto left_result = task_it->second;
-            //             mergeStep(left, bag_idx, 0, found_solution, cut_paths, paths, left_result, begin, end);
-            //         }
-            //     }
-            // }
-            // std::cerr << std::endl;
-            // continue;
             // JOIN
             // FIXME: check if its better to take either bag as the outer one
             #pragma omp parallel for default(shared) shared(merges_) shared(unsuccessful_merges_) shared(edges_) shared(propagations_) shared(bag_idx) shared(max_length_) shared(cache_) shared(decomposition_) shared(thread_local_result_) shared(pos_hits_) shared(neg_hits_) shared(bag_local_idx_map_) shared(bag_local_vertex_map_)
@@ -430,74 +390,6 @@ std::vector<Edge_weight> NautyPathwidthSearch::search() {
                     } else if(right[0] == invalid_index_) {
                         mergeStep(left, bag_idx, 0, found_solution, cut_paths, paths, left_result, begin, end);
                     }
-                    continue;
-                    // std::vector<std::pair<size_t, frontier_index_t>> stack;
-                    // stack.push_back(std::make_pair(0, 0));
-                    // while(!stack.empty()) {
-                    //     auto [cur_node, cur_idx] = stack.back();
-                    //     stack.pop_back();
-                    //     if(cur_node == size_t(-1)) {
-                    //         continue;
-                    //     }
-                    //     if(cur_idx < task_it->first.size()) {
-                    //         int mergeable_idx = std::max(task_it->first[cur_idx], frontier_index_t(252)) - 252;
-                    //         if(!is_all_pair_ && (bag_local_idx_map_[bag_idx][terminals_[0]] == cur_idx || bag_local_idx_map_[bag_idx][terminals_[1]] == cur_idx)) {
-                    //             if(mergeable_idx == 1) {
-                    //                 stack.push_back(std::make_pair(nodes[cur_node].children[3], cur_idx + 1));
-                    //             } else {
-                    //                 assert(mergeable_idx == 3);
-                    //                 stack.push_back(std::make_pair(nodes[cur_node].children[1], cur_idx + 1));
-                    //                 stack.push_back(std::make_pair(nodes[cur_node].children[3], cur_idx + 1));
-                    //             }
-                    //         } else {
-                    //             if(mergeable_idx == 0) { // path
-                    //                 stack.push_back(std::make_pair(nodes[cur_node].children[0], cur_idx + 1));
-                    //                 stack.push_back(std::make_pair(nodes[cur_node].children[2], cur_idx + 1));
-                    //                 stack.push_back(std::make_pair(nodes[cur_node].children[3], cur_idx + 1));
-                    //             } else if(mergeable_idx == 1) { // two edges
-                    //                 stack.push_back(std::make_pair(nodes[cur_node].children[2], cur_idx + 1));
-                    //             } else if(mergeable_idx == 2) { // no edge
-                    //                 stack.push_back(std::make_pair(nodes[cur_node].children[0], cur_idx + 1));
-                    //                 stack.push_back(std::make_pair(nodes[cur_node].children[1], cur_idx + 1));
-                    //                 stack.push_back(std::make_pair(nodes[cur_node].children[2], cur_idx + 1));
-                    //                 stack.push_back(std::make_pair(nodes[cur_node].children[3], cur_idx + 1));
-                    //             } else if(mergeable_idx == 3) { // cut path
-                    //                 stack.push_back(std::make_pair(nodes[cur_node].children[0], cur_idx + 1));
-                    //                 stack.push_back(std::make_pair(nodes[cur_node].children[2], cur_idx + 1));
-                    //                 stack.push_back(std::make_pair(nodes[cur_node].children[3], cur_idx + 1));
-                    //             }
-                    //         }
-                    //         continue;
-                    //     }
-                    //     for(auto cache_idx : nodes[cur_node].cache_idx) {
-                    //         auto const&[right_frontier, right_result] = right_vector[cache_idx];
-                    //         if(right_result[0] + task_it->second[0] > max_length_) {
-                    //             break;
-                    //         }
-                    //         auto left_frontier = task_it->first;
-                    //         auto left_result = task_it->second;
-                    //         // for(auto idx : left_frontier) {
-                    //         //     std::cerr << size_t(idx) << " ";
-                    //         // }
-                    //         // std::cerr << std::endl;
-                    //         // for(auto idx : right_frontier) {
-                    //         //     std::cerr << size_t(idx) << " ";
-                    //         // }
-                    //         // std::cerr << std::endl;
-                    //         // std::cerr << "Remaining: ";
-                    //         // for(auto i = 0; i < left_frontier.size(); i++) {
-                    //         //     std::cerr << size_t(remaining_edges_after_this_[bag_idx][i]) << " ";
-                    //         // }
-                    //         // std::cerr << std::endl;
-                    //         merges_[thread_id]++;
-                    //         if(!merge(left_frontier, right_frontier, bag_idx, left_result, right_result)) {
-                    //             // std::cerr << "Not merged" << std::endl;
-                    //             unsuccessful_merges_[thread_id]++;
-                    //             continue;
-                    //         }
-                    //         // std::cerr << "Merged" << std::endl;
-                    //     }
-                    // }
                 }
             }
         }
@@ -512,7 +404,6 @@ std::vector<Edge_weight> NautyPathwidthSearch::search() {
     for(size_t bag_idx = 0; bag_idx < decomposition_.size(); bag_idx++) {
         free(sparsegraph_after_this_[bag_idx].v);
     }
-    std::cerr << std::endl;
     return result_;
 }
 
@@ -525,20 +416,6 @@ void NautyPathwidthSearch::propagateLoop(Frontier &frontier, size_t bag_idx, siz
     // propagate while only one of the two is possible
     while((takeable ^ skippable) && new_idx + 1 < decomposition_.size() && decomposition_[new_idx].type != JOIN) {
         propagations_[thread_id]++;
-        // Edge edge = decomposition_[new_idx].edge;
-        // auto v_idx = bag_local_idx_map_[new_idx][edge.first];
-        // auto w_idx = bag_local_idx_map_[new_idx][edge.second];
-        // std::cerr << "Edge: (" << size_t(v_idx) << "," << size_t(w_idx) << ") Idx:" << size_t(new_idx) << std::endl;
-        // for(auto idx : new_frontier) {
-        //     std::cerr << size_t(idx) << " ";
-        // }
-        // std::cerr << std::endl;
-        // std::cerr << "Remaining: ";
-        // for(auto i = 0; i < new_frontier.size(); i++) {
-        //     std::cerr << size_t(remaining_edges_after_this_[new_idx][i]) << " ";
-        // }
-        // std::cerr << std::endl;
-        // std::cerr << takeable << " " << skippable << std::endl;
         if(takeable) {
             take(frontier, new_idx);
             partial_results[0]++;
@@ -562,30 +439,11 @@ void NautyPathwidthSearch::propagateLoop(Frontier &frontier, size_t bag_idx, siz
         last_idx = new_idx;
         new_idx = decomposition_[new_idx].parent;
         if(new_idx < decomposition_.size() && decomposition_[new_idx].type != JOIN) {
-            // Edge edge = decomposition_[new_idx].first;
-            // auto v_idx = bag_local_idx_map_[new_idx][edge.first];
-            // auto w_idx = bag_local_idx_map_[new_idx][edge.second];
-            // std::cerr << "Edge: (" << size_t(v_idx) << "," << size_t(w_idx) << ") Idx:" << size_t(new_idx) << std::endl;
-            // for(auto idx : new_frontier) {
-            //     std::cerr << size_t(idx) << " ";
-            // }
-            // std::cerr << std::endl;
-            // std::cerr << "Remaining: ";
-            // for(auto i = 0; i < new_frontier.size(); i++) {
-            //     std::cerr << size_t(remaining_edges_after_this_[new_idx][i]) << " ";
-            // }
-            // std::cerr << std::endl;
-            // std::cerr << "Result: ";
-            // for(auto i = 0; i < new_result.size(); i++) {
-            //     std::cerr << new_result[i] << " ";
-            // }
-            // std::cerr << std::endl;
             takeable = canTake(frontier, new_idx, partial_results);
             skippable = canSkip(frontier, new_idx, partial_results);
             if(!takeable) {
                 includeSolutions(frontier, new_idx, partial_results);
             }
-            // std::cerr << takeable << " " << skippable << std::endl;
         }
     }
     // both are possible, so we have a new decision edge
@@ -843,7 +701,6 @@ bool NautyPathwidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vect
     std::vector<frontier_index_t> paths;
     std::vector<frontier_index_t> cut_paths;
     for(frontier_index_t idx = 0; idx < frontier.size(); idx++) {
-        // std::cerr << size_t(frontier[idx]) << " ";
         if(frontier[idx] != no_edge_index_ && frontier[idx] != two_edge_index_) {
             if(frontier[idx] == invalid_index_) {
                 cut_paths.push_back(idx);
@@ -852,7 +709,6 @@ bool NautyPathwidthSearch::canTake(Frontier& frontier, size_t bag_idx, std::vect
             }
         }
     }
-    // std::cerr << std::endl;
     if(cut_paths.size() > 2) {
         for(auto [idx, rest] : restore) {
             frontier[idx] = rest;
@@ -904,7 +760,6 @@ bool NautyPathwidthSearch::canSkip(Frontier& frontier, size_t bag_idx, std::vect
     std::vector<frontier_index_t> paths;
     std::vector<frontier_index_t> cut_paths;
     for(frontier_index_t idx = 0; idx < frontier.size(); idx++) {
-        // std::cerr << size_t(frontier[idx]) << " ";
         if(frontier[idx] != no_edge_index_ && frontier[idx] != two_edge_index_) {
             if(frontier[idx] == invalid_index_) {
                 cut_paths.push_back(idx);
@@ -1081,9 +936,6 @@ void NautyPathwidthSearch::mergeStep(
     size_t cut_paths_size = cut_paths.size();
     size_t paths_size = paths.size();
     auto const& right = begin->first;
-    // std::cerr << size_t(idx) << std::endl;
-    // prettyPrint(left);
-    // prettyPrint(right);
     // start goal case
     if(!is_all_pair_ && (bag_local_idx_map_[bag_idx][terminals_[0]] == idx || bag_local_idx_map_[bag_idx][terminals_[1]] == idx)) {
         assert(left[idx] == invalid_index_ || left[idx] == two_edge_index_);

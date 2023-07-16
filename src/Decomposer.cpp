@@ -334,7 +334,7 @@ std::vector<std::pair<Edge, std::vector<vertex_t>>> Decomposer::path_decompose(/
     //int cur = std::get<0>(td);
 
     int cur = std::get<1>(td)[0];	
-    std::cerr << "leaf " << cur << std::endl;
+    // std::cerr << "leaf " << cur << std::endl;
     while (true) { //actual_td.count(cur) != 0) {
         auto edges = actual_td[cur].first;
         auto bag = actual_td[cur].second;
@@ -467,7 +467,7 @@ Decomposer::decompose(/*const*/ Graph& graph, bool path)
 			std::set<Edge> edges; //only cover an edge at most once
 			//std::cerr << "read " << std::endl;
 			//sscanf(buf, "s td %d %d %d\n", &bags, &width, &verts);
-			std::cerr << "TD with " << bags << " bags, width " << width << " and " << verts << " vertices" << std::endl;
+			// std::cerr << "TD with " << bags << " bags, width " << width << " and " << verts << " vertices" << std::endl;
 			int b = 1;
 			for (; b <= bags && fgets(buf, BUF_SIZE-1, fout) != NULL; ++b)
 			{
