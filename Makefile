@@ -1,7 +1,7 @@
 all: utils/htd src/nauty2_8_6/nauty.a
-	cmake -S . -B build -DCMAKE_CXX_COMPILER=g++
+	cmake -S . -B build
 	cmake --build build -j 12
-	cp build/read ./a.out
+	mv build/tldc ./a.out
 
 src/nauty2_8_6/nauty.a:
 	cd src/nauty2_8_6/; ./configure --enable-tls --disable-interrupt; make -j12 nauty.a

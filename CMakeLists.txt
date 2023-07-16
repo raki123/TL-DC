@@ -1,6 +1,6 @@
 cmake_minimum_required (VERSION 3.1)
 
-project (icgca) 
+project (TLDC) 
 
 set(CMAKE_BUILD_TYPE Release)
 
@@ -47,10 +47,10 @@ SET(SOURCES
     src/parallel_search.cpp
     src/treewidth_search.cpp
     src/nauty_pathwidth_search.cpp
-	src/clhash/clhash.c
+    src/clhash/clhash.c
 )
-add_executable (read src/main.cpp ${SOURCES})
+add_executable (tldc src/main.cpp ${SOURCES})
 if(STATIC)
-SET_TARGET_PROPERTIES (read PROPERTIES LINK_SEARCH_START_STATIC 1)
+SET_TARGET_PROPERTIES (tldc PROPERTIES LINK_SEARCH_START_STATIC 1)
 endif(STATIC)
-target_link_libraries (read libclingo nauty ${GMP_LIB} ${GMPXX_LIB})
+target_link_libraries (tldc libclingo nauty ${GMP_LIB} ${GMPXX_LIB})
