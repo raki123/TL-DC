@@ -19,6 +19,9 @@
 #include "nauty_pathwidth_search.h"
 #include "parallel_search.h"
 
+#include <sys/resource.h>
+#define MEMLIMIT 64ul * 1024ul * 1024ul * 1024ul
+
 #include <iostream>
 #include "Decomposer.hpp"
 
@@ -35,6 +38,13 @@ std::ostream& operator<<(std::ostream& o, const unsigned __int128& x) {
 
 
 int main() {
+    struct rlimit64 lim;
+    lim.rlim_cur = MEMLIMIT;
+    lim.rlim_max = MEMLIMIT;
+    if(setrlimit64(RLIMIT_AS, &lim) == -1) {
+        perror(strerror(errno));
+    }
+
     fpc::Graph initial_graph(std::cin);
     initial_graph.preprocess();
     initial_graph.normalize();
