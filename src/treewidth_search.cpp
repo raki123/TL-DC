@@ -325,7 +325,7 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                                         for(Edge_length res_length = 1; res_length < ins.first->second.size(); res_length++) {
                                             new_result[old_offset - new_offset + res_length] += ins.first->second[res_length];
                                         }
-                                        ins.first->second = new_result;
+                                        ins.first->second = std::move(new_result);
                                     } else {
                                         if(ins.first->second.size() + old_offset < new_result.size() + new_offset) {
                                             ins.first->second.resize(new_result.size() + new_offset - old_offset);
@@ -363,7 +363,7 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                                         for(Edge_length res_length = 1; res_length < ins.first->second.size(); res_length++) {
                                             new_result[old_offset - new_offset + res_length] += ins.first->second[res_length];
                                         }
-                                        ins.first->second = new_result;
+                                        ins.first->second = std::move(new_result);
                                     } else {
                                         if(ins.first->second.size() + old_offset < new_result.size() + new_offset) {
                                             ins.first->second.resize(new_result.size() + new_offset - old_offset);
@@ -522,7 +522,7 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                                         for(Edge_length res_length = 1; res_length < ins.first->second.size(); res_length++) {
                                             left_result[old_offset - new_offset + res_length] += ins.first->second[res_length];
                                         }
-                                        ins.first->second = left_result;
+                                        ins.first->second = std::move(left_result);
                                     } else {
                                         if(ins.first->second.size() + old_offset < left_result.size() + new_offset) {
                                             ins.first->second.resize(left_result.size() + new_offset - old_offset);
@@ -560,7 +560,7 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                                         for(Edge_length res_length = 1; res_length < ins.first->second.size(); res_length++) {
                                             left_result[old_offset - new_offset + res_length] += ins.first->second[res_length];
                                         }
-                                        ins.first->second = left_result;
+                                        ins.first->second = std::move(left_result);
                                     } else {
                                         if(ins.first->second.size() + old_offset < left_result.size() + new_offset) {
                                             ins.first->second.resize(left_result.size() + new_offset - old_offset);

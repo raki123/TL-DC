@@ -20,6 +20,7 @@
 #include "parallel_search.h"
 
 #include <iostream>
+#include <chrono>
 #include "Decomposer.hpp"
 
 void details(size_t bags, size_t nr_bags, size_t joinch, size_t max_join, size_t nr_joins)
@@ -35,6 +36,7 @@ std::ostream& operator<<(std::ostream& o, const unsigned __int128& x) {
 
 
 int main() {
+    auto start = std::chrono::system_clock::now();
     fpc::Graph initial_graph(std::cin);
     initial_graph.preprocess();
     initial_graph.normalize();
@@ -93,7 +95,7 @@ int main() {
     // when we reduce the number of entries by caching modulo automorphism
     if((!is_all_pair && max_bagsize >= 16 && max_bagsize <= 25 && nr_automporphisms >= 1e+11 && nr_automporphisms <= 1e+45) 
         || (is_all_pair && use_pw && max_bagsize >= 21)) {
-        fpc::NautyPathwidthSearch search(initial_graph, rp, 4);
+        fpc::NautyPathwidthSearch search(initial_graph, rp, 12);
         res = search.search();
         search.print_stats();
     }
@@ -113,14 +115,14 @@ int main() {
         || use_pw 
         || (max_length >= 60 && std::max(max_join_child,t_max_bagsize) <= 22) 
         || std::max(max_join_child,t_max_bagsize) <= 20) {
-        fpc::TreewidthSearch search(initial_graph, r2, 4);
+        fpc::TreewidthSearch search(initial_graph, r2, 12);
         res = search.search();
         search.print_stats();
     } 
     // last resort, when none of the other cases we are good at trigger
     // do backtracking search with caching modulo automorphisms
     else {
-        fpc::ParallelSearch search(initial_graph.to_canon_nauty(true), initial_graph.max_length(), 4);
+        fpc::ParallelSearch search(initial_graph.to_canon_nauty(true), initial_graph.max_length(), 12);
         res = search.search();
         search.print_stats();
     }
@@ -138,6 +140,7 @@ int main() {
         }
         final_result += res[l];
     }
-    std::cout << final_result << std::endl;
+    auto duration = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now() - start);
+    std::cout << final_result << " " << duration.count() << std::endl;
     return 0;
 }
