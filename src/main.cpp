@@ -39,8 +39,8 @@ std::ostream& operator<<(std::ostream& o, const unsigned __int128& x) {
 
 int main() {
     struct rlimit64 lim;
-    lim.rlim_cur = MEMLIMIT;
-    lim.rlim_max = MEMLIMIT;
+    getrlimit64(RLIMIT_AS, &lim);
+    lim.rlim_cur = std::min(MEMLIMIT, lim.rlim_cur);
     if(setrlimit64(RLIMIT_AS, &lim) == -1) {
         perror(strerror(errno));
     }
