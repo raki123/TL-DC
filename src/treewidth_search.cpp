@@ -469,7 +469,7 @@ std::vector<Edge_weight> TreewidthSearch::search() {
                                 } else {
                                     neg_hits_[thread_id]++;
                                 }
-                                omp_set_lock(&bag_lock_[new_idx]);
+                                omp_unset_lock(&bag_lock_[new_idx]);
                             }
                         }
                     }
