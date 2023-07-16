@@ -92,7 +92,7 @@ int main() {
     // when we reduce the number of entries by caching modulo automorphism
     if((!is_all_pair && max_bagsize >= 16 && max_bagsize <= 25 && nr_automporphisms >= 1e+11 && nr_automporphisms <= 1e+45) 
         || (is_all_pair && use_pw && max_bagsize >= 21)) {
-        fpc::NautyPathwidthSearch search(initial_graph, rp, 12);
+        fpc::NautyPathwidthSearch search(initial_graph, rp, 10);
         res = search.search();
         // search.print_stats();
     }
@@ -112,14 +112,14 @@ int main() {
         || use_pw 
         || (max_length >= 60 && std::max(max_join_child,t_max_bagsize) <= 22) 
         || std::max(max_join_child,t_max_bagsize) <= 20) {
-        fpc::TreewidthSearch search(initial_graph, r2, 12);
+        fpc::TreewidthSearch search(initial_graph, r2, 10);
         res = search.search();
         // search.print_stats();
     } 
     // last resort, when none of the other cases we are good at trigger
     // do backtracking search with caching modulo automorphisms
     else {
-        fpc::ParallelSearch search(initial_graph.to_canon_nauty(true), initial_graph.max_length(), 12);
+        fpc::ParallelSearch search(initial_graph.to_canon_nauty(true), initial_graph.max_length(), 10);
         res = search.search();
         // search.print_stats();
     }
