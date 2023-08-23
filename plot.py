@@ -66,7 +66,7 @@ axes.set_ylim([0,timeout])
 axes.xaxis.set_major_locator(MaxNLocator(integer=True))
 plt.legend(loc="best", prop={'size': LABEL_SIZE})
 plt.tight_layout()
-plt.savefig()
+plt.savefig("one_pair.pdf")
 
 
 files = [
@@ -105,4 +105,4 @@ axes.set_ylim([0,timeout])
 axes.xaxis.set_major_locator(MaxNLocator(integer=True))
 plt.legend(loc="best", prop={'size': LABEL_SIZE})
 plt.tight_layout()
-plt.savefig()
+plt.savefig("all_pair.pdf")
