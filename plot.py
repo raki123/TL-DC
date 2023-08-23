@@ -67,7 +67,7 @@ axes.xaxis.set_major_locator(MaxNLocator(integer=True))
 plt.legend(loc="best", prop={'size': LABEL_SIZE})
 plt.tight_layout()
 plt.savefig("one_pair.pdf")
-
+plt.close()
 
 files = [
      "all_results_pd_600", "all_results_pd_nauty_600", "all_results_td_600"
