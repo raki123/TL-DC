@@ -26,10 +26,8 @@ using namespace fpc;
 #ifndef _DECOMPOSER_HPP_
 #define _DECOMPOSER_HPP_
 
-//#define DEF_DECOMPOSER "../flow_cutter_pace17" //../utils/htd_custom"
-//#define DEF_DECOMPOSER "../htd" //../utils/htd_custom"
-#define DEF_DECOMPOSER "./utils/htd" //../utils/htd_custom"
-#define DEF_PATH_DECOMPOSER "./path_decomp.py"
+#define DEF_DECOMPOSER "./utils/htd" 
+#define DEF_PATH_DECOMPOSER "./utils/path_decomp.py"
 #define DEF_DECOMP_PARAMS "SEE popen2.cpp"
 
 typedef std::tuple<int, std::vector<int>, std::map<int, std::vector<int>>, std::map<int, std::pair<std::vector<Edge>, std::vector<vertex_t>>>> Td_t;
