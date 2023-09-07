@@ -55,9 +55,52 @@ ParallelSearch::ParallelSearch(sparsegraph input, Edge_length max_length,
   }
 }
 
+void ParallelSearch::add_to_initial(std::vector<sparsegraph> &to_add) {
+  for (auto sg : to_add) {
+    assert(sg.nv <= initial_.nv);
+    std::vector<Edge_weight> intial_result = {0, 1};
+    auto ins = cache_[sg.nv].insert(std::make_pair(sg, intial_result));
+    if (!ins.second) {
+      pos_hits_[0]++;
+      // there is already an element with that key
+      // instead increase the partial result for that key
+      auto old_offset = get_offset(ins.first->second);
+      auto new_offset = get_offset(intial_result);
+      if (old_offset > new_offset) {
+        // we reached this state with a smaller offset
+        // add the paths we currently cached to the new result
+        if (intial_result.size() + new_offset <
+            ins.first->second.size() + old_offset) {
+          intial_result.resize(ins.first->second.size() + old_offset -
+                               new_offset);
+        }
+        for (Edge_length res_length = 1; res_length < ins.first->second.size();
+             res_length++) {
+          intial_result[old_offset - new_offset + res_length] +=
+              ins.first->second[res_length];
+        }
+        ins.first->second = intial_result;
+      } else {
+        if (ins.first->second.size() + old_offset <
+            intial_result.size() + new_offset) {
+          ins.first->second.resize(intial_result.size() + new_offset -
+                                   old_offset);
+        }
+        for (Edge_length res_length = 1; res_length < intial_result.size();
+             res_length++) {
+          ins.first->second[new_offset - old_offset + res_length] +=
+              intial_result[res_length];
+        }
+      }
+      free(sg.v);
+    } else {
+      neg_hits_[0]++;
+    }
+  }
+}
+
 std::vector<Edge_weight> ParallelSearch::search() {
   // cached vectors are {offset, results}
-  cache_[initial_.nv][initial_] = {0, 1};
   Vertex nr_vertices = initial_.nv;
   for (Vertex remaining_size = nr_vertices + 1; remaining_size-- > 0;) {
     std::cerr << "\r" << nr_vertices - remaining_size << " / " << nr_vertices;

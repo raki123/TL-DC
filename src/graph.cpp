@@ -309,6 +309,26 @@ sparsegraph Graph::to_canon_nauty(bool reorder) {
   return canon_sg;
 }
 
+std::vector<sparsegraph> Graph::all_pair_nauty(bool reorder) {
+  assert(!is_all_pair());
+  normalize(reorder);
+  std::vector<sparsegraph> result;
+  std::vector<Vertex> all;
+  for (Vertex v = 0; v < adjacency_.size(); v++) {
+    all.push_back(v);
+  }
+  for (Vertex t1 = 0; t1 < adjacency_.size(); t1++) {
+    for (Vertex t2 = t1 + 1; t2 < adjacency_.size(); t2++) {
+      Graph copy = subgraph(all);
+      copy.all_pair_ = false;
+      copy.terminals_ = {t1, t2};
+      // copy.preprocess();
+      result.push_back(copy.to_canon_nauty(reorder));
+    }
+  }
+  return result;
+}
+
 double Graph::nr_automorphisms() {
   normalize(false);
   DEFAULTOPTIONS_SPARSEGRAPH(options);

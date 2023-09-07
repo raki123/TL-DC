@@ -78,6 +78,7 @@ public:
   size_t nr_edges();
 
   sparsegraph to_canon_nauty(bool reorder);
+  std::vector<sparsegraph> all_pair_nauty(bool reorder);
   double nr_automorphisms();
 
 private:

@@ -68,7 +68,7 @@ enum SolverStrategy { AUTO, PATH_FBS, NAUTY_FBS, TREE_FBS, NAUTY_DFS };
 int main(int argc, char **argv) {
 
   SolverStrategy strategy = SolverStrategy::AUTO;
-  size_t number_threads = omp_get_num_threads();
+  size_t number_threads = omp_get_max_threads();
   Decomposer decomposer;
   AnnotatedDecomposition decomposition;
 
@@ -240,8 +240,15 @@ int main(int argc, char **argv) {
   } break;
 
   case SolverStrategy::NAUTY_DFS: {
+    std::vector<sparsegraph> sgs;
+    if (initial_graph.is_all_pair()) {
+      sgs = initial_graph.all_pair_nauty(true);
+    } else {
+      sgs.push_back(initial_graph.to_canon_nauty(true));
+    }
     fpc::ParallelSearch search(initial_graph.to_canon_nauty(true),
                                initial_graph.max_length(), number_threads);
+    search.add_to_initial(sgs);
     res = search.search();
     std::cerr << std::endl;
     search.print_stats();

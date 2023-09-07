@@ -52,6 +52,8 @@ public:
     }
   }
 
+  void add_to_initial(std::vector<sparsegraph> &to_add);
+
   std::vector<Edge_weight> search();
 
   void print_stats();
