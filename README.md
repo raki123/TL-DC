@@ -65,3 +65,14 @@ Especially the strategy option is worth varying.
 
 ## Description
 For a description of the solver and the techniques that were used see the [short abstract](solver_description.pdf) or the [slides](TL-DC_slides.pdf) of the presentation at FIT 2023.
+
+## Limitations
+TL;DC makes multiple assumptions about limits on graphs:
+ * The degree of each vertex is less than 2^8 = 256.
+ * There are less than 2^16 = 65536 vertices.
+ * There are less than 2^16 = 65536 edges.
+ * When using path/treewidth: there is a decomposition of width less than 2^8 - 2 = 254.
+ * The maximum length/length limit is less than 126. 
+ 
+Should these assumptions not be given the the corresponding datatypes need to be changed.
+
