@@ -43,7 +43,10 @@ typedef std::priority_queue<std::pair<Edge_length, Vertex>,
                             std::greater<std::pair<Edge_length, Vertex>>>
     DijkstraQueue;
 
+size_t get_offset(std::vector<uint64_t> const &result);
+#ifdef __SIZEOF_INT128__
 size_t get_offset(std::vector<unsigned __int128> const &result);
+#endif
 size_t get_offset(std::vector<mpz_class> const &result);
 
 class Graph {

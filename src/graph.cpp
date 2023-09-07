@@ -26,9 +26,12 @@
 
 namespace fpc {
 
+size_t get_offset(std::vector<uint64_t> const &result) { return result[0]; }
+#ifdef __SIZEOF_INT128__
 size_t get_offset(std::vector<unsigned __int128> const &result) {
   return size_t(result[0]);
 }
+#endif
 size_t get_offset(std::vector<mpz_class> const &result) {
   return result[0].get_ui();
 }
@@ -563,8 +566,8 @@ std::vector<Vertex> Graph::find_separator(size_t size,
     if (fixed(v)) {
       // dont use fixed vertices as separators
       prog_str << "fixed(" << v << ").\n";
-      // and have fixed vertices in the same component as the others that are in
-      // an exclusion constraint with them
+      // and have fixed vertices in the same component as the others that are
+      // in an exclusion constraint with them
       for (auto excluded : exclusion_classes_[exclude_[v]]) {
         prog_str << "e(" << v << "," << excluded << ").\n";
       }
@@ -782,8 +785,8 @@ Vertex Graph::preprocess_twins() {
       if (others.size() == 1) {
         continue;
       }
-      // multiply the weight of the edges between terminal and representative by
-      // the number of twins
+      // multiply the weight of the edges between terminal and representative
+      // by the number of twins
       Edge_weight factor = others.size();
       for (auto &[length, weight] : adjacency_[v][representative]) {
         weight *= factor;
@@ -935,8 +938,8 @@ Vertex Graph::preprocess_two_separator() {
   assert(comps.size() > 1);
   // try to reduce each of the induced components
   for (auto &comp : comps) {
-    // different cases depending on whether there 0/1/2 of the terminals in the
-    // component
+    // different cases depending on whether there 0/1/2 of the terminals in
+    // the component
     bool found_start =
         std::find(comp.begin(), comp.end(), terminals_[0]) != comp.end();
     bool found_goal =
@@ -968,11 +971,10 @@ Vertex Graph::preprocess_two_separator() {
       // {x,t}, {y,t} have (0,1)
       // {t,s_1} has C(1,N)
       // {t,s_2} has C(2,N)
-      // {x,s_1} has C(1,Y) - C(1,N) (i.e. all paths from t to s_1 that use s_2)
-      // {y,s_2} has C(2,Y) - C(2,N) (i.e. all paths from t to s_2 that use s_1)
-      // and
-      // x and s_2 exclude each other
-      // y and s_1 exclude each other
+      // {x,s_1} has C(1,Y) - C(1,N) (i.e. all paths from t to s_1 that use
+      // s_2) {y,s_2} has C(2,Y) - C(2,N) (i.e. all paths from t to s_2 that
+      // use s_1) and x and s_2 exclude each other y and s_1 exclude each
+      // other
 
       // minus three because we also add two vertices and keep t
       found += comp.size() - 3;
@@ -1098,8 +1100,8 @@ Vertex Graph::preprocess_two_separator() {
       term_index = std::distance(comp.begin(), term_it);
       assert(term_index != comp.size());
       std::swap(comp[term_index], comp[2]);
-      // we keep the first three: two vertices to reuse and the terminal (in the
-      // third position)
+      // we keep the first three: two vertices to reuse and the terminal (in
+      // the third position)
       for (size_t i = 3; i < comp.size(); i++) {
         remove_vertex(comp[i]);
       }
@@ -1154,7 +1156,8 @@ Vertex Graph::preprocess_two_separator() {
       continue;
     }
     // we have to enter AND leave the component, meaning we to traverse s_1 ->
-    // G[comp] -> s_2 (or the other way around) thus we can reduce to {s_1, s_2}
+    // G[comp] -> s_2 (or the other way around) thus we can reduce to {s_1,
+    // s_2}
     found += comp.size();
     comp.push_back(separator[0]);
     std::swap(comp[0], comp.back());
@@ -1237,8 +1240,8 @@ Vertex Graph::preprocess_three_separator() {
   assert(comps.size() > 1);
   // try to reduce each of the induced components
   for (auto &comp : comps) {
-    // different cases depending on whether there 0/1/2 of the terminals in the
-    // component
+    // different cases depending on whether there 0/1/2 of the terminals in
+    // the component
     bool found_start =
         std::find(comp.begin(), comp.end(), terminals_[0]) != comp.end();
     bool found_goal =
@@ -1273,11 +1276,12 @@ Vertex Graph::preprocess_three_separator() {
     // for i = 0, 1, 2:
     //      {s_i,e_2*i}, {s_i,e_2*1 + 1}    have (0,1)
     //      {s_i,e_2*(i-1)}                 has counts[i+1][1]
-    //      {s_i,e_2*(i-1) + 1}             has counts[i+1][0] - counts[i+1][1]
+    //      {s_i,e_2*(i-1) + 1}             has counts[i+1][0] -
+    //      counts[i+1][1]
     // and
     // e_1 and s_2 exclude each other (implies that e_1 and all other e_i's
-    // exclude each other) e_3 and s_0 exclude each other (implies that e_3 and
-    // all other e_i's exclude each other) e_5 and s_1 exclude each other
+    // exclude each other) e_3 and s_0 exclude each other (implies that e_3
+    // and all other e_i's exclude each other) e_5 and s_1 exclude each other
     // (implies that e_5 and all other e_i's exclude each other) e_0 and all
     // other e_i's exclude each other (e_0 in principle already excludes
     // e_1,e_3,e_5 so excluding e_2,e_4 is enough) e_2 and all other e_i's
