@@ -31,9 +31,9 @@
 #define SG_MINWEIGHT (-NAUTY_INFINITY)
 #endif
 typedef SG_WEIGHT sg_weight;
-typedef uint8_t degree_t;
-typedef uint16_t vertex_t;
-typedef uint16_t edge_t;
+typedef uint32_t degree_t;
+typedef uint32_t vertex_t;
+typedef uint32_t edge_t;
 
 #define CHECK_SWG(sg,id) do { if ((sg)->w) { fprintf(stderr, \
  ">E procedure %s does not accept weighted graphs\n",id); exit(1); } } while (0)

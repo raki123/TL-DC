@@ -1,5 +1,5 @@
 // TLDC "Too long; Didn't Count" A length limited path counter.
-// Copyright (C) 2023 Rafael Kiesel, Markus Hecher
+// Copyright (C) 2023-2024 Rafael Kiesel, Markus Hecher
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,41 +16,45 @@
 
 #pragma once
 
+#include "ankerl/unordered_dense.h"
 #include "annotated_decomposition.hpp"
+#include "base_solver.h"
+#include "clhasher.h"
+#include "count_structures.h"
 #include "graph.h"
-#include "search.h"
+#include <array>
 #include <limits>
 #include <omp.h>
+#include <unordered_map>
 
 namespace fpc {
 
-typedef uint8_t frontier_index_t;
-typedef std::vector<frontier_index_t> Frontier;
-
-struct vec_hash {
-public:
-  size_t operator()(Frontier const &key) const { return hasher__(key); }
-};
-
-class TreewidthSearch {
+template <template <typename> typename Count_structure, typename count_t>
+class TreewidthSearch : public Solver {
+  using Partial_result = Count_structure<count_t>;
   using Cache =
-      std::unordered_map<Frontier, std::vector<Edge_weight>, vec_hash>;
+      ankerl::unordered_dense::map<nFrontier, Partial_result, nFrontierHash>;
 
 public:
-  TreewidthSearch(Graph &input, AnnotatedDecomposition decomposition,
+  TreewidthSearch(Graph const &input, AnnotatedDecomposition decomposition,
                   size_t nthreads);
 
-  std::vector<Edge_weight> search();
-  void print_stats();
+  virtual mpz_class search() override;
+  virtual void print_stats() const override;
 
 private:
   size_t nthreads_;
   Graph graph_;
+  std::size_t max_width_;
   Edge_length max_length_;
   bool is_all_pair_;
-  std::vector<vertex_t> terminals_;
+  std::vector<Vertex> terminals_;
+  std::array<frontier_index_t, 2> terminals_idx_;
   AnnotatedDecomposition decomposition_;
-  std::vector<std::vector<vertex_t>> remaining_edges_after_this_;
+  std::vector<std::optional<Partial_result>> edge_weights_;
+  std::vector<std::vector<Vertex>> remaining_edges_after_this_;
+  std::vector<Vertex> remaining_vertices_after_this_;
+  std::vector<std::vector<frontier_index_t>> eliminated_after_this_;
 
   frontier_index_t invalid_index_ =
       std::numeric_limits<frontier_index_t>::max();
@@ -58,57 +62,37 @@ private:
       std::numeric_limits<frontier_index_t>::max() - 1;
   frontier_index_t two_edge_index_ =
       std::numeric_limits<frontier_index_t>::max() - 2;
-  std::vector<std::vector<frontier_index_t>> bag_local_idx_map_;
-  std::vector<std::vector<vertex_t>> bag_local_vertex_map_;
   Edge_length invalid_distance_ = std::numeric_limits<Edge_length>::max();
   std::vector<std::vector<std::vector<Edge_length>>> bag_local_distance_;
-  std::vector<omp_lock_t> bag_lock_;
 
-  std::vector<Edge_weight> result_;
-  std::vector<std::vector<Edge_weight>> thread_local_result_;
+  std::vector<count_t> thread_local_result_;
 
-  std::vector<std::pair<Cache, Cache>> cache_;
+  std::size_t mod_val_;
+  std::vector<omp_lock_t> mod_lock_;
+  std::vector<std::pair<Cache, Cache>> cur_cache_;
+  std::vector<Cache> next_cache_;
+  std::vector<std::vector<std::pair<Cache, Cache>>> join_cache_;
 
-  std::vector<std::vector<char>> takeable_ = {
-      {true, false, true, true, true, false, true, true},
-      {false, false, false, false, false, false, false, false},
-      {true, false, false, false, true, false, true, false},
-      {true, false, false, false, true, false, true, false},
-      {true, false, true, true, true, false, true, true},
-      {false, false, false, false, false, false, false, false},
-      {true, false, true, true, true, false, true, true},
-      {true, false, false, false, true, false, true, false}};
-  std::vector<std::vector<char>> skippable_ = {
-      {true, true, true, false, true, true, true, true},
-      {true, true, true, false, true, true, true, true},
-      {true, true, true, false, true, true, true, true},
-      {false, false, false, false, false, false, false, false},
-      {true, true, true, false, true, true, true, true},
-      {true, true, true, false, true, true, true, true},
-      {true, true, true, false, true, true, true, true},
-      {true, true, true, false, true, true, true, true}};
+  void cache(nFrontier &frontier, size_t new_idx,
+             Partial_result &partial_results, size_t thread_id);
 
-  void includeSolutions(Frontier const &frontier, size_t bag_idx,
-                        std::vector<Edge_weight> const &partial_result);
+  void includeSolutions(nFrontier const &frontier,
+                        Partial_result const &partial_result, size_t bag_idx);
 
-  bool canTake(Frontier &frontier, size_t bag_idx,
-               std::vector<Edge_weight> const &partial_result);
-  bool canSkip(Frontier &frontier, size_t bag_idx,
-               std::vector<Edge_weight> const &partial_result);
+  bool canTake(nFrontier &frontier, size_t bag_idx,
+               Partial_result &partial_result);
+  bool canSkip(nFrontier &frontier, size_t bag_idx,
+               Partial_result const &partial_result);
 
-  bool distancePrune(Frontier &frontier,
+  bool distancePrune(nFrontier const &frontier,
                      std::vector<frontier_index_t> const &paths,
                      std::vector<frontier_index_t> const &cut_paths,
                      size_t bag_idx, size_t offset);
 
-  void take(Frontier &frontier, size_t bag_idx);
-  void skip(Frontier &frontier, size_t bag_idx);
+  bool merge(nFrontier &left, nFrontier const &right, size_t bag_idx,
+             Partial_result &left_result, Partial_result const &right_result);
 
-  bool merge(Frontier &left, Frontier const &right, size_t bag_idx,
-             std::vector<Edge_weight> &left_result,
-             std::vector<Edge_weight> const &right_result);
-
-  void advance(Frontier &frontier, size_t bag_idx);
+  void advance(nFrontier &frontier, size_t bag_idx);
 
   // stats
   std::vector<size_t> pos_hits_;
@@ -121,5 +105,19 @@ private:
   std::vector<size_t> merges_;
   std::vector<size_t> unsuccessful_merges_;
 };
+
+template class TreewidthSearch<Limited_count, uint64_t>;
+template class TreewidthSearch<Limited_count, uint128_t>;
+template class TreewidthSearch<Limited_count, uint256_t>;
+template class TreewidthSearch<Limited_count, uint512_t>;
+template class TreewidthSearch<Limited_count, uint1024_t>;
+template class TreewidthSearch<Limited_count, mpz_class>;
+
+template class TreewidthSearch<Unlimited_count, uint64_t>;
+template class TreewidthSearch<Unlimited_count, uint128_t>;
+template class TreewidthSearch<Unlimited_count, uint256_t>;
+template class TreewidthSearch<Unlimited_count, uint512_t>;
+template class TreewidthSearch<Unlimited_count, uint1024_t>;
+template class TreewidthSearch<Unlimited_count, mpz_class>;
 
 } // namespace fpc

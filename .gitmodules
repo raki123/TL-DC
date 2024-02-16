@@ -4,3 +4,15 @@
 [submodule "src/htd_opt"]
 	path = src/htd_opt
 	url = git@github.com:hmarkus/htd.git
+[submodule "src/ankerl"]
+	path = src/ankerl
+	url = https://github.com/martinus/unordered_dense.git
+[submodule "src/jemalloc"]
+	path = src/jemalloc
+	url = https://github.com/jemalloc/jemalloc.git
+[submodule "src/tamaki"]
+	path = src/tamaki
+	url = https://github.com/TCS-Meiji/PACE2017-TrackA.git
+[submodule "compiling_cutter"]
+	path = src/flow_cutter
+	url = git@github.com:raki123/flow-cutter-pace17.git

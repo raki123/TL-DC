@@ -1,5 +1,5 @@
 // TLDC "Too long; Didn't Count" A length limited path counter.
-// Copyright (C) 2023 Rafael Kiesel, Markus Hecher
+// Copyright (C) 2023-2024 Rafael Kiesel, Markus Hecher
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -15,95 +15,93 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #pragma once
+#include "base_solver.h"
+#include "canonizer.h"
+#include "clhasher.h"
 #include "graph.h"
-#include "search.h"
 #include <omp.h>
+#include <optional>
 #include <unordered_map>
 #include <utility>
 
 namespace fpc {
 
-typedef sparsegraph PCacheKey;
-
-struct sg_hash {
-public:
-  size_t operator()(PCacheKey const &key) const {
-    return hasher__((const char *)key.v, sizeof(edge_t) * (key.nv + key.nde) +
-                                             sizeof(degree_t) * key.nv);
-  }
-};
-struct sg_equal {
-public:
-  bool operator()(PCacheKey const &lhs, PCacheKey const &rhs) const {
-    return lhs.nv == rhs.nv && lhs.nde == rhs.nde &&
-           std::memcmp(lhs.v, rhs.v,
-                       sizeof(edge_t) * (lhs.nv + lhs.nde) +
-                           sizeof(degree_t) * lhs.nv) == 0;
-  }
-};
-
-class ParallelSearch {
-public:
-  ParallelSearch(sparsegraph input, Edge_length max_length, size_t nthreads);
-  ~ParallelSearch() {
-    for (size_t i = 0; i < nthreads_; i++) {
-      free(thread_local_lab_[i]);
-      free(thread_local_sg_[i].v);
+template <template <typename> typename Count_structure, typename count_t>
+class ParallelSearch : public Solver {
+  struct CacheKey {
+    Vertex start;
+    std::vector<Edge_length> distance_to_goal;
+  };
+  struct key_hash {
+    size_t operator()(CacheKey const &key) const {
+      return key.start + hasher__(key.distance_to_goal);
     }
-  }
+  };
+  struct key_eq {
+    size_t operator()(CacheKey const &lhs, CacheKey const &rhs) const {
+      return lhs.start == rhs.start &&
+             lhs.distance_to_goal == rhs.distance_to_goal;
+    }
+  };
+  using Partial_result = Count_structure<count_t>;
+  using Cache = std::unordered_map<CacheKey, Partial_result, key_hash, key_eq>;
 
-  void add_to_initial(std::vector<sparsegraph> &to_add);
+public:
+  ParallelSearch(Graph const &input, std::optional<Vertex> must_use,
+                 size_t nthreads);
 
-  std::vector<Edge_weight> search();
+  virtual mpz_class search() override;
 
-  void print_stats();
+  virtual void print_stats() const override;
 
 private:
   size_t nthreads_;
+  bool enable_dag_;
   Edge_length max_length_;
+  std::vector<Vertex> terminals_;
+  std::vector<std::vector<Vertex>> neighbors_;
+  std::optional<Vertex> must_use_;
+
   Edge_length invalid_;
+  std::vector<std::vector<Edge_length>> distance_;
 
-  sparsegraph initial_;
+  Canonizer canonizer_;
+  std::vector<Cache> cache_;
 
-  std::vector<std::unordered_map<PCacheKey, std::vector<Edge_weight>, sg_hash,
-                                 sg_equal>>
-      cache_;
-
-  std::vector<Edge_weight> result_;
-  std::vector<std::vector<Edge_weight>> thread_local_result_;
-
-  // reusable data structures for nauty calls
-  std::vector<sparsegraph> thread_local_sg_;
-  std::vector<int *> thread_local_lab_;
-  std::vector<int *> thread_local_ptn_;
-  std::vector<int *> thread_local_orbits_;
+  std::vector<count_t> thread_local_result_;
 
   // more efficient search if budget is equal to length of shortest path
-  Edge_weight dag_search(sparsegraph const &sg, Vertex start,
-                         std::vector<Edge_length> const &distance_to_goal);
+  Edge_weight dag_search(Vertex start,
+                         std::vector<Edge_length> const &distance_to_goal,
+                         bool used_must_use);
 
-  void prune_articulation(sparsegraph const &sg, Vertex start,
-                          std::vector<Edge_length> &distance);
-  bool ap_util(sparsegraph const &sg, Vertex u, std::vector<char> &visited,
-               std::vector<Vertex> &disc, std::vector<Vertex> &low, int &time,
-               int parent, Vertex start, std::vector<Edge_length> &distance);
-  void prune_util(sparsegraph const &sg, Vertex u,
-                  std::vector<Edge_length> &distance);
+  void prune_articulation(Vertex start, std::vector<Edge_length> &distance);
+  bool ap_util(Vertex u, std::vector<char> &visited, std::vector<Vertex> &disc,
+               std::vector<Vertex> &low, int &time, int parent, Vertex start,
+               std::vector<Edge_length> &distance);
+  void prune_util(Vertex u, std::vector<Edge_length> &distance);
+  // void component_util(Vertex u, std::vector<Vertex>& disc);
 
   // // ap datastructures
   // std::vector<Vertex> ap_disc_;
   // std::vector<Vertex> ap_low_;
   // std::vector<char> ap_visited_;
 
-  // for merging bridges between start and goal
-  std::vector<std::vector<std::pair<Vertex, Vertex>>> thread_local_bridges_;
+  // // for splitting based on articulation points between start and goal
+  // Vertex last_ap_;
+  // std::vector<std::pair<Vertex, Vertex>> ap_start_goal_;
+  // std::vector<std::vector<Vertex>> ap_components_;
 
   // helper functions
-  void pruning_dijkstra(sparsegraph const &sg,
-                        std::vector<Edge_length> &distance, Edge_length budget);
-  void reverse_pruning_dijkstra(
-      sparsegraph const &sg, Vertex prune, std::vector<Edge_length> &distance,
-      std::vector<Edge_length> const &forward_distance, Edge_length budget);
+  std::vector<Vertex> const &neighbors(Vertex v) {
+    assert(v < neighbors_.size());
+    return neighbors_[v];
+  };
+  void dijkstra(Vertex start, std::vector<Edge_length> &distance);
+  void pruning_dijkstra(Vertex start, Vertex prune,
+                        std::vector<Edge_length> &distance,
+                        std::vector<Edge_length> const &old_distance,
+                        Edge_length budget);
 
   // stats
   std::vector<size_t> pos_hits_;
@@ -114,7 +112,19 @@ private:
   std::vector<size_t> edges_;
   std::vector<size_t> propagations_;
   std::vector<size_t> dags_;
-  std::vector<size_t> bridges_;
 };
 
+template class ParallelSearch<Limited_count, uint64_t>;
+template class ParallelSearch<Limited_count, uint128_t>;
+template class ParallelSearch<Limited_count, uint256_t>;
+template class ParallelSearch<Limited_count, uint512_t>;
+template class ParallelSearch<Limited_count, uint1024_t>;
+template class ParallelSearch<Limited_count, mpz_class>;
+
+template class ParallelSearch<Unlimited_count, uint64_t>;
+template class ParallelSearch<Unlimited_count, uint128_t>;
+template class ParallelSearch<Unlimited_count, uint256_t>;
+template class ParallelSearch<Unlimited_count, uint512_t>;
+template class ParallelSearch<Unlimited_count, uint1024_t>;
+template class ParallelSearch<Unlimited_count, mpz_class>;
 } // namespace fpc

@@ -3,8 +3,8 @@
 
 SHELL=/bin/bash
 CC=gcc
-CFLAGS= -O4  -mpopcnt -march=native
-SAFECFLAGS= -O4
+CFLAGS=-Wno-incompatible-pointer-types -O4  -mpopcnt -march=native
+SAFECFLAGS=-Wno-incompatible-pointer-types -O4
 LDFLAGS= 
 LOK=1         # 0 if no 64-bit integers
 TESTPROGS=dreadtest dreadtestS dreadtestS1 dreadtest4K dreadtest1 dreadtestW dreadtestW1 dreadtestL1 dreadtestL

@@ -1,5 +1,5 @@
 // TLDC "Too long; Didn't Count" A length limited path counter.
-// Copyright (C) 2023 Rafael Kiesel, Markus Hecher
+// Copyright (C) 2023-2024 Rafael Kiesel, Markus Hecher
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -15,12 +15,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #include "search.h"
+#include "logging.h"
 #include <limits>
 #include <queue>
 
 namespace fpc {
-
-clhasher hasher__(UINT64_C(0x23a23cf5033c3c81), UINT64_C(0xb3816f6a2c68e530));
 
 Search::Search(Graph &input)
     : enable_dag_(true), max_length_(input.max_length_),
@@ -36,11 +35,11 @@ Search::Search(Graph &input)
       cache_(adjacency_.size(),
              std::vector<std::unordered_map<
                  CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>,
-                 vector_hash>>(
+                 vector_hash<CacheKey>>>(
                  adjacency_.size(),
                  std::unordered_map<
                      CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>,
-                     vector_hash>())),
+                     vector_hash<CacheKey>>())),
       ap_disc_(adjacency_.size()), ap_low_(adjacency_.size()),
       ap_visited_(adjacency_.size()) {
   assert(terminals_.size() == 2);
@@ -466,12 +465,10 @@ void Search::pruning_dijkstra(Vertex start, Vertex prune,
 }
 
 void Search::print_stats() {
-  std::cerr << "Cache hit rate: "
-            << 100 * pos_hits / (double)(pos_hits + neg_hits) << "% ("
-            << pos_hits << "/" << pos_hits + neg_hits << ")" << std::endl;
-  std::cerr << "#DAG searches: " << dags << " #Splits: " << splits << std::endl;
-  std::cerr << "#Edges: " << edges << " #Propagations: " << propagations
-            << std::endl;
+  LOG << "Cache hit rate: " << 100 * pos_hits / (double)(pos_hits + neg_hits)
+      << "% (" << pos_hits << "/" << pos_hits + neg_hits << ")" << std::endl;
+  LOG << "#DAG searches: " << dags << " #Splits: " << splits << std::endl;
+  LOG << "#Edges: " << edges << " #Propagations: " << propagations << std::endl;
 }
 
 } // namespace fpc

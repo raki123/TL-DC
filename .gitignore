@@ -4,4 +4,7 @@ sample/*
 unary/*
 utils/*
 src/nauty2_8_6/*
+src/hicks/*.o
+src/hicks/bw
 a.out
+results/latest

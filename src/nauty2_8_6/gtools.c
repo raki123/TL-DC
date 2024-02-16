@@ -2063,7 +2063,7 @@ sgtog6(sparsegraph *sg)
     size_t ii,*v,bodylen,org;
     static char g6bit[] = {32,16,8,4,2,1};
 
-    mSG_VDE(sg,v,d,e);
+    SG_VDE(sg,v,d,e);
     n = sg->nv;
 
     ii = G6LEN(n)+3;

@@ -1,5 +1,5 @@
 // TLDC "Too long; Didn't Count" A length limited path counter.
-// Copyright (C) 2023 Rafael Kiesel, Markus Hecher
+// Copyright (C) 2023-2024 Rafael Kiesel, Markus Hecher
 
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -15,7 +15,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 #pragma once
-#include "clhash/clhash.h"
+#include "clhasher.h"
 #include "graph.h"
 #include <unordered_map>
 #include <utility>
@@ -23,13 +23,6 @@
 namespace fpc {
 
 typedef std::vector<char> CacheKey;
-
-extern clhasher hasher__;
-
-struct vector_hash {
-public:
-  size_t operator()(const CacheKey &key) const { return hasher__(key); }
-};
 
 class Search {
 public:
@@ -61,7 +54,8 @@ private:
   std::vector<char> visited_;
 
   std::vector<std::vector<std::unordered_map<
-      CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>, vector_hash>>>
+      CacheKey, std::pair<Edge_length, std::vector<Edge_weight>>,
+      vector_hash<CacheKey>>>>
       cache_;
 
   // recursive search
