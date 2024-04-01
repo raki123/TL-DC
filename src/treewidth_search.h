@@ -21,6 +21,7 @@
 #include "search.h"
 #include <limits>
 #include <omp.h>
+#include <unordered_map>
 
 namespace fpc {
 

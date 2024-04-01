@@ -47,13 +47,15 @@ class Graph:
 graph = Graph()
 length = -1
 terminals = []
+nr_nodes = 0
 #with open(name, 'r') as in_file:
 with sys.stdin as in_file:
     for line in in_file:
         if line[0] == 'c':
             continue
         elif line[0] == 'p':
-            continue
+            line = [ int(v) for v in line.split(' ')[2:] ]
+            nr_nodes = line[0]
         elif line[0] == 'l':
             line = [ int(v) for v in line.split(' ')[1:] ]
             length = line[0]
@@ -167,6 +169,13 @@ def other_eliminate(graph):
 
 bags, bsize = other_eliminate(graph)
 #bags, bsize = eliminate(graph)
+if len(graph.nodes()) != nr_nodes:
+	unseen = set(range(1, nr_nodes + 1)).difference(set(graph.nodes()))
+	assert(len(unseen) == nr_nodes - len(graph.nodes()))
+	for i in unseen:
+		bags.append({i})
+	
+
 
 print("s td {} {} {}".format(len(bags), bsize, len(graph.nodes())))
 
@@ -175,6 +184,6 @@ for b in bags:
 	print("b {} {}".format(bn, " ".join(map(str,b))))
 	bn += 1
 
-for b in range(1,len(bags)+1):
+for b in range(1,len(bags)):
 	print("{} {}".format(b, b + 1))
 

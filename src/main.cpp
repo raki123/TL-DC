@@ -139,6 +139,17 @@ int main(int argc, char **argv) {
   initial_graph.normalize();
   initial_graph.print_stats();
 
+  if (initial_graph.nr_edges() == 0) {
+    // solved by preprocessing
+    fpc::Edge_weight final_result = 0;
+    auto res = initial_graph.extra_paths();
+    for (fpc::Edge_length l = 0; l < res.size(); l++) {
+      final_result += res[l];
+    }
+    std::cout << final_result << std::endl;
+    return 0;
+  }
+
   if (strategy == SolverStrategy::AUTO) {
     // portfolio parameters
     double nr_automporphisms = initial_graph.nr_automorphisms();

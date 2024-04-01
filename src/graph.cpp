@@ -70,12 +70,13 @@ Graph::Graph(std::istream &input) {
     case 'e':
       Vertex v, w;
       input >> v >> w;
-      add_edge(Edge(v - 1, w - 1), Weight(1, 1));
+      if (v != w) {
+        add_edge(Edge(v - 1, w - 1), Weight(1, 1));
+      }
       break;
     case 'l':
       size_t tmp;
       input >> tmp;
-      assert(tmp <= 127);
       max_length_ = Edge_length(tmp);
       extra_paths_ = std::vector<Edge_weight>(max_length_ + 1, 0);
       break;
@@ -196,7 +197,7 @@ void Graph::normalize(bool reorder) {
     new_name[terminals_[1]] = cur_name++;
   }
   for (Vertex v = 0; v < adjacency_.size(); v++) {
-    if (neighbors(v).empty()) {
+    if (neighbors(v).empty() && (all_pair_ || (v != terminals_[0] && v != terminals_[1]))) {
       continue;
     }
     if (new_name[v] == unnamed) {
@@ -651,7 +652,9 @@ Vertex Graph::preprocess_isolated() {
     if (cur_neighbors.size() == 1) {
       Vertex neighbor = *cur_neighbors.begin();
       if (terminals_[0] == v || terminals_[1] == v) {
-        assert(neighbor != terminals_[0] && neighbor != terminals_[1]);
+        if(neighbor == terminals_[0] || neighbor == terminals_[1]) {
+          continue;
+        }
         assert(max_length_ > 0);
         found++;
         remove_vertex(v);
@@ -718,6 +721,9 @@ Vertex Graph::preprocess_unreachable() {
       continue;
     }
     if (fixed(v)) {
+      continue;
+    }
+    if(v == terminals_[0] || v == terminals_[1]) {
       continue;
     }
     if (distance_from_start[v] + distance_to_goal[v] > max_length_) {

@@ -455,14 +455,15 @@ Td_t Decomposer::decompose(/*const*/ Graph &graph, bool path) {
 
     // std::cerr << "preread " << fout << std::endl;
     // if (read(out, buf, BUF_SIZE) > 0)
-    // std::cerr << fscanf(fout, "s td %d %d %d", &bags, &width, &verts) <<
-    // std::endl;
+    //   std::cerr << fscanf(fout, "s td %d %d %d", &bags, &width, &verts)
+    //             << std::endl;
+
     if (fscanf(fout, "s td %d %d %d\n", &bags, &width, &verts) == 3) {
       std::set<Edge> edges; // only cover an edge at most once
       // std::cerr << "read " << std::endl;
       // sscanf(buf, "s td %d %d %d\n", &bags, &width, &verts);
-      //  std::cerr << "TD with " << bags << " bags, width " << width << " and "
-      //  << verts << " vertices" << std::endl;
+      // std::cerr << "TD with " << bags << " bags, width " << width << " and "
+      //           << verts << " vertices" << std::endl;
       int b = 1;
       for (; b <= bags && fgets(buf, BUF_SIZE - 1, fout) != NULL; ++b) {
         if (buf[0] != 'c') {
